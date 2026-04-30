@@ -1,0 +1,16 @@
+# Project Documentation Context
+
+## Core Reference
+* SMuFL 1.4 Specification: https://w3c.github.io/smufl/latest/
+* Web MIDI API Interface MDN: https://developer.mozilla.org/en-US/docs/Web/API/Web_MIDI_API
+
+## Local Context
+* PROJECT_STATE.md: Current architecture, system capabilities, and recent evolution.
+* README.md: Project overview and quick start.
+* WOs/: Implementation history and work orders.
+* # Prompts/: Detailed requirement history and technical decisions.
+
+## Frameworks
+* Vite 8 Configuration: https://vite.dev/guide/
+* Tailwind 4.2 Vite Integration: https://tailwindcss.com/docs/installation/framework-guides
+* Vitest Testing: https://vitest.dev/guide/

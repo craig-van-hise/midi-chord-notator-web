@@ -1,0 +1,248 @@
+npm warn "should stagger accidentals" is being parsed as a normal command line argument.
+npm warn Unknown cli config "--t". This will stop working in the next major version of npm.
+
+> grand-staff-app@0.0.0 test
+> vitest run src/components/NotationCanvas.test.tsx should stagger accidentals
+
+
+ RUN  v4.1.5 /Users/vv2024/Documents/Repos - vv2024/WebApps/midi/midi-chord-notator-web
+
+ ❯ src/components/NotationCanvas.test.tsx (20 tests | 1 failed) 1184ms
+     ✓ should return 0 for Middle C (MIDI 60) representing the vertical midpoint 1ms
+     ✓ should return correct Y for Treble F5 (MIDI 77) corresponding to the top line of the treble staff 0ms
+     ✓ should return correct Y for MIDI 43 corresponding to the bottom line of the bass staff 0ms
+     ✓ should correctly calculate Y for C#4 (MIDI 61) 0ms
+     ✓ should correctly calculate Y for B3 (MIDI 59) 0ms
+     ✓ should adapt to different staffSpace values 0ms
+     ✓ should render left and right system barlines 64ms
+     ✓ should position treble clef correctly at top: calc(var(--staff-space) * 2) 9ms
+     ✓ should render 1 ledger line for Middle C (MIDI 60) 12ms
+     ✓ should render multiple ledger lines for C6 (MIDI 84) 8ms
+     ✓ should render accidentals correctly in F Major (1 flat) 10ms
+     ✓ should apply Bass Offset Shift and directional ledger lines for B3 (59) when splitPoint is 60 4ms
+     ✓ should render ledger line for Middle C (60) in Bass group with correct direction 6ms
+     ✓ should render multiple ledger lines for A3 (57) in Treble group (splitPoint 48) 5ms
+     ✓ should apply 1px vertical correction to ledger lines 6ms
+     ✓ should apply horizontal offset (zipper pattern) for adjacent notes (E4 and F4) 7ms
+     ✓ should apply zipper pattern for a cluster (C4, D4, E4, F4) 8ms
+     ✓ should correctly handle Fmaj7 cluster (C4, E4, F4, A4) 9ms
+     × should stagger accidentals in a dense cluster (C#4, D#4, E#4, F#4) 1018ms
+     ✓ should align accidentals vertically in a wide chord (C#4, G#4) 13ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/NotationCanvas.test.tsx > NotationCanvas - Collision and Alignment Tests > should stagger accidentals in a dense cluster (C#4, D#4, E#4, F#4)
+Error: expect(element).toHaveStyle()
+
+- Expected
+
+- left: calc(-1.5 * var(--staff-space) - 19.4px);
++ left: calc(-1.5 * var(--staff-space));
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"notation-canvas-container relative w-full h-[320px] bg-white dark:bg-[#0a0a0a] overflow-hidden flex items-start justify-center"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grand-staff-system relative w-[600px] h-full flex flex-col justify-center items-center"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"absolute inset-0 pointer-events-none z-10"[39m
+            [33mid[39m=[32m"notes-layer"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"notation-note-container transition-all duration-75"[39m
+              [33mdata-has-accidental[39m=[32m"true"[39m
+              [33mdata-is-treble-group[39m=[32m"true"[39m
+              [33mdata-midi-note[39m=[32m"61"[39m
+              [33mdata-step-offset[39m=[32m"0"[39m
+              [33mdata-testid[39m=[32m"note-container-61"[39m
+              [33mstyle[39m=[32m"position: absolute; left: 50%; top: calc(50% - 12px); transform: translate(-50%, -50%);"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mstyle[39m=[32m"font-family: \"Bravura\", sans-serif; font-size: calc(var(--staff-space) * 4.2); color: var(--accent, #aa3bff); text-shadow: 0 0 10px rgba(170, 59, 255, 0.3);"[39m
+              [36m>[39m
+                [0m[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mdata-is-accidental[39m=[32m"true"[39m
+                [33mstyle[39m=[32m"position: absolute; left: calc(-3.9 * var(--staff-space)); top: 50%; transform: translateY(-50%); font-family: \"Bravura\", sans-serif; font-size: calc(var(--staff-space) * 3); color: var(--accent, #aa3bff);"[39m
+              [36m>[39m
+                [0m[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"absolute left-1/2 -translate-x-1/2 h-[1.5px] bg-black dark:bg-gray-400 z-[-1]"[39m
+                [33mdata-testid[39m=[32m"ledger-line-0"[39m
+                [33mstyle[39m=[32m"width: calc(var(--staff-space) * 2.5); top: calc(50% - 1px);"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"notation-note-container transition-all duration-75"[39m
+              [33mdata-has-accidental[39m=[32m"true"[39m
+              [33mdata-is-treble-group[39m=[32m"true"[39m
+              [33mdata-midi-note[39m=[32m"63"[39m
+              [33mdata-step-offset[39m=[32m"1"[39m
+              [33mdata-testid[39m=[32m"note-container-63"[39m
+              [33mstyle[39m=[32m"position: absolute; left: calc(50% + 19.4px); top: calc(50% - 18px); transform: translate(-50%, -50%);"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mstyle[39m=[32m"font-family: \"Bravura\", sans-serif; font-size: calc(var(--staff-space) * 4.2); color: var(--accent, #aa3bff); text-shadow: 0 0 10px rgba(170, 59, 255, 0.3);"[39m
+              [36m>[39m
+                [0m[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mdata-is-accidental[39m=[32m"true"[39m
+                [33mstyle[39m=[32m"position: absolute; left: calc(-2.7 * var(--staff-space) - 19.4px); top: 50%; transform: translateY(-50%); font-family: \"Bravura\", sans-serif; font-size: calc(var(--staff-space) * 3); color: var(--accent, #aa3bff);"[39m
+              [36m>[39m
+                [0m[0m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"notation-note-container transition-all duration-75"[39m
+              [33mdata-is-treble-group[39m=[32m"true"[39m
+              [33mdata-midi-note[39m=[32m"65"[39m
+              [33mdata-step-offset[39m=[32m"3"[39m
+              [33mdata-testid[39m=[32m"note-container-65"[39m
+              [33mstyle[39m=[32m"position: absolute; left: 50%; top: calc(50% - 30px); transform: translate(-50%, -50%);"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mstyle[39m=[32m"font-family: \"Bravura\", sans-serif; font-size: calc(var(--staff-space) * 4.2); color: var(--accent, #aa3bff); text-shadow: 0 0 10px rgba(170, 59, 255, 0.3);"[39m
+              [36m>[39m
+                [0m[0m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"notation-note-container transition-all duration-75"[39m
+              [33mdata-has-accidental[39m=[32m"true"[39m
+              [33mdata-is-treble-group[39m=[32m"true"[39m
+              [33mdata-midi-note[39m=[32m"66"[39m
+              [33mdata-step-offset[39m=[32m"3"[39m
+              [33mdata-testid[39m=[32m"note-container-66"[39m
+              [33mstyle[39m=[32m"position: absolute; left: 50%; top: calc(50% - 30px); transform: translate(-50%, -50%);"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mstyle[39m=[32m"font-family: \"Bravura\", sans-serif; font-size: calc(var(--staff-space) * 4.2); color: var(--accent, #aa3bff); text-shadow: 0 0 10px rgba(170, 59, 255, 0.3);"[39m
+              [36m>[39m
+                [0m[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mdata-is-accidental[39m=[32m"true"[39m
+                [33mstyle[39m=[32m"position: absolute; left: calc(-1.5 * var(--staff-space)); top: 50%; transform: translateY(-50%); font-family: \"Bravura\", sans-serif; font-size: calc(var(--staff-space) * 3); color: var(--accent, #aa3bff);"[39m
+              [36m>[39m
+                [0m[0m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"staff-group treble-staff absolute w-full"[39m
+            [33mstyle[39m=[32m"top: calc(50% - var(--staff-space) * 6);"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"staff-line w-full border-t border-black dark:border-gray-600 absolute opacity-70"[39m
+              [33mstyle[39m=[32m"top: calc(0 * var(--staff-space));"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"staff-line w-full border-t border-black dark:border-gray-600 absolute opacity-70"[39m
+              [33mstyle[39m=[32m"top: calc(1 * var(--staff-space));"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"staff-line w-full border-t border-black dark:border-gray-600 absolute opacity-70"[39m
+              [33mstyle[39m=[32m"top: calc(2 * var(--staff-space));"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"staff-line w-full border-t border-black dark:border-gray-600 absolute opacity-70"[39m
+              [33mstyle[39m=[32m"top: calc(3 * var(--staff-space));"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"staff-line w-full border-t border-black dark:border-gray-600 absolute opacity-70"[39m
+              [33mstyle[39m=[32m"top: calc(4 * var(--staff-space));"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"treble-clef absolute left-2 text-black dark:text-gray-300"[39m
+              [33mdata-testid[39m=[32m"treble-clef"[39m
+              [33mstyle[39m=[32m"top: calc(var(--staff-space) * 2); font-size: calc(var(--staff-space) * 4); font-family: Bravura;"[39m
+            [36m>[39m
+              [0m[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"staff-group bass-staff absolute w-full"[39m
+            [33mstyle[39m=[32m"top: calc(50% + var(--staff-space) * 2);"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"staff-line w-full border-t border-black dark:border-gray-600 absolute opacity-70"[39m
+              [33mstyle[39m=[32m"top: calc(0 * var(--staff-space));"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"staff-line w-full border-t border-black dark:border-gray-600 absolute opacity-70"[39m
+              [33mstyle[39m=[32m"top: calc(1 * var(--staff-space));"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"staff-line w-full border-t border-black dark:border-gray-600 absolute opacity-70"[39m
+              [33mstyle[39m=[32m"top: calc(2 * var(--staff-space));"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"staff-line w-full border-t border-black dark:border-gray-600 absolute opacity-70"[39m
+              [33mstyle[39m=[32m"top: calc(3 * var(--staff-space));"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"staff-line w-full border-t border-black dark:border-gray-600 absolute opacity-70"[39m
+              [33mstyle[39m=[32m"top: calc(4 * var(--staff-space));"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"bass-clef absolute left-2 text-black dark:text-gray-300"[39m
+              [33mdata-testid[39m=[32m"bass-clef"[39m
+              [33mstyle[39m=[32m"top: calc(var(--staff-space) * 0); font-size: calc(var(--staff-space) * 4); font-family: Bravura;"[39m
+            [36m>[39m
+              [0m[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"system-left-edge absolute left-0 h-[calc(var(--staff-space)*12)]"[39m
+            [33mstyle[39m=[32m"top: calc(50% - var(--staff-space) * 6);"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"brace absolute right-[calc(100%+var(--staff-space)*0.25)] top-[calc(var(--staff-space)*6)] font-['Bravura'] text-[calc(var(--staff-space)*12)] leading-none text-black dark:text-gray-300"[39m
+            [36m>[39m
+              [0m[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"system-barline absolute left-0 w-[1.5px] h-[calc(var(--staff-space)*12)] bg-black dark:bg-gray-600"[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"system-right-barline absolute right-0 w-[1.5px] h-[calc(var(--staff-space)*12)] bg-black dark:bg-gray-600"[39m
+            [33mstyle[39m=[32m"top: calc(50% - var(--staff-space) * 6);"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"absolute w-full h-0 border-t border-transparent"[39m
+            [33mstyle[39m=[32m"top: 50%;"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ src/components/NotationCanvas.test.tsx:380:23
+    378|       // 61: -5.1
+    379|
+    380|       expect(accs[3]).toHaveStyle(`left: calc(-1.5 * var(--staff-space…
+       |                       ^
+    381|       expect(accs[2]).toHaveStyle(`left: calc(-2.7 * var(--staff-space…
+    382|       expect(accs[1]).toHaveStyle(`left: calc(-3.9 * var(--staff-space…
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 passed (20)
+   Start at  19:06:43
+   Duration  2.12s (transform 54ms, setup 85ms, import 97ms, tests 1.18s, environment 605ms)
+

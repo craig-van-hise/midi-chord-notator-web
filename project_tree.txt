@@ -1,0 +1,103 @@
+.
+./llms.txt
+./tsconfig.node.json
+./project_tree.txt
+./index.html
+./tsconfig.app.json
+./PROJECT_CONTEXT_BUNDLE.md
+./README.md
+./Chord Spelling
+./Chord Spelling/README.md
+./Chord Spelling/chord_speller.ts
+./public
+./public/fonts
+./public/fonts/Bravura.woff2
+./public/icons.svg
+./public/favicon.svg
+./package-lock.json
+./package.json
+./PROJECT_STATE.md
+./tsconfig.json
+./WOs
+./WOs/grand-staff-app
+./WOs/grand-staff-app/Phase_3
+./WOs/grand-staff-app/Phase_3/3-11_ui-architect.md
+./WOs/grand-staff-app/Phase_3/3-12_frontend-state.md
+./WOs/grand-staff-app/Phase_4
+./WOs/grand-staff-app/Phase_4/4-13_ui-coder.md
+./WOs/grand-staff-app/Phase_4/4-14_styling-specialist.md
+./WOs/grand-staff-app/Phase_5
+./WOs/grand-staff-app/Phase_5/5-13_ui-coder.md
+./WOs/grand-staff-app/Phase_5/5-7_core-algorithm.md
+./WOs/grand-staff-app/Phase_2
+./WOs/grand-staff-app/Phase_2/2-13_ui-coder.md
+./WOs/grand-staff-app/Phase_2/2-12_frontend-state.md
+./WOs/grand-staff-app/Phase_2/2-8_api-integrator.md
+./WOs/grand-staff-app/_scorecard.md
+./WOs/grand-staff-app/Phase_1
+./WOs/grand-staff-app/Phase_1/1-10_test-engineer.md
+./WOs/grand-staff-app/Phase_1/1-13_ui-coder.md
+./WOs/grand-staff-app/Phase_1/1-14_styling-specialist.md
+./WOs/grand-staff-app/Phase_1/1-1_workspace-setup.md
+./WOs/grand-staff-app/Phase_6
+./WOs/grand-staff-app/Phase_6/6-13_ui-coder.md
+./WOs/grand-staff-app/Phase_6/6-12_frontend-state.md
+./WOs/grand-staff-app/Phase_6/6-7_core-algorithm.md
+./test_output.txt
+./eslint.config.js
+./vite.config.ts
+./# Prompts
+./# Prompts/# 20.md
+./# Prompts/# 21.md
+./# Prompts/x Older
+./# Prompts/x Older/# 10.md
+./# Prompts/x Older/# 14.md
+./# Prompts/x Older/# 15.md
+./# Prompts/x Older/# 11.md
+./# Prompts/x Older/# 4.md
+./# Prompts/x Older/# 5.md
+./# Prompts/x Older/# 1.md
+./# Prompts/x Older/# 6.md
+./# Prompts/x Older/# 2.md
+./# Prompts/x Older/# 3.md
+./# Prompts/x Older/# 7.md
+./# Prompts/x Older/# 16.md
+./# Prompts/x Older/# 8.md
+./# Prompts/x Older/# 12.md
+./# Prompts/x Older/# 9.md
+./# Prompts/x Older/# 13.md
+./# Prompts/x Older/# 17.md
+./# Prompts/# PDD.md
+./# Prompts/# 18.md
+./# Prompts/# 19.md
+./# Prompts/# 22.md
+./src
+./src/App.tsx
+./src/main.tsx
+./src/midi
+./src/midi/MidiPortSelector.tsx
+./src/midi/MIDIProvider.test.tsx
+./src/midi/midiAccess.ts
+./src/midi/midiAccess.test.ts
+./src/midi/MIDIProvider.tsx
+./src/App.test.tsx
+./src/App.css
+./src/utils
+./src/utils/notationMath.ts
+./src/utils/chordSpeller.ts
+./src/utils/notationMath.test.ts
+./src/index.css
+./src/components
+./src/components/KeySignatureSelector.tsx
+./src/components/Keyboard.tsx
+./src/components/NotationCanvas.test.tsx
+./src/components/NotationCanvas.tsx
+./src/components/InfoModal.tsx
+./src/components/SettingsModal.test.tsx
+./src/components/SettingsModal.tsx
+./src/assets
+./src/assets/hero.png
+./src/assets/vite.svg
+./src/assets/PCS_LUT.json
+./src/assets/react.svg
+./src/vitest.setup.ts
