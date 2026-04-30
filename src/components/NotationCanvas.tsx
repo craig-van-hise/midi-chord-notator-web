@@ -23,7 +23,7 @@ const NotationCanvas: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const activeNotes = useRef<Map<number, ActiveNoteData>>(new Map());
   const [chordSymbol, setChordSymbol] = useState<string>("");
-  const { selectedInputPort, keySignature, splitPoint } = useMidi();
+  const { keySignature, splitPoint } = useMidi();
   const keySignatureRef = useRef(keySignature);
   const splitPointRef = useRef(splitPoint);
 

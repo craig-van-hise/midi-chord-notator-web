@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useMidi } from '../midi/MIDIProvider';
 
 const getNoteName = (midi: number): string => {

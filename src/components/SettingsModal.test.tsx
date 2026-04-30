@@ -1,6 +1,5 @@
-import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import SettingsModal from './SettingsModal';
 import { MIDIProvider } from '../midi/MIDIProvider';
 
@@ -9,24 +8,23 @@ describe('SettingsModal', () => {
     cleanup();
   });
 
-  it('should render the gear icon', () => {
-    render(
+  const mockOnClose = () => {};
+
+  it('should not render anything when isOpen is false', () => {
+    const { container } = render(
       <MIDIProvider>
-        <SettingsModal />
+        <SettingsModal isOpen={false} onClose={mockOnClose} />
       </MIDIProvider>
     );
-    expect(screen.getByLabelText('Settings')).toBeInTheDocument();
+    expect(container.firstChild).toBeNull();
   });
 
-  it('should open the modal when the gear icon is clicked', () => {
+  it('should render content when isOpen is true', () => {
     render(
       <MIDIProvider>
-        <SettingsModal />
+        <SettingsModal isOpen={true} onClose={mockOnClose} />
       </MIDIProvider>
     );
-    
-    const gearButton = screen.getByLabelText('Settings');
-    fireEvent.click(gearButton);
     
     expect(screen.getByText('Split Point (Treble / Bass)')).toBeInTheDocument();
     expect(screen.getByRole('combobox')).toBeInTheDocument();
@@ -35,36 +33,40 @@ describe('SettingsModal', () => {
   it('should update splitPoint when a new option is selected', () => {
     render(
       <MIDIProvider>
-        <SettingsModal />
+        <SettingsModal isOpen={true} onClose={mockOnClose} />
       </MIDIProvider>
     );
-    
-    // Open modal
-    fireEvent.click(screen.getByLabelText('Settings'));
     
     const select = screen.getByRole('combobox');
     fireEvent.change(select, { target: { value: '48' } });
     
-    // Modal stays open in the new implementation until "Close" is clicked
-    expect(screen.getByText('Split Point (Treble / Bass)')).toBeInTheDocument();
-    
-    // Click close
-    fireEvent.click(screen.getByText('Close'));
-    expect(screen.queryByText('Split Point (Treble / Bass)')).not.toBeInTheDocument();
+    expect(select).toHaveValue('48');
   });
 
   it('should contain 25 options (MIDI 48 through 72)', () => {
     render(
       <MIDIProvider>
-        <SettingsModal />
+        <SettingsModal isOpen={true} onClose={mockOnClose} />
       </MIDIProvider>
     );
     
-    fireEvent.click(screen.getByLabelText('Settings'));
     const options = screen.getAllByRole('option');
     expect(options).toHaveLength(25);
     expect(options[0]).toHaveValue('48');
     expect(options[24]).toHaveValue('72');
   });
-});
 
+  it('should call onClose when close button is clicked', () => {
+    let closed = false;
+    const handleClose = () => { closed = true; };
+    
+    render(
+      <MIDIProvider>
+        <SettingsModal isOpen={true} onClose={handleClose} />
+      </MIDIProvider>
+    );
+    
+    fireEvent.click(screen.getByText('Close'));
+    expect(closed).toBe(true);
+  });
+});

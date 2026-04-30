@@ -18,7 +18,6 @@ export const SMuFL = {
 const DEFAULT_STAFF_SPACE_PX = 12;
 const MIDI_NOTE_MIN = 0;
 const MIDI_NOTE_MAX = 127;
-const MIDDLE_C_MIDI_NOTE = 60;
 
 const C_MAJOR_SCALE = [
     { step: 0, pc: 0 }, { step: 1, pc: 2 }, { step: 2, pc: 4 }, { step: 3, pc: 5 },
