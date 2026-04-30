@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 const SOURCE_PATH = '/Users/vv2024/Documents/Repos - vv2024/PCS_LUT Editor/src/data/PCS_LUT.json';
-const TARGET_PATH = './src/assets/PCS_LUT.dat';
+const TARGET_PATH = './public/PCS_LUT.dat';
 
 async function pack() {
     console.log(`Reading from ${SOURCE_PATH}...`);
