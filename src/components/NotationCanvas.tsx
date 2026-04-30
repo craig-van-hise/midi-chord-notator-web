@@ -30,7 +30,8 @@ const NotationCanvas: React.FC = () => {
   useEffect(() => {
     async function loadLUT() {
       try {
-        const data = await fetchBinaryLUT('/PCS_LUT.dat');
+        const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
+        const data = await fetchBinaryLUT(`${baseUrl}/PCS_LUT.dat`);
         setLut(data);
       } catch (e) {
         console.error('Failed to load Binary LUT data:', e);
