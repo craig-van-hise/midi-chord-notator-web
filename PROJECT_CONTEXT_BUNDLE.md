@@ -9,6 +9,7 @@
 |  ├── # 34.md
 |  ├── # 35.md
 |  ├── # 36.md
+|  ├── # 37.md
 |  ├── # PDD.md
 |  └── x Older
 |     ├── # 1.md
@@ -117,6 +118,7 @@
 |  |  └── midiAccess.ts
 |  ├── utils
 |  |  ├── binaryLut.ts
+|  |  ├── chordSpeller.test.ts
 |  |  ├── chordSpeller.ts
 |  |  ├── notationMath.test.ts
 |  |  ├── notationMath.ts
@@ -131,7 +133,7 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-directory: 733 file: 5376
+directory: 733 file: 5378
 
 ignored: directory (105)
 
@@ -142,7 +144,7 @@ ignored: directory (105)
 
 # PROJECT_STATE: Grand Staff MIDI Notator
 
-**Current System Status:** ✅ Phase 7 Complete - Dual-Column Layout & Chromatic Cluster Optimization
+**Current System Status:** ✅ Phase 8 Complete - Compound Interval Spelling & Extension Support
 **Last Updated:** 2026-05-01
 
 ## 1. Project Architecture (Level 3)
@@ -152,35 +154,34 @@ ignored: directory (105)
 ├── .agent
 ├── .conductor_logs
 ├── public
+|  ├── PCS_LUT.dat
+|  ├── favicon.svg
+|  ├── fonts
+|  └── icons.svg
 ├── src
 |  ├── App.css
 |  ├── App.test.tsx
 |  ├── App.tsx
 |  ├── assets
-|  |  ├── PCS_LUT.json
 |  |  ├── hero.png
 |  |  ├── react.svg
 |  |  └── vite.svg
 |  ├── components
+|  |  ├── ErrorBoundary.tsx
 |  |  ├── InfoModal.tsx
 |  |  ├── KeySignatureSelector.tsx
 |  |  ├── Keyboard.tsx
-|  |  ├── NotationCanvas.test.tsx
 |  |  ├── NotationCanvas.tsx
-|  |  ├── SettingsModal.test.tsx
 |  |  └── SettingsModal.tsx
 |  ├── index.css
 |  ├── main.tsx
 |  ├── midi
-|  |  ├── MIDIProvider.test.tsx
 |  |  ├── MIDIProvider.tsx
 |  |  ├── MidiPortSelector.tsx
-|  |  ├── midiAccess.test.ts
 |  |  └── midiAccess.ts
 |  ├── utils
 |  |  ├── binaryLut.ts
 |  |  ├── chordSpeller.ts
-|  |  ├── notationMath.test.ts
 |  |  ├── notationMath.ts
 |  |  ├── notationMath.xLevel.test.ts
 |  |  ├── padding.test.ts
@@ -203,42 +204,36 @@ ignored: directory (105)
 
 ### 🎹 MIDI Engine
 * **Native Integration:** Direct interface with `navigator.requestMIDIAccess`.
-* **Event Decoupling:** Uses a Custom Event bridge (`MIDI_MESSAGE_RECEIVED`) to communicate between the React provider and imperative rendering layers, bypassing React's re-render cycle for 60fps performance.
-* **Port Selection:** UI controls for selecting input/output MIDI devices.
+* **Event Decoupling:** Uses a Custom Event bridge (`MIDI_MESSAGE_RECEIVED`) to communicate between the React provider and imperative rendering layers.
 * **Panic System:** Global "All Notes Off" trigger to clear the canvas and keyboard state.
 
 ### 🎼 Notation Engine (Imperative)
 * **Grand Staff System:** Renders treble and bass staves using SMuFL glyphs.
-* **Group Redraw Architecture:** Engine maintains active note state and performs a full redraw on every MIDI event.
-* **Dual-Column Layout (Cohemitonia):** Refactored to handle dense chromatic unisons (e.g., Db and D natural). Implements a two-stack zippering architecture with dynamic gap injection based on accidental reach pre-calculation.
+* **Dual-Column Layout (Cohemitonia):** Handles dense chromatic unisons (e.g., Db and D natural) using a two-stack zippering architecture with dynamic gap injection.
 * **Intelligent Ottava Transposition:** Implements group-wide staff shifts (8va/15ma/8vb/15mb).
-* **Collision Detection:** Implementation of a "zipper pattern" for notehead clusters and horizontal accidental stacking with tuned 0.8 staff-space padding.
+* **Collision Detection:** Accidental stacking logic with tuned 0.8 staff-space padding and "zipper pattern" for notehead clusters.
 
 ### 🧠 Chord Identification & Spelling Engine
-* **PCS LUT Integration:** Utilizes a comprehensive 2MB Pitch Class Set Look-Up Table (56,000+ entries) for instant chord identification.
-* **Theoretical Spelling:** Sophisticated interval-based spelling logic that determines the musically correct name for any pitch set relative to the key signature.
-* **Chord Symbols:** Real-time display of chord names (e.g., "Cm7", "G13") above the staff.
-* **Slash Notation:** Automated detection of inversions and root positioning, providing standard slash chord labels (e.g., "C/E") when the lowest note is not the root.
+* **PCS LUT Integration:** Utilizes a 2MB Pitch Class Set Look-Up Table (56,000+ entries) for instant identification.
+* **Compound Interval Spelling:** Refactored interval engine supporting 9ths, 11ths, and 13ths. Implements modulo-7 mapping to simple diatonic degrees for accurate notation spelling.
+* **Theoretical Spelling:** Key-aware logic that determines musically correct names relative to the active key signature.
+* **Chord Symbols & Slash Notation:** Professional labels (e.g., "Cm9", "G7/B") with automated inversion detection.
 
 ### 📐 Enharmonic & Key Logic
 * **Key Signature Selector:** UI support for 7 flats to 7 sharps.
-* **Enharmonic Spelling:** Algorithm-driven note naming (e.g., C# vs. Db) synchronized with the active key signature.
+* **Synchronized Naming:** Algorithm-driven note naming (e.g., C# vs. Db) locked to the key signature.
 
-### 🖼 UI & Layout
-* **Professional Workspace:** Ultra-slim header with integrated MIDI controls.
-* **Modal Hoisting:** Info and Settings modals are parented to the root DOM level for global stacking context.
-* **Keyboard:** Static 88-key piano visualizer with imperative illumination.
-
-## 4. Current Work-in-Progress
-* **Maintenance:** Monitoring for edge-case MIDI loopbacks or hardware-specific timing issues.
-* **Visual Polish:** Finalizing accidental compaction alignment.
-
-## 5. Recent Evolution
-* **2026-05-01:** Architected and implemented the "Dual-Column" layout engine to resolve collision issues in chromatic clusters (cohemitonia). Engineered a dynamic accidental reach pre-calculation loop and tuned inter-column padding to 0.8 staff-space for professional engraving aesthetics.
-* **2026-04-30:** Integrated the full PCS_LUT dataset and implemented real-time chord symbol notation with slash chord support.
-* **2026-04-29:** Resolved "white screen" rendering issues by refactoring data ingestion to an async pattern and adding robust error boundaries to the rendering loop.
+## 4. Recent Evolution
+* **2026-05-01:** Overhauled the interval parsing engine to support compound intervals (extensions). Implemented modulo math for diatonic degree reduction, enabling accurate spelling of 9ths, 11ths, and 13ths on the staff.
+* **2026-05-01:** Architected and implemented the "Dual-Column" layout engine to resolve collision issues in chromatic clusters (cohemitonia).
+* **2026-04-30:** Integrated the full PCS_LUT dataset and implemented real-time chord symbol notation.
+* **2026-04-29:** Resolved rendering stability issues by refactoring data ingestion to an async pattern.
 * **2026-04-24:** Resolved modal stacking context bug by hoisting overlays to root and enforcing `z-[100]`.
 * **2026-04-24:** Finalized Ottava transposition logic and fine-tuned label Y-offsets.
+
+## 5. Future Roadmap
+* **Maintenance:** Monitoring for hardware-specific MIDI timing variations.
+* **UI Polish:** Finalizing accidental compaction alignment.
 
 
 ### FILE: README.md
@@ -250,8 +245,8 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 ## ✨ Core Features
 * **Real-Time Notation:** Low-latency rendering of musical notation on a grand staff using a custom "Clear and Redraw" imperative engine.
 * **Dual-Column Layout:** Intelligent handling of dense chromatic unisons (cohemitonia) with dynamic accidental bounding boxes and independent column zippering.
-* **Chord Identification:** Real-time analysis of pitch sets using a 56,000+ entry Look-Up Table to display professional chord symbols (e.g., "Cm9", "G7/B").
-* **Theoretical Spelling:** Key-aware enharmonic spelling logic that translates MIDI pitches into musically correct note names.
+* **Chord Identification:** Real-time analysis of pitch sets using a 56,000+ entry Look-Up Table to display professional chord symbols with full extension support (e.g., "Cm9", "G13").
+* **Theoretical Spelling:** Key-aware enharmonic spelling logic that translates MIDI pitches into musically correct note names, now supporting compound intervals (9ths, 11ths, 13ths).
 * **Intelligent Ottava Transposition:** Automated group-wide staff shifts (8va/15ma/8vb/15mb) for extreme registers.
 * **88-Key Virtual Piano:** Integrated visualizer with performance-optimized imperative updates.
 * **Pro-Audio Layout:** Ultra-slim header and hoisted modals for an unobstructed, professional workspace.

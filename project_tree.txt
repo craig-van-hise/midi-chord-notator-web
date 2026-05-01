@@ -7,6 +7,7 @@
 |  ├── # 34.md
 |  ├── # 35.md
 |  ├── # 36.md
+|  ├── # 37.md
 |  ├── # PDD.md
 |  └── x Older
 |     ├── # 1.md
@@ -115,6 +116,7 @@
 |  |  └── midiAccess.ts
 |  ├── utils
 |  |  ├── binaryLut.ts
+|  |  ├── chordSpeller.test.ts
 |  |  ├── chordSpeller.ts
 |  |  ├── notationMath.test.ts
 |  |  ├── notationMath.ts
@@ -129,7 +131,7 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-directory: 733 file: 5376
+directory: 733 file: 5378
 
 ignored: directory (105)
 

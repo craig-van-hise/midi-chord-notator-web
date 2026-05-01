@@ -5,7 +5,7 @@
 * Web MIDI API Interface MDN: https://developer.mozilla.org/en-US/docs/Web/API/Web_MIDI_API
 
 ## Local Context
-* PROJECT_STATE.md: Current architecture, system capabilities, and recent evolution (including Dual-Column Layout logic).
+* PROJECT_STATE.md: Current architecture, system capabilities, and recent evolution (including Dual-Column Layout and Compound Interval Spelling logic).
 * README.md: Project overview and quick start.
 * # Prompts/: Detailed requirement history and technical decisions for Chromatic Cluster layout.
 

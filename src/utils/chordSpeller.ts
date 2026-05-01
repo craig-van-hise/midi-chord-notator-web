@@ -58,14 +58,15 @@ export function convertIntervalToPitchSpelling(interval: string, keySigPC: numbe
     const keyRootName = KEY_NAME_MAP[keySigPC] || "C";
     const keyRootPC = PITCH_TO_PC[keyRootName.substring(0, 2)] ?? PITCH_TO_PC[keyRootName[0]];
     
-    const match = interval.match(/^([b#x]*)([1-7])$/);
+    const match = interval.match(/^([b#x]*)(\d+)$/);
     if (!match) return "invalid";
     
     const accidental = match[1];
-    const degree = parseInt(match[2]);
+    const degree = parseInt(match[2], 10);
+    const simpleDegree = ((degree - 1) % 7) + 1;
     
     const majorSteps = [0, 2, 4, 5, 7, 9, 11];
-    const baseSemitones = majorSteps[degree - 1];
+    const baseSemitones = majorSteps[simpleDegree - 1];
     
     let offset = 0;
     if (accidental === "b") offset = -1;
@@ -78,7 +79,7 @@ export function convertIntervalToPitchSpelling(interval: string, keySigPC: numbe
     
     const rootLetter = keyRootName[0];
     const rootLetterIndex = DIATONIC_NAMES.indexOf(rootLetter);
-    const targetLetterIndex = (rootLetterIndex + degree - 1) % 7;
+    const targetLetterIndex = (rootLetterIndex + simpleDegree - 1) % 7;
     const targetLetter = DIATONIC_NAMES[targetLetterIndex];
     const targetLetterPC = DIATONIC_PC[targetLetterIndex];
     
@@ -154,10 +155,10 @@ export function getRootSpellingFromKey(ps: number[], keySigPC: number, lut: (PCS
 }
 
 function parseIntervalString(interval: string): [number, number] {
-    const match = interval.match(/^([b#x]*)([1-7])$/);
+    const match = interval.match(/^([b#x]*)(\d+)$/);
     if (!match) return [1, 0];
     const accidental = match[1];
-    const degree = parseInt(match[2]);
+    const degree = parseInt(match[2], 10);
     let offset = 0;
     if (accidental === "b") offset = -1;
     else if (accidental === "bb") offset = -2;
@@ -170,7 +171,9 @@ export function sumIntervalStrings(a: string, b: string): string {
     const [degA, offA] = parseIntervalString(a);
     const [degB, offB] = parseIntervalString(b);
     
-    const degSum = ((degA + degB - 2) % 7) + 1;
+    const simpleDegA = ((degA - 1) % 7) + 1;
+    const simpleDegB = ((degB - 1) % 7) + 1;
+    const degSum = ((simpleDegA + simpleDegB - 2) % 7) + 1;
     
     const sharpOffsetPairs = [
         [2, 3], [3, 2], [3, 3], [2, 7], [7, 2], [3, 6], [6, 3], [3, 7], [7, 3],
@@ -178,9 +181,9 @@ export function sumIntervalStrings(a: string, b: string): string {
     ];
     
     let offset = 0;
-    if (sharpOffsetPairs.some(p => p[0] === degA && p[1] === degB)) {
+    if (sharpOffsetPairs.some(p => p[0] === simpleDegA && p[1] === simpleDegB)) {
         offset = 1;
-    } else if (degA === 4 && degB === 4) {
+    } else if (simpleDegA === 4 && simpleDegB === 4) {
         offset = -1;
     }
     
@@ -229,7 +232,8 @@ export function getChordSpelling(ps: number[], keySignature: string = "C Major",
         
         for (const interval of entry.chord_intervals) {
              const [deg, off] = parseIntervalString(interval);
-             if ((majorSteps[deg-1] + off + 12) % 12 === semitones) {
+             const simpleDeg = ((deg - 1) % 7) + 1;
+             if ((majorSteps[simpleDeg - 1] + off + 12) % 12 === semitones) {
                  toneInterval = interval;
                  break;
              }
