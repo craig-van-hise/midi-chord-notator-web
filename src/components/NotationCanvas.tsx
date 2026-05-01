@@ -22,6 +22,11 @@ const NotationCanvas: React.FC = () => {
   const { keySignature, splitPoint, lut } = useMidi();
   const keySignatureRef = useRef(keySignature);
   const splitPointRef = useRef(splitPoint);
+  
+  // Hold Mode State Machine Variables
+  const physicalKeysDown = useRef<Set<number>>(new Set());
+  const isHoldModeEnabled = useRef<boolean>(false);
+  const isWaitingForNewChord = useRef<boolean>(false);
 
   
   useEffect(() => {
@@ -35,7 +40,7 @@ const NotationCanvas: React.FC = () => {
   }, [splitPoint]);
 
   useEffect(() => {
-    if (lut.length > 0) {
+    if (lut && lut.length > 0) {
       window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', { detail: { refresh: true } }));
     }
   }, [lut]);
@@ -52,7 +57,34 @@ const NotationCanvas: React.FC = () => {
     };
 
     updateStaffSpace();
-    // 2. MIDI Event Listener
+
+    // 2. Hold Mode State Listener
+    const handleHoldModeChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ enabled: boolean }>;
+      if (!customEvent.detail) return;
+      const enabled = customEvent.detail.enabled;
+      
+      isHoldModeEnabled.current = enabled;
+      
+      if (!enabled) {
+        // On Hold Mode Toggled OFF: Reset state and sync display with physical keys
+        isWaitingForNewChord.current = false;
+        activeNotes.current.clear();
+        physicalKeysDown.current.forEach(note => {
+          activeNotes.current.set(note, {
+            note,
+            stepOffset: 0,
+            accidental: null,
+            isTreble: note >= splitPointRef.current
+          });
+        });
+        updateSpellings();
+        renderActiveNotes();
+      }
+    };
+    window.addEventListener('HOLD_MODE_CHANGED', handleHoldModeChange);
+
+    // 3. MIDI Event Listener
     const applyAccidentalOffsets = (group: HTMLDivElement[], shiftedNoteIds: Set<string>) => {
       const notesWithAccidentals = group.filter(n => n.dataset.hasAccidental === 'true');
       const sorted = notesWithAccidentals.sort((a, b) => parseInt(b.dataset.stepOffset!) - parseInt(a.dataset.stepOffset!));
@@ -297,7 +329,7 @@ const NotationCanvas: React.FC = () => {
         }
 
         // Extract root key name (e.g., "Eb Major" -> "Eb")
-        const keyName = keySignatureRef.current.split(' ')[0];
+        const keyName = keySignatureRef.current;
         const spellings = getChordSpelling(pitches, keyName, lut);
         const symbol = getChordSymbol(pitches, keyName, lut);
         setChordSymbol(symbol);
@@ -322,6 +354,8 @@ const NotationCanvas: React.FC = () => {
 
       if (panic) {
         activeNotes.current.clear();
+        physicalKeysDown.current.clear();
+        isWaitingForNewChord.current = false;
         renderActiveNotes();
         return;
       }
@@ -342,6 +376,13 @@ const NotationCanvas: React.FC = () => {
       const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && velocity === 0);
 
       if (isNoteOn) {
+        physicalKeysDown.current.add(note);
+
+        if (isHoldModeEnabled.current && isWaitingForNewChord.current) {
+          activeNotes.current.clear();
+          isWaitingForNewChord.current = false;
+        }
+
         if (!activeNotes.current.has(note)) {
           // Temporarily set with default spelling, will be updated by updateSpellings()
           activeNotes.current.set(note, {
@@ -353,9 +394,17 @@ const NotationCanvas: React.FC = () => {
           updateSpellings();
         }
       } else if (isNoteOff) {
-        if (activeNotes.current.has(note)) {
-          activeNotes.current.delete(note);
-          updateSpellings();
+        physicalKeysDown.current.delete(note);
+
+        if (!isHoldModeEnabled.current) {
+          if (activeNotes.current.has(note)) {
+            activeNotes.current.delete(note);
+            updateSpellings();
+          }
+        }
+
+        if (isHoldModeEnabled.current && physicalKeysDown.current.size === 0) {
+          isWaitingForNewChord.current = true;
         }
       }
       renderActiveNotes();
@@ -364,11 +413,12 @@ const NotationCanvas: React.FC = () => {
     window.addEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
 
     return () => {
+      window.removeEventListener('HOLD_MODE_CHANGED', handleHoldModeChange);
       window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
     };
   }, [staffSpace, lut]);
 
-  if (lut.length === 0) {
+  if (!lut || lut.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[320px] bg-white dark:bg-[#0a0a0a] rounded-lg border border-gray-100 dark:border-white/5">
         <div className="animate-pulse flex flex-col items-center">

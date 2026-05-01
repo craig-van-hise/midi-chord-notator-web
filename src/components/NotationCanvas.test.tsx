@@ -68,7 +68,7 @@ describe('NotationCanvas - calculateStaffPosition', () => {
     });
 
     test('should render left and right system barlines', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
     render(<NotationCanvas />);
     
     const leftEdge = document.querySelector('.system-left-edge');
@@ -79,7 +79,7 @@ describe('NotationCanvas - calculateStaffPosition', () => {
   });
 
   test('should position treble clef correctly at top: calc(var(--staff-space) * 2)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
     render(<NotationCanvas />);
     
     const trebleClef = screen.getByTestId('treble-clef');
@@ -87,7 +87,7 @@ describe('NotationCanvas - calculateStaffPosition', () => {
   });
 
   test('should render 1 ledger line for Middle C (MIDI 60)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
     render(<NotationCanvas />);
     
     act(() => {
@@ -107,7 +107,7 @@ describe('NotationCanvas - calculateStaffPosition', () => {
   });
 
   test('should render multiple ledger lines for C6 (MIDI 84)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
     render(<NotationCanvas />);
     
     act(() => {
@@ -148,6 +148,7 @@ describe('NotationCanvas - Phase 4 Behavioral Tests', () => {
     (useMidi as any).mockReturnValue({
       keySignature: 'F Major',
       splitPoint: 60,
+      lut: [null],
     });
 
     render(<NotationCanvas />);
@@ -185,7 +186,7 @@ describe('NotationCanvas - Phase 4 Behavioral Tests', () => {
   });
 
   test('should apply Bass Offset Shift and directional ledger lines for B3 (59) when splitPoint is 60', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
     render(<NotationCanvas />);
     
     act(() => {
@@ -210,7 +211,7 @@ describe('NotationCanvas - Phase 4 Behavioral Tests', () => {
   });
 
   test('should render ledger line for Middle C (60) in Bass group with correct direction', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 72 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 72, lut: [null] });
     render(<NotationCanvas />);
     
     act(() => {
@@ -230,7 +231,7 @@ describe('NotationCanvas - Phase 4 Behavioral Tests', () => {
   });
 
   test('should render multiple ledger lines for A3 (57) in Treble group (splitPoint 48)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 48 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 48, lut: [null] });
     render(<NotationCanvas />);
     
     act(() => {
@@ -258,7 +259,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
   });
 
   test('should apply 1px vertical correction to ledger lines', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
     render(<NotationCanvas />);
     
     act(() => {
@@ -274,7 +275,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
   });
 
   test('should apply horizontal offset (zipper pattern) for adjacent notes (E4 and F4)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
     render(<NotationCanvas />);
     
     // E4 (MIDI 64, stepOffset 2)
@@ -302,7 +303,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
   });
 
   test('should apply zipper pattern for a cluster (C4, D4, E4, F4)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
     render(<NotationCanvas />);
     
     // MIDI 60, 62, 64, 65 (Steps 0, 1, 2, 3)
@@ -325,7 +326,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
   });
 
   test('should correctly handle Fmaj7 cluster (C4, E4, F4, A4)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
     render(<NotationCanvas />);
     
     // Steps: 0, 2, 3, 5
@@ -351,7 +352,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
   });
 
   test('should stagger accidentals in a dense cluster (C#4, D#4, E#4, F#4)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
     render(<NotationCanvas />);
     
     // MIDI 61, 63, 65, 66 (Steps 0, 1, 2, 3 with sharps)
@@ -385,7 +386,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
   });
 
   test('should align accidentals vertically in a wide chord (C#4, G#4)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60 });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
     render(<NotationCanvas />);
     
     // MIDI 61, 68 (Steps 0, 4)
@@ -404,6 +405,92 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
       // Both in Column 0 as they are 4 steps apart
       expect(acc61).toHaveStyle(`left: calc(-1.5 * var(--staff-space))`);
       expect(acc68).toHaveStyle(`left: calc(-1.5 * var(--staff-space))`);
+    });
+  });
+});
+
+describe('NotationCanvas - Hold Mode Logic', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    document.body.innerHTML = '';
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      splitPoint: 60,
+      lut: Array(4096).fill(null) // Mock non-empty lut
+    });
+  });
+
+  test('should clear display notes when NoteOn follows a full release in Hold Mode', async () => {
+    render(<NotationCanvas />);
+
+    // Enable Hold Mode
+    act(() => {
+      window.dispatchEvent(new CustomEvent('HOLD_MODE_CHANGED', { detail: { enabled: true } }));
+    });
+
+    // Play Middle C
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 60, 100]) }
+      }));
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-midi-note="60"]')).toBeInTheDocument();
+    });
+
+    // Release Middle C (should still be visible in Hold Mode)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x80, 60, 0]) }
+      }));
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-midi-note="60"]')).toBeInTheDocument();
+    });
+
+    // Play E4 (should clear Middle C and show E4)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 64, 100]) }
+      }));
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-midi-note="60"]')).not.toBeInTheDocument();
+      expect(document.querySelector('[data-midi-note="64"]')).toBeInTheDocument();
+    });
+  });
+
+  test('should sync display with physical keys when Hold Mode is toggled OFF', async () => {
+    render(<NotationCanvas />);
+
+    // Enable Hold Mode
+    act(() => {
+      window.dispatchEvent(new CustomEvent('HOLD_MODE_CHANGED', { detail: { enabled: true } }));
+    });
+
+    // Play C4 and E4, release E4
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', { detail: { data: new Uint8Array([0x90, 60, 100]) } }));
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', { detail: { data: new Uint8Array([0x90, 64, 100]) } }));
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', { detail: { data: new Uint8Array([0x80, 64, 0]) } }));
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-midi-note="60"]')).toBeInTheDocument();
+      expect(document.querySelector('[data-midi-note="64"]')).toBeInTheDocument();
+    });
+
+    // Toggle Hold Mode OFF (C4 is still physically down, E4 is released)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('HOLD_MODE_CHANGED', { detail: { enabled: false } }));
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-midi-note="60"]')).toBeInTheDocument();
+      expect(document.querySelector('[data-midi-note="64"]')).not.toBeInTheDocument();
     });
   });
 });

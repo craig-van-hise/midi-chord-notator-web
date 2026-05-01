@@ -195,7 +195,8 @@ export function sumIntervalStrings(a: string, b: string): string {
     return acc + degSum;
 }
 
-export function getChordSpelling(ps: number[], keyName: string = "C", lut: (PCS_Entry | null)[]): string[] {
+export function getChordSpelling(ps: number[], keySignature: string = "C Major", lut: (PCS_Entry | null)[]): string[] {
+    const keyName = keySignature.split(' ')[0];
     const keySigPC = KEY_SIG_MAP[keyName] ?? 0;
     const sortedPS = [...ps].sort((a, b) => a - b);
     const decimal = psToDecimal(sortedPS);
@@ -204,7 +205,7 @@ export function getChordSpelling(ps: number[], keyName: string = "C", lut: (PCS_
     if (!entry) {
         // Fallback: Use key-aware enharmonic spelling for individual notes
         return sortedPS.map(pitch => {
-            const { stepOffset, accidental } = getEnharmonicSpelling(pitch, keyName);
+            const { stepOffset, accidental } = getEnharmonicSpelling(pitch, keySignature);
             const letter = DIATONIC_NAMES[((stepOffset % 7) + 7) % 7];
             let acc = "";
             if (accidental === SMuFL.accidentalSharp) acc = "#";
@@ -294,7 +295,7 @@ export function getSpellingData(midiNote: number, spelling: string): { stepOffse
 /**
  * Derives a chord symbol from the pitch set and LUT entry.
  */
-export function getChordSymbol(ps: number[], keyName: string = "C", lut: (PCS_Entry | null)[]): string {
+export function getChordSymbol(ps: number[], keySignature: string = "C Major", lut: (PCS_Entry | null)[]): string {
     const sortedPS = [...ps].sort((a, b) => a - b);
     if (sortedPS.length === 0) return "";
     
@@ -302,6 +303,7 @@ export function getChordSymbol(ps: number[], keyName: string = "C", lut: (PCS_En
     const entry = lut[decimal];
     if (!entry) return "";
 
+    const keyName = keySignature.split(' ')[0];
     const keySigPC = KEY_SIG_MAP[keyName] ?? 0;
     const rootName = getRootSpellingFromKey(sortedPS, keySigPC, lut);
     
@@ -310,7 +312,7 @@ export function getChordSymbol(ps: number[], keyName: string = "C", lut: (PCS_En
     // Slash notation if root_pc != 0 (meaning the low note is not the root)
     if (entry.root_pc !== 0) {
         // Find the spelling of the lowest note
-        const spellings = getChordSpelling(sortedPS, keyName, lut);
+        const spellings = getChordSpelling(sortedPS, keySignature, lut);
         const lowNoteSpelling = spellings[0];
         symbol += " / " + lowNoteSpelling;
     }

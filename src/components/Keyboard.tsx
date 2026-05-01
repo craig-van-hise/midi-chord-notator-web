@@ -17,9 +17,15 @@ const BLACK_KEY_HEIGHT = 56;
 export const Piano88: React.FC = () => {
     const { dispatchVirtualMidi, lut, keySignature } = useMidi();
     const [isToggleMode, setIsToggleMode] = React.useState(false);
+    const [isHoldModeEnabled, setIsHoldModeEnabled] = React.useState(false);
     const [virtualHeldNotes, setVirtualHeldNotes] = React.useState<Set<number>>(new Set());
     const activePitches = React.useRef<Set<number>>(new Set());
     const pianoKeys = [];
+
+    // Sync Hold Mode state to imperative engine
+    React.useEffect(() => {
+        window.dispatchEvent(new CustomEvent('HOLD_MODE_CHANGED', { detail: { enabled: isHoldModeEnabled } }));
+    }, [isHoldModeEnabled]);
 
     // Listen for MIDI messages to update spelled notes strip
     React.useEffect(() => {
@@ -44,8 +50,7 @@ export const Piano88: React.FC = () => {
 
                 if (lut.length > 0) {
                     const pitches = Array.from(activePitches.current).sort((a, b) => a - b);
-                    const keyName = keySignature.split(' ')[0];
-                    const spellings = getChordSpelling(pitches, keyName, lut);
+                    const spellings = getChordSpelling(pitches, keySignature, lut);
                     
                     const spelledData = pitches.map((p, i) => ({
                         note: p,
@@ -188,8 +193,8 @@ export const Piano88: React.FC = () => {
 
     return (
         <div className="flex flex-col items-center gap-2">
-            {/* Toggle Mode Control - Moved up slightly */}
-            <div className="flex items-center mb-1">
+            {/* Mode Controls - Moved up slightly */}
+            <div className="flex items-center gap-2 mb-1">
                 <button
                     onClick={() => setIsToggleMode(!isToggleMode)}
                     className={`px-3 py-1 text-[10px] uppercase tracking-widest font-bold rounded border transition-all duration-200 ${
@@ -198,7 +203,17 @@ export const Piano88: React.FC = () => {
                         : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                 >
-                    Toggle Mode {isToggleMode ? 'Active' : 'Off'}
+                    TOGGLE MODE
+                </button>
+                <button
+                    onClick={() => setIsHoldModeEnabled(!isHoldModeEnabled)}
+                    className={`px-3 py-1 text-[10px] uppercase tracking-widest font-bold rounded border transition-all duration-200 ${
+                        isHoldModeEnabled 
+                        ? 'bg-[#aa3bff] border-[#aa3bff] text-white shadow-lg shadow-[#aa3bff]/30 translate-y-[1px]' 
+                        : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                >
+                    HOLD MODE
                 </button>
             </div>
 
