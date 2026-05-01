@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const SOURCE_PATH = '/Users/vv2024/Documents/Repos - vv2024/PCS_LUT Editor/src/data/PCS_LUT.json';
+const SOURCE_PATH = '/Users/vv2024/Documents/Repos - vv2024/MIDI/PCS_LUT Editor/src/data/PCS_LUT.json';
 const TARGET_PATH = './public/PCS_LUT.dat';
 
 async function pack() {
