@@ -1,5 +1,6 @@
 import React from 'react';
 import { useMidi } from '../midi/MIDIProvider';
+import { getChordSpelling } from '../utils/chordSpeller';
 
 /**
  * 88-Key MIDI Keyboard (A0 to C8)
@@ -14,21 +15,62 @@ const BLACK_KEY_WIDTH = 11;
 const BLACK_KEY_HEIGHT = 56;
 
 export const Piano88: React.FC = () => {
-    const { dispatchVirtualMidi } = useMidi();
+    const { dispatchVirtualMidi, lut, keySignature } = useMidi();
     const [isToggleMode, setIsToggleMode] = React.useState(false);
     const [virtualHeldNotes, setVirtualHeldNotes] = React.useState<Set<number>>(new Set());
+    const activePitches = React.useRef<Set<number>>(new Set());
     const pianoKeys = [];
 
-    // Clear virtual held notes on MIDI panic
+    // Listen for MIDI messages to update spelled notes strip
     React.useEffect(() => {
-        const handlePanic = (event: Event) => {
-            if ((event as CustomEvent).detail?.panic) {
+        const handleMidi = (event: Event) => {
+            const detail = (event as CustomEvent).detail;
+            if (!detail) return;
+
+            if (detail.panic) {
                 setVirtualHeldNotes(new Set());
+                activePitches.current.clear();
+                updateSpelledNotesStrip([]);
+                return;
+            }
+
+            if (detail.data) {
+                const [status, note, velocity] = detail.data;
+                const isNoteOn = (status & 0xF0) === 0x90 && velocity > 0;
+                const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && velocity === 0);
+
+                if (isNoteOn) activePitches.current.add(note);
+                else if (isNoteOff) activePitches.current.delete(note);
+
+                if (lut.length > 0) {
+                    const pitches = Array.from(activePitches.current).sort((a, b) => a - b);
+                    const keyName = keySignature.split(' ')[0];
+                    const spellings = getChordSpelling(pitches, keyName, lut);
+                    
+                    const spelledData = pitches.map((p, i) => ({
+                        note: p,
+                        spelling: spellings[i]
+                    }));
+                    updateSpelledNotesStrip(spelledData);
+                }
+            }
+
+            if (detail.refresh && lut.length > 0) {
+                const pitches = Array.from(activePitches.current).sort((a, b) => a - b);
+                const keyName = keySignature.split(' ')[0];
+                const spellings = getChordSpelling(pitches, keyName, lut);
+                
+                const spelledData = pitches.map((p, i) => ({
+                    note: p,
+                    spelling: spellings[i]
+                }));
+                updateSpelledNotesStrip(spelledData);
             }
         };
-        window.addEventListener('MIDI_MESSAGE_RECEIVED', handlePanic);
-        return () => window.removeEventListener('MIDI_MESSAGE_RECEIVED', handlePanic);
-    }, []);
+
+        window.addEventListener('MIDI_MESSAGE_RECEIVED', handleMidi);
+        return () => window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidi);
+    }, [lut, keySignature]);
 
     const handleKeyInteraction = (note: number, isDown: boolean) => {
         if (isToggleMode) {
@@ -116,7 +158,7 @@ export const Piano88: React.FC = () => {
                                 right: '-5.5px', 
                                 width: `${BLACK_KEY_WIDTH}px`,
                                 height: `${BLACK_KEY_HEIGHT}px`,
-                                backgroundColor: '#1a1a1a',
+                                backgroundColor: '#444', // Slightly darker gray for a more balanced look
                                 borderBottom: '6px solid #000',
                                 borderLeft: '1px solid #333',
                                 borderRight: '1px solid #333',
@@ -145,9 +187,9 @@ export const Piano88: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col items-center gap-4">
-            {/* Toggle Mode Control */}
-            <div className="flex items-center gap-2">
+        <div className="flex flex-col items-center gap-2">
+            {/* Toggle Mode Control - Moved up slightly */}
+            <div className="flex items-center mb-1">
                 <button
                     onClick={() => setIsToggleMode(!isToggleMode)}
                     className={`px-3 py-1 text-[10px] uppercase tracking-widest font-bold rounded border transition-all duration-200 ${
@@ -158,6 +200,20 @@ export const Piano88: React.FC = () => {
                 >
                     Toggle Mode {isToggleMode ? 'Active' : 'Off'}
                 </button>
+            </div>
+
+            {/* Spelled Notes Strip - Tall version with zipper logic support */}
+            <div 
+                id="spelled-notes-strip"
+                className="w-[936px] h-[30px] relative overflow-hidden text-[10px] font-bold tracking-tight text-[#aa3bff] dark:text-[#c084fc] pointer-events-none"
+                style={{ 
+                    fontFamily: "'Jost', sans-serif",
+                    backgroundColor: 'rgba(170, 59, 255, 0.03)',
+                    borderRadius: '2px',
+                    border: '1px solid rgba(170, 59, 255, 0.1)'
+                }}
+            >
+                {/* Spelled notes will be injected here as absolute elements */}
             </div>
 
             <div className="piano-container flex justify-center bg-transparent">
@@ -195,12 +251,75 @@ export const updateKeyVisuals88 = (note: number, color: string) => {
     if (color) {
         el.style.backgroundColor = color;
         el.style.boxShadow = `inset 0 -5px 10px rgba(0,0,0,0.1), 0 0 12px ${color}`;
-        if (isBlack) el.style.zIndex = '11';
+        if (isBlack) {
+            el.style.zIndex = '11';
+            el.style.borderBottom = '1px solid #000'; // Lengthen highlight: only 1px outline remains
+            el.style.borderLeft = '1px solid #333';
+            el.style.borderRight = '1px solid #333';
+        }
     } else {
-        el.style.backgroundColor = isBlack ? '#1a1a1a' : '#fff';
-        el.style.boxShadow = '';
-        if (isBlack) el.style.zIndex = '10';
+        el.style.backgroundColor = isBlack ? '#444' : '#fff'; // Darker gray for the top surface
+        el.style.boxShadow = 'none';
+        if (isBlack) {
+            el.style.zIndex = '10';
+            el.style.borderBottom = '6px solid #000'; // Restore standard black key "front portion"
+            el.style.borderLeft = '1px solid #333';
+            el.style.borderRight = '1px solid #333';
+            el.style.borderTop = 'none';
+        }
     }
+};
+
+/**
+ * Updates the spelled notes strip via direct DOM access
+ * Aligns labels horizontally and vertically with the keys.
+ * Implements "zipper" collision detection to prevent overlapping text.
+ */
+export const updateSpelledNotesStrip = (spellings: { note: number; spelling: string }[]) => {
+    const el = document.getElementById('spelled-notes-strip');
+    if (!el) return;
+    
+    // Clear existing
+    el.innerHTML = '';
+
+    let lastX = -100;
+    let currentRow = 0;
+
+    spellings.forEach(data => {
+        const x = getNoteX(data.note);
+        
+        // Zipper logic: if notes are horizontally close, stagger them vertically
+        if (Math.abs(x - lastX) < 18) { 
+            currentRow = (currentRow + 1) % 2;
+        } else {
+            currentRow = 0; // Reset to bottom row if there's enough space
+        }
+        lastX = x;
+
+        const label = document.createElement('div');
+        label.textContent = data.spelling;
+        label.style.position = 'absolute';
+        label.style.left = `${x}px`;
+        // Row 0 is at bottom (75%), Row 1 is at top (25%)
+        label.style.top = currentRow === 0 ? '70%' : '30%';
+        label.style.transform = 'translate(-50%, -50%)';
+        label.style.whiteSpace = 'nowrap';
+        el.appendChild(label);
+    });
+};
+
+/**
+ * Helper to calculate the horizontal center of a MIDI note (21-108)
+ */
+const getNoteX = (note: number): number => {
+    let whiteKeysBefore = 0;
+    for (let n = 21; n < note; n++) {
+        if (![1, 3, 6, 8, 10].includes(n % 12)) {
+            whiteKeysBefore++;
+        }
+    }
+    const isBlack = [1, 3, 6, 8, 10].includes(note % 12);
+    return isBlack ? (whiteKeysBefore * 18) : (whiteKeysBefore * 18 + 9);
 };
 
 export default Piano88;

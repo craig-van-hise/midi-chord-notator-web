@@ -3,8 +3,6 @@ import { SMuFL } from '../utils/notationMath';
 import { useMidi } from '../midi/MIDIProvider';
 import KeySignatureSelector from './KeySignatureSelector';
 import { getChordSpelling, getSpellingData, getChordSymbol } from '../utils/chordSpeller';
-import { fetchBinaryLUT } from '../utils/binaryLut';
-import type { PCS_Entry } from '../utils/chordSpeller';
 
 // Define the expected staff space from CSS variables
 const STAFF_SPACE_CSS_VAR = '--staff-space';
@@ -19,27 +17,12 @@ interface ActiveNoteData {
 const NotationCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [staffSpace, setStaffSpace] = useState<number>(12); // Default value
-  const [lut, setLut] = useState<(PCS_Entry | null)[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const activeNotes = useRef<Map<number, ActiveNoteData>>(new Map());
   const [chordSymbol, setChordSymbol] = useState<string>("");
-  const { keySignature, splitPoint } = useMidi();
+  const { keySignature, splitPoint, lut } = useMidi();
   const keySignatureRef = useRef(keySignature);
   const splitPointRef = useRef(splitPoint);
 
-  useEffect(() => {
-    async function loadLUT() {
-      try {
-        const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
-        const data = await fetchBinaryLUT(`${baseUrl}/PCS_LUT.dat`);
-        setLut(data);
-      } catch (e) {
-        console.error('Failed to load Binary LUT data:', e);
-        setLoadError('Failed to load theoretical database.');
-      }
-    }
-    loadLUT();
-  }, []);
   
   useEffect(() => {
     keySignatureRef.current = keySignature;
@@ -384,15 +367,6 @@ const NotationCanvas: React.FC = () => {
       window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
     };
   }, [staffSpace, lut]);
-
-  if (loadError) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[320px] bg-white dark:bg-[#0a0a0a] rounded-lg border border-red-200 dark:border-red-900/30 p-8 text-center">
-        <div className="text-red-500 font-bold mb-2">Theoretical Database Error</div>
-        <div className="text-neutral-500 text-sm max-w-[300px]">{loadError}</div>
-      </div>
-    );
-  }
 
   if (lut.length === 0) {
     return (

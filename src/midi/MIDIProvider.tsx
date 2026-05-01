@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { requestMidiAccess } from './midiAccess';
+import { fetchBinaryLUT } from '../utils/binaryLut';
+import type { PCS_Entry } from '../utils/chordSpeller';
 
 // Define the structure for the custom event data
 /*
@@ -26,6 +28,7 @@ interface MidiContextType {
   handleMidiPanic: () => void;
   isSustainActive: boolean;
   dispatchVirtualMidi: (data: Uint8Array) => void;
+  lut: (PCS_Entry | null)[];
 }
 
 const MidiContext = createContext<MidiContextType | undefined>(undefined);
@@ -39,6 +42,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isSustainActive, setIsSustainActive] = useState<boolean>(false);
+  const [lut, setLut] = useState<(PCS_Entry | null)[]>([]);
 
   const physicallyHeldNotes = React.useRef<Set<number>>(new Set());
   const pendingNoteOffs = React.useRef<Set<number>>(new Set());
@@ -156,13 +160,32 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         setMidiAccess(access);
 
-        if (access.inputs.size > 0) {
-          const firstInput = access.inputs.values().next().value as MIDIInput | undefined;
-          if (firstInput) setSelectedInputPort(firstInput);
+        // Load LUT
+        try {
+          const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
+          const data = await fetchBinaryLUT(`${baseUrl}/PCS_LUT.dat`);
+          setLut(data);
+        } catch (e) {
+          console.error('Failed to load Binary LUT data in MIDIProvider:', e);
         }
+
+        const savedInputId = localStorage.getItem('midi_input_id');
+        const savedOutputId = localStorage.getItem('midi_output_id');
+
+        if (access.inputs.size > 0) {
+          let inputToSelect = access.inputs.values().next().value as MIDIInput | undefined;
+          if (savedInputId && access.inputs.has(savedInputId)) {
+            inputToSelect = access.inputs.get(savedInputId);
+          }
+          if (inputToSelect) setSelectedInputPort(inputToSelect);
+        }
+
         if (access.outputs.size > 0) {
-          const firstOutput = access.outputs.values().next().value as MIDIOutput | undefined;
-          if (firstOutput) setSelectedOutputPort(firstOutput);
+          let outputToSelect = access.outputs.values().next().value as MIDIOutput | undefined;
+          if (savedOutputId && access.outputs.has(savedOutputId)) {
+            outputToSelect = access.outputs.get(savedOutputId);
+          }
+          if (outputToSelect) setSelectedOutputPort(outputToSelect);
         }
 
         const handleStateChange = (event: MIDIConnectionEvent) => {
@@ -212,10 +235,13 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const setInputPort = (portId: string) => {
     if (!portId || portId === "") {
       setSelectedInputPort(null);
+      localStorage.removeItem('midi_input_id');
       return;
     }
     if (midiAccess && midiAccess.inputs.has(portId)) {
-      setSelectedInputPort(midiAccess.inputs.get(portId)!);
+      const port = midiAccess.inputs.get(portId)!;
+      setSelectedInputPort(port);
+      localStorage.setItem('midi_input_id', portId);
     } else {
       console.warn(`Input port with ID "${portId}" not found.`);
     }
@@ -224,10 +250,13 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const setOutputPort = (portId: string) => {
     if (!portId || portId === "") {
       setSelectedOutputPort(null);
+      localStorage.removeItem('midi_output_id');
       return;
     }
     if (midiAccess && midiAccess.outputs.has(portId)) {
-      setSelectedOutputPort(midiAccess.outputs.get(portId)!);
+      const port = midiAccess.outputs.get(portId)!;
+      setSelectedOutputPort(port);
+      localStorage.setItem('midi_output_id', portId);
     } else {
       console.warn(`Output port with ID "${portId}" not found.`);
     }
@@ -250,6 +279,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         handleMidiPanic,
         isSustainActive,
         dispatchVirtualMidi,
+        lut,
       }}
     >
       {children}
