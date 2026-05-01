@@ -4,6 +4,7 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 
 ## ✨ Core Features
 * **Real-Time Notation:** Low-latency rendering of musical notation on a grand staff using a custom "Clear and Redraw" imperative engine.
+* **Dual-Column Layout:** Intelligent handling of dense chromatic unisons (cohemitonia) with dynamic accidental bounding boxes and independent column zippering.
 * **Chord Identification:** Real-time analysis of pitch sets using a 56,000+ entry Look-Up Table to display professional chord symbols (e.g., "Cm9", "G7/B").
 * **Theoretical Spelling:** Key-aware enharmonic spelling logic that translates MIDI pitches into musically correct note names.
 * **Intelligent Ottava Transposition:** Automated group-wide staff shifts (8va/15ma/8vb/15mb) for extreme registers.
@@ -33,18 +34,16 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 .
 ├── src
 |  ├── components
-|  |  ├── InfoModal.tsx
-|  |  ├── KeySignatureSelector.tsx
 |  |  ├── Keyboard.tsx
 |  |  ├── NotationCanvas.tsx
-|  |  └── SettingsModal.tsx
+|  |  └── KeySignatureSelector.tsx
 |  ├── midi
 |  |  ├── MIDIProvider.tsx
-|  |  ├── MidiPortSelector.tsx
 |  |  └── midiAccess.ts
 |  └── utils
 |     ├── chordSpeller.ts
-|     └── notationMath.ts
+|     ├── notationMath.ts
+|     └── binaryLut.ts
 └── vite.config.ts
 ```
 

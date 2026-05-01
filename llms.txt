@@ -5,10 +5,9 @@
 * Web MIDI API Interface MDN: https://developer.mozilla.org/en-US/docs/Web/API/Web_MIDI_API
 
 ## Local Context
-* PROJECT_STATE.md: Current architecture, system capabilities, and recent evolution.
+* PROJECT_STATE.md: Current architecture, system capabilities, and recent evolution (including Dual-Column Layout logic).
 * README.md: Project overview and quick start.
-* WOs/: Implementation history and work orders.
-* # Prompts/: Detailed requirement history and technical decisions.
+* # Prompts/: Detailed requirement history and technical decisions for Chromatic Cluster layout.
 
 ## Frameworks
 * Vite 8 Configuration: https://vite.dev/guide/
