@@ -8,51 +8,93 @@ import InfoModal from './components/InfoModal';
 
 // Component to handle MIDI message listening and keyboard updates
 const MidiKeyboardUpdater: React.FC = () => {
-  const { selectedInputPort } = useMidi(); // Get the selected input port
+  const physicallyHeldNotes = React.useRef<Set<number>>(new Set());
+  const displayedNotes = React.useRef<Set<number>>(new Set());
+  const isHoldModeEnabled = React.useRef<boolean>(false);
+  const isWaitingForNewChord = React.useRef<boolean>(false);
 
   useEffect(() => {
+    const handleHoldModeChange = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (!detail) return;
+      isHoldModeEnabled.current = detail.enabled;
+
+      if (!isHoldModeEnabled.current) {
+        // Toggle OFF: Clear everything not physically held
+        isWaitingForNewChord.current = false;
+        
+        // Clear all currently displayed notes
+        displayedNotes.current.forEach(note => updateKeyVisuals88(note, ''));
+        displayedNotes.current.clear();
+
+        // Show only physically held notes
+        physicallyHeldNotes.current.forEach(note => {
+          displayedNotes.current.add(note);
+          updateKeyVisuals88(note, '#aa3bff');
+        });
+      }
+    };
+
     // Handler for incoming MIDI messages
     const handleMidiMessage = (event: Event) => {
       const customEvent = event as CustomEvent<{ data: Uint8Array; timestamp: number; input: any; panic?: boolean }>;
-      if (customEvent.detail?.panic) {
-        // Clear all keys
-        for (let i = 0; i < 128; i++) {
-          updateKeyVisuals88(i, '');
-        }
+      const { data, panic } = customEvent.detail || {};
+
+      if (panic) {
+        physicallyHeldNotes.current.clear();
+        displayedNotes.current.forEach(note => updateKeyVisuals88(note, ''));
+        displayedNotes.current.clear();
+        isWaitingForNewChord.current = false;
         return;
       }
       
-      if (!customEvent.detail || !customEvent.detail.data) {
-        console.warn('Received MIDI message with no data:', customEvent);
-        return;
-      }
+      if (!data) return;
 
-      const [command, note, velocity] = customEvent.detail.data;
+      const [status, note, velocity] = data;
 
       // Note-on message: command is 144 (0x90) and velocity > 0
       // Note-off message: command is 128 (0x80) or 144 (0x90) with velocity 0
       const NOTE_ON_COMMAND = 0x90;
       const NOTE_OFF_COMMAND = 0x80;
 
-      if (command === NOTE_ON_COMMAND && velocity > 0) {
-        // Note-on event
-        console.log(`Note On: ${note}, Velocity: ${velocity}`);
-        updateKeyVisuals88(note, '#aa3bff'); // Light up with accent purple
-      } else if (command === NOTE_OFF_COMMAND || (command === NOTE_ON_COMMAND && velocity === 0)) {
-        // Note-off event
-        console.log(`Note Off: ${note}`);
-        updateKeyVisuals88(note, ''); // Reset color
+      const isNoteOn = (status & 0xF0) === NOTE_ON_COMMAND && velocity > 0;
+      const isNoteOff = (status & 0xF0) === NOTE_OFF_COMMAND || ((status & 0xF0) === NOTE_ON_COMMAND && velocity === 0);
+
+      if (isNoteOn) {
+        physicallyHeldNotes.current.add(note);
+
+        if (isHoldModeEnabled.current && isWaitingForNewChord.current) {
+          displayedNotes.current.forEach(n => updateKeyVisuals88(n, ''));
+          displayedNotes.current.clear();
+          isWaitingForNewChord.current = false;
+        }
+
+        if (!displayedNotes.current.has(note)) {
+          displayedNotes.current.add(note);
+          updateKeyVisuals88(note, '#aa3bff');
+        }
+      } else if (isNoteOff) {
+        physicallyHeldNotes.current.delete(note);
+
+        if (!isHoldModeEnabled.current) {
+          displayedNotes.current.delete(note);
+          updateKeyVisuals88(note, '');
+        } else if (physicallyHeldNotes.current.size === 0) {
+          isWaitingForNewChord.current = true;
+        }
       }
     };
 
-    // Add the event listener
+    // Add the event listeners
     window.addEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
+    window.addEventListener('HOLD_MODE_CHANGED', handleHoldModeChange);
 
     // Cleanup function to remove the event listener
     return () => {
       window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
+      window.removeEventListener('HOLD_MODE_CHANGED', handleHoldModeChange);
     };
-  }, [selectedInputPort]); // Re-run effect if selectedInputPort changes, though the event is global
+  }, []); 
 
   // This component doesn't render anything itself, it just manages the side effect
   return null;
