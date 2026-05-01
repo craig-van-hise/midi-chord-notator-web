@@ -17,6 +17,7 @@ You are a Database Automation Specialist. Your goal is to ensure the theoretical
 # Workflow Steps
 
 1. **Repack Binary Database**
+   - Delete the existing binary file to force dev server refresh: `rm -f public/PCS_LUT.dat`
    - Execute the packing script: `node scripts/pack_lut.js`
    - Capture any errors in the conversion process and report them immediately.
 

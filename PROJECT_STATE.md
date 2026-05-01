@@ -90,6 +90,7 @@
 * **Documentation Sync:** Finalizing the architectural summary.
 
 ## 5. Recent Evolution
+* **2026-05-01:** Tuned accidental layout padding (multiplier 0.8) to resolve visual collisions in dense chromatic clusters. Stabilized dual-column layout pre-calculation logic.
 * **2026-04-30:** Integrated the full PCS_LUT dataset and implemented real-time chord symbol notation with slash chord support.
 * **2026-04-29:** Resolved "white screen" rendering issues by refactoring data ingestion to an async pattern and adding robust error boundaries to the rendering loop.
 * **2026-04-24:** Resolved modal stacking context bug by hoisting overlays to root and enforcing `z-[100]`.

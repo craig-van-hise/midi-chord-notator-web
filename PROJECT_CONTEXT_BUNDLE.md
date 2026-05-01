@@ -1,109 +1,142 @@
 ### FILE: project_tree.txt
 
-.
-./llms.txt
-./tsconfig.node.json
-./project_tree.txt
-./index.html
-./tsconfig.app.json
-./PROJECT_CONTEXT_BUNDLE.md
-./README.md
-./Chord Spelling
-./Chord Spelling/README.md
-./Chord Spelling/chord_speller.ts
-./public
-./public/fonts
-./public/fonts/Bravura.woff2
-./public/icons.svg
-./public/favicon.svg
-./package-lock.json
-./package.json
-./PROJECT_STATE.md
-./tsconfig.json
-./WOs
-./WOs/grand-staff-app
-./WOs/grand-staff-app/Phase_3
-./WOs/grand-staff-app/Phase_3/3-11_ui-architect.md
-./WOs/grand-staff-app/Phase_3/3-12_frontend-state.md
-./WOs/grand-staff-app/Phase_4
-./WOs/grand-staff-app/Phase_4/4-13_ui-coder.md
-./WOs/grand-staff-app/Phase_4/4-14_styling-specialist.md
-./WOs/grand-staff-app/Phase_5
-./WOs/grand-staff-app/Phase_5/5-13_ui-coder.md
-./WOs/grand-staff-app/Phase_5/5-7_core-algorithm.md
-./WOs/grand-staff-app/Phase_2
-./WOs/grand-staff-app/Phase_2/2-13_ui-coder.md
-./WOs/grand-staff-app/Phase_2/2-12_frontend-state.md
-./WOs/grand-staff-app/Phase_2/2-8_api-integrator.md
-./WOs/grand-staff-app/_scorecard.md
-./WOs/grand-staff-app/Phase_1
-./WOs/grand-staff-app/Phase_1/1-10_test-engineer.md
-./WOs/grand-staff-app/Phase_1/1-13_ui-coder.md
-./WOs/grand-staff-app/Phase_1/1-14_styling-specialist.md
-./WOs/grand-staff-app/Phase_1/1-1_workspace-setup.md
-./WOs/grand-staff-app/Phase_6
-./WOs/grand-staff-app/Phase_6/6-13_ui-coder.md
-./WOs/grand-staff-app/Phase_6/6-12_frontend-state.md
-./WOs/grand-staff-app/Phase_6/6-7_core-algorithm.md
-./test_output.txt
-./eslint.config.js
-./vite.config.ts
-./# Prompts
-./# Prompts/# 20.md
-./# Prompts/# 21.md
-./# Prompts/x Older
-./# Prompts/x Older/# 10.md
-./# Prompts/x Older/# 14.md
-./# Prompts/x Older/# 15.md
-./# Prompts/x Older/# 11.md
-./# Prompts/x Older/# 4.md
-./# Prompts/x Older/# 5.md
-./# Prompts/x Older/# 1.md
-./# Prompts/x Older/# 6.md
-./# Prompts/x Older/# 2.md
-./# Prompts/x Older/# 3.md
-./# Prompts/x Older/# 7.md
-./# Prompts/x Older/# 16.md
-./# Prompts/x Older/# 8.md
-./# Prompts/x Older/# 12.md
-./# Prompts/x Older/# 9.md
-./# Prompts/x Older/# 13.md
-./# Prompts/x Older/# 17.md
-./# Prompts/# PDD.md
-./# Prompts/# 18.md
-./# Prompts/# 19.md
-./# Prompts/# 22.md
-./src
-./src/App.tsx
-./src/main.tsx
-./src/midi
-./src/midi/MidiPortSelector.tsx
-./src/midi/MIDIProvider.test.tsx
-./src/midi/midiAccess.ts
-./src/midi/midiAccess.test.ts
-./src/midi/MIDIProvider.tsx
-./src/App.test.tsx
-./src/App.css
-./src/utils
-./src/utils/notationMath.ts
-./src/utils/chordSpeller.ts
-./src/utils/notationMath.test.ts
-./src/index.css
-./src/components
-./src/components/KeySignatureSelector.tsx
-./src/components/Keyboard.tsx
-./src/components/NotationCanvas.test.tsx
-./src/components/NotationCanvas.tsx
-./src/components/InfoModal.tsx
-./src/components/SettingsModal.test.tsx
-./src/components/SettingsModal.tsx
-./src/assets
-./src/assets/hero.png
-./src/assets/vite.svg
-./src/assets/PCS_LUT.json
-./src/assets/react.svg
-./src/vitest.setup.ts
 
+/Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-chord-notator-web
+├── # Prompts
+|  ├── # 31.md
+|  ├── # 32.md
+|  ├── # 33.md
+|  ├── # 34.md
+|  ├── # 35.md
+|  ├── # 36.md
+|  ├── # PDD.md
+|  └── x Older
+|     ├── # 1.md
+|     ├── # 10.md
+|     ├── # 11.md
+|     ├── # 12.md
+|     ├── # 13.md
+|     ├── # 14.md
+|     ├── # 15.md
+|     ├── # 16.md
+|     ├── # 17.md
+|     ├── # 18.md
+|     ├── # 19.md
+|     ├── # 2.md
+|     ├── # 20.md
+|     ├── # 21.md
+|     ├── # 22.md
+|     ├── # 23.md
+|     ├── # 24.md
+|     ├── # 25.md
+|     ├── # 26.md
+|     ├── # 27.md
+|     ├── # 28.md
+|     ├── # 29.md
+|     ├── # 3.md
+|     ├── # 30.md
+|     ├── # 4.md
+|     ├── # 5.md
+|     ├── # 6.md
+|     ├── # 7.md
+|     ├── # 8.md
+|     └── # 9.md
+├── Chord Spelling
+|  ├── README.md
+|  └── chord_speller.ts
+├── PROJECT_CONTEXT_BUNDLE.md
+├── PROJECT_STATE.md
+├── README.md
+├── WOs
+|  └── grand-staff-app
+|     ├── Phase_1
+|     |  ├── 1-10_test-engineer.md
+|     |  ├── 1-13_ui-coder.md
+|     |  ├── 1-14_styling-specialist.md
+|     |  └── 1-1_workspace-setup.md
+|     ├── Phase_2
+|     |  ├── 2-12_frontend-state.md
+|     |  ├── 2-13_ui-coder.md
+|     |  └── 2-8_api-integrator.md
+|     ├── Phase_3
+|     |  ├── 3-11_ui-architect.md
+|     |  └── 3-12_frontend-state.md
+|     ├── Phase_4
+|     |  ├── 4-13_ui-coder.md
+|     |  └── 4-14_styling-specialist.md
+|     ├── Phase_5
+|     |  ├── 5-13_ui-coder.md
+|     |  └── 5-7_core-algorithm.md
+|     ├── Phase_6
+|     |  ├── 6-12_frontend-state.md
+|     |  ├── 6-13_ui-coder.md
+|     |  └── 6-7_core-algorithm.md
+|     └── _scorecard.md
+├── eslint.config.js
+├── index.html
+├── llms.txt
+├── package-lock.json
+├── package.json
+├── project_tree.txt
+├── public
+|  ├── PCS_LUT.dat
+|  ├── favicon.svg
+|  ├── fonts
+|  |  └── Bravura.woff2
+|  └── icons.svg
+├── scratch
+|  ├── phase1_test.ts
+|  └── verify_dat.js
+├── scripts
+|  └── pack_lut.js
+├── src
+|  ├── App.css
+|  ├── App.test.tsx
+|  ├── App.tsx
+|  ├── assets
+|  |  ├── hero.png
+|  |  ├── react.svg
+|  |  └── vite.svg
+|  ├── components
+|  |  ├── ErrorBoundary.tsx
+|  |  ├── InfoModal.tsx
+|  |  ├── KeySignatureSelector.tsx
+|  |  ├── Keyboard.test.tsx
+|  |  ├── Keyboard.tsx
+|  |  ├── NotationCanvas.test.tsx
+|  |  ├── NotationCanvas.tsx
+|  |  ├── SettingsModal.test.tsx
+|  |  └── SettingsModal.tsx
+|  ├── index.css
+|  ├── main.tsx
+|  ├── midi
+|  |  ├── MIDIProvider.test.tsx
+|  |  ├── MIDIProvider.tsx
+|  |  ├── MidiPortSelector.tsx
+|  |  ├── midiAccess.test.ts
+|  |  └── midiAccess.ts
+|  ├── utils
+|  |  ├── binaryLut.ts
+|  |  ├── chordSpeller.ts
+|  |  ├── notationMath.test.ts
+|  |  ├── notationMath.ts
+|  |  ├── notationMath.xLevel.test.ts
+|  |  ├── padding.test.ts
+|  |  └── pipeline.test.ts
+|  └── vitest.setup.ts
+├── temp_downloaded.dat
+├── test_output.txt
+├── tsconfig.app.json
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+
+directory: 733 file: 5376
+
+ignored: directory (105)
+
+
+[2K[1G
 
 ### FILE: PROJECT_STATE.md
 
@@ -199,6 +232,7 @@
 * **Documentation Sync:** Finalizing the architectural summary.
 
 ## 5. Recent Evolution
+* **2026-05-01:** Tuned accidental layout padding (multiplier 0.8) to resolve visual collisions in dense chromatic clusters. Stabilized dual-column layout pre-calculation logic.
 * **2026-04-30:** Integrated the full PCS_LUT dataset and implemented real-time chord symbol notation with slash chord support.
 * **2026-04-29:** Resolved "white screen" rendering issues by refactoring data ingestion to an async pattern and adding robust error boundaries to the rendering loop.
 * **2026-04-24:** Resolved modal stacking context bug by hoisting overlays to root and enforcing `z-[100]`.
@@ -277,6 +311,46 @@ You act as a ruthless QA automation engineer. You accept no code implementations
 1. Execute the command `npm run test run` in the terminal.
 2. Analyze the standard output for any failing test suites or missing assertions.
 3. If ANY test fails, you must output a detailed failure report, halt your execution immediately, and refuse to proceed to the next development phase until the test successfully passes.
+
+
+### FILE: .agent/workflows/git-deploy.md
+
+---
+command: /git-deploy
+description: "Regenerates the binary LUT from the source JSON and pushes the update to GitHub Pages."
+permissions:
+  terminal: write
+  filesystem: write
+---
+
+# Agent Persona
+You are a Database Automation Specialist. Your goal is to ensure the theoretical data in the MIDI Notator is perfectly synchronized with the master source while maintaining the security of the underlying JSON data.
+
+# Execution Standard
+- **Integrity First:** Always verify that the binary packer completes without errors before attempting to commit.
+- **Atomic Commits:** If the database has not changed, do not perform a commit or push.
+- **Path Awareness:** Ensure the packer script is pointing to the absolute path of the `PCS_LUT.json` in the Editor project.
+
+# Workflow Steps
+
+1. **Repack Binary Database**
+   - Delete the existing binary file to force dev server refresh: `rm -f public/PCS_LUT.dat`
+   - Execute the packing script: `node scripts/pack_lut.js`
+   - Capture any errors in the conversion process and report them immediately.
+
+2. **Verify Change State**
+   - Check for any changes in the repository using `git status --porcelain`.
+   - If no changes are detected in either the database or the source code, inform the user and terminate.
+
+3. **Commit and Deploy**
+   - Stage all changes: `git add .`
+   - Commit with a descriptive message. If the database was updated, use: `chore: update theoretical database`.
+   - Push to the `main` branch: `git push origin main`
+
+# Output
+1. A summary of the packing results (row count, file size).
+2. The Git commit hash for the update.
+3. A confirmation that the GitHub Actions deployment has been triggered.
 
 
 ### FILE: .agent/rules/01-react-vite-standards.md

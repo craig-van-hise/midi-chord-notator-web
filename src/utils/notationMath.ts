@@ -181,12 +181,12 @@ export interface NotePosition {
     [key: string]: any;
 }
 
-export function assignXLevels(notes: NotePosition[]): NotePosition[] {
+function applyZipper(notes: NotePosition[]): NotePosition[] {
     const COLLISION_THRESHOLD = 1;
     const xLevels: NotePosition[][] = [];
-    const sortedNotes = [...notes].sort((a, b) => a.ySteps - b.ySteps);
+    const sorted = [...notes].sort((a, b) => a.ySteps - b.ySteps);
 
-    sortedNotes.forEach(currentNote => {
+    sorted.forEach(currentNote => {
         let currentLevel = 0;
         let placed = false;
 
@@ -209,5 +209,44 @@ export function assignXLevels(notes: NotePosition[]): NotePosition[] {
         }
     });
 
-    return sortedNotes;
+    return sorted;
+}
+
+export function assignXLevels(notes: NotePosition[]): NotePosition[] {
+    // Phase 1: Group by ySteps to detect chromatic unisons
+    const groups: Record<number, NotePosition[]> = {};
+    notes.forEach(n => {
+        if (!groups[n.ySteps]) groups[n.ySteps] = [];
+        groups[n.ySteps].push(n);
+    });
+
+    const leftStack: NotePosition[] = [];
+    const rightStack: NotePosition[] = [];
+
+    Object.values(groups).forEach(group => {
+        if (group.length > 1) {
+            // Sort flattest to sharpest
+            group.sort((a, b) => (a.note || 0) - (b.note || 0));
+            // First (flattest) stays in left stack
+            leftStack.push(group[0]);
+            // Others go to right stack
+            for (let i = 1; i < group.length; i++) {
+                group[i].forceAccidentalDisplay = true;
+                rightStack.push(group[i]);
+            }
+        } else {
+            leftStack.push(group[0]);
+        }
+    });
+
+    // Pass 2: Independent Zippering
+    const zipperedLeft = applyZipper(leftStack);
+    const zipperedRight = applyZipper(rightStack);
+
+    // Flag right notes
+    zipperedRight.forEach(n => {
+        n.isRightColumn = true;
+    });
+
+    return [...zipperedLeft, ...zipperedRight];
 }

@@ -115,7 +115,7 @@ function getChromaticRootInterval(rootPCN: number, cardinality: number, decimal:
             "aug": { 1: "b2", 3: "b3", 6: "b5", 8: "b6", 10: "b7" },
             "sus4": { 1: "b2", 3: "b3", 6: "#4", 8: "b6", 10: "b7" },
             "other": { 1: "b2", 3: "b3", 6: "b5", 8: "b6", 10: "b7" },
-            "chromatic": { 1: "#1", 3: "#2", 6: "#4", 8: "#5", 10: "#6" }
+            "chromatic": { 1: "b2", 3: "b3", 6: "b5", 8: "b6", 10: "b7" }
         };
         const mapping = triadMappings[triadQuality] || triadMappings["other"];
         return mapping[rootPCN] || "1";
