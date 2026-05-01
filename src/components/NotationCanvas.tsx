@@ -115,12 +115,10 @@ const NotationCanvas: React.FC = () => {
 
       const ACC_BASE_OFFSET = -1.5;
       const ACC_COLUMN_WIDTH = 1.2;
-      const zipperOffsetPx = (staffSpace * 1.2) + 5;
 
       sorted.forEach(noteEl => {
         const noteId = noteEl.dataset.midiNote!;
         const col = noteAssignments.get(noteId) || 0;
-        const isShifted = shiftedNoteIds.has(noteId);
         
         const accidentalEl = Array.from(noteEl.children).find(child => 
           (child as HTMLDivElement).dataset.isAccidental === 'true'
@@ -128,8 +126,10 @@ const NotationCanvas: React.FC = () => {
 
         if (accidentalEl) {
           const offsetMultiplier = ACC_BASE_OFFSET - (col * ACC_COLUMN_WIDTH);
-          if (isShifted) {
-            accidentalEl.style.left = `calc(${offsetMultiplier} * var(${STAFF_SPACE_CSS_VAR}) - ${zipperOffsetPx}px)`;
+          const xOffsetPx = noteEl.dataset.xOffsetPx;
+          
+          if (xOffsetPx && xOffsetPx !== '0') {
+            accidentalEl.style.left = `calc(${offsetMultiplier} * var(${STAFF_SPACE_CSS_VAR}) - ${xOffsetPx}px)`;
           } else {
             accidentalEl.style.left = `calc(${offsetMultiplier} * var(${STAFF_SPACE_CSS_VAR}))`;
           }
@@ -164,14 +164,55 @@ const NotationCanvas: React.FC = () => {
         const NOTE_OFFSET_X_PX = staffSpace * 1.2;
 
         clusters.forEach(cluster => {
-          cluster.forEach((noteEl, i) => {
-            if (i % 2 === 0) {
-              noteEl.style.left = '50%';
-            } else {
-              shiftedIds.add(noteEl.dataset.midiNote!);
-              noteEl.style.left = `calc(50% + ${NOTE_OFFSET_X_PX}px + 5px)`;
+          const isDense = cluster.length >= 3 && cluster.some((el, idx) => {
+            if (idx >= 2) {
+              const m0 = parseInt(cluster[idx - 2].dataset.midiNote!);
+              const m1 = parseInt(cluster[idx - 1].dataset.midiNote!);
+              const m2 = parseInt(el.dataset.midiNote!);
+              return (m2 - m1 === 1 && m1 - m0 === 1);
             }
+            return false;
           });
+
+          if (isDense) {
+            // Surgical Integration: use assignXLevels for larger clusters
+            const notePositions = cluster.map(el => ({
+              ySteps: parseInt(el.dataset.stepOffset!),
+              el: el
+            }));
+            const assigned = assignXLevels(notePositions);
+            assigned.forEach(node => {
+              const noteEl = node.el;
+              const xLevel = node.xLevel || 0;
+              if (xLevel === 0) {
+                noteEl.style.left = '50%';
+                noteEl.dataset.xOffsetPx = '0';
+              } else if (xLevel === 1) {
+                shiftedIds.add(noteEl.dataset.midiNote!);
+                noteEl.style.left = `calc(50% + ${NOTE_OFFSET_X_PX}px + 5px)`;
+                noteEl.dataset.xOffsetPx = (NOTE_OFFSET_X_PX + 5).toString();
+              } else {
+                shiftedIds.add(noteEl.dataset.midiNote!);
+                const hasAccidental = noteEl.dataset.hasAccidental === 'true';
+                const accWidth = staffSpace * 1.2;
+                const extraPadding = hasAccidental ? accWidth + (xLevel * 5) : (xLevel * 5);
+                const offset = (xLevel * NOTE_OFFSET_X_PX) + extraPadding;
+                noteEl.style.left = `calc(50% + ${offset}px)`;
+                noteEl.dataset.xOffsetPx = offset.toString();
+              }
+            });
+          } else {
+            cluster.forEach((noteEl, i) => {
+              if (i % 2 === 0) {
+                noteEl.style.left = '50%';
+                noteEl.dataset.xOffsetPx = '0';
+              } else {
+                shiftedIds.add(noteEl.dataset.midiNote!);
+                noteEl.style.left = `calc(50% + ${NOTE_OFFSET_X_PX}px + 5px)`;
+                noteEl.dataset.xOffsetPx = (NOTE_OFFSET_X_PX + 5).toString();
+              }
+            });
+          }
         });
         return shiftedIds;
       };

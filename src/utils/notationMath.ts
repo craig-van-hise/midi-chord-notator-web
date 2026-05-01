@@ -174,3 +174,40 @@ export function calculateStaffPosition(midiNote: number, staffSpace: number = DE
     const { stepOffset } = getEnharmonicSpelling(midiNote, 0);
     return stepOffset * (staffSpace / 2);
 }
+
+export interface NotePosition {
+    ySteps: number;
+    xLevel?: number;
+    [key: string]: any;
+}
+
+export function assignXLevels(notes: NotePosition[]): NotePosition[] {
+    const COLLISION_THRESHOLD = 1;
+    const xLevels: NotePosition[][] = [];
+    const sortedNotes = [...notes].sort((a, b) => a.ySteps - b.ySteps);
+
+    sortedNotes.forEach(currentNote => {
+        let currentLevel = 0;
+        let placed = false;
+
+        while (!placed) {
+            if (!xLevels[currentLevel]) {
+                xLevels[currentLevel] = [];
+            }
+
+            const collision = xLevels[currentLevel].some(placedNote => 
+                Math.abs(placedNote.ySteps - currentNote.ySteps) <= COLLISION_THRESHOLD
+            );
+
+            if (collision) {
+                currentLevel++;
+            } else {
+                xLevels[currentLevel].push(currentNote);
+                currentNote.xLevel = currentLevel;
+                placed = true;
+            }
+        }
+    });
+
+    return sortedNotes;
+}

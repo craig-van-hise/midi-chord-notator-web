@@ -21,13 +21,12 @@ You are a Database Automation Specialist. Your goal is to ensure the theoretical
    - Capture any errors in the conversion process and report them immediately.
 
 2. **Verify Change State**
-   - Check if `public/PCS_LUT.dat` has been modified using `git status --porcelain`.
-   - If no changes are detected, inform the user that the database is already up to date and terminate.
+   - Check for any changes in the repository using `git status --porcelain`.
+   - If no changes are detected in either the database or the source code, inform the user and terminate.
 
 3. **Commit and Deploy**
-   - Stage the new binary file: `git add public/PCS_LUT.dat`
-   - Commit with the message: `chore: synchronize theoretical database [skip ci]` (use `skip ci` if you want to avoid redundant builds, but usually we WANT the build to trigger deployment).
-   - Actually, use: `chore: update theoretical database` to trigger the GitHub Pages deploy.
+   - Stage all changes: `git add .`
+   - Commit with a descriptive message. If the database was updated, use: `chore: update theoretical database`.
    - Push to the `main` branch: `git push origin main`
 
 # Output

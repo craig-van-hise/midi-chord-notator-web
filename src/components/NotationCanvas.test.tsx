@@ -298,7 +298,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
       expect(noteE).toHaveStyle('left: 50%');
       // NOTE_OFFSET_X_PX = 12 * 1.2 = 14.4px
       // + 5px correction
-      expect(noteF).toHaveStyle('left: calc(50% + 14.4px + 5px)');
+      expect(noteF).toHaveStyle('left: calc(50% + 19.4px)');
     });
   });
 
@@ -319,9 +319,9 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
       const notes = [60, 62, 64, 65].map(midi => document.querySelector(`[data-midi-note="${midi}"]`));
       
       expect(notes[0]).toHaveStyle('left: 50%'); // C4
-      expect(notes[1]).toHaveStyle('left: calc(50% + 14.4px + 5px)'); // D4
+      expect(notes[1]).toHaveStyle('left: calc(50% + 19.4px)'); // D4
       expect(notes[2]).toHaveStyle('left: 50%'); // E4
-      expect(notes[3]).toHaveStyle('left: calc(50% + 14.4px + 5px)'); // F4
+      expect(notes[3]).toHaveStyle('left: calc(50% + 19.4px)'); // F4
     });
   });
 
@@ -346,7 +346,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
       
       expect(noteC).toHaveStyle('left: 50%');
       expect(noteE).toHaveStyle('left: 50%');
-      expect(noteF).toHaveStyle('left: calc(50% + 14.4px + 5px)');
+      expect(noteF).toHaveStyle('left: calc(50% + 19.4px)');
       expect(noteA).toHaveStyle('left: 50%');
     });
   });
