@@ -25,7 +25,7 @@ export async function fetchBinaryLUT(url: string): Promise<(PCS_Entry | null)[]>
     const decoder = new TextDecoder();
     const stringPool: string[] = JSON.parse(decoder.decode(stringPoolBuffer));
 
-    const rows: (PCS_Entry | null)[] = new Array(rowsCount).fill(null);
+    const rows: (PCS_Entry | null)[] = new Array(4096).fill(null);
 
     for (let i = 0; i < rowsCount; i++) {
         const rowOffset = dataView.getUint32(12 + (i * 4), true);
@@ -38,7 +38,7 @@ export async function fetchBinaryLUT(url: string): Promise<(PCS_Entry | null)[]>
         const baseTriadIdx = dataView.getUint16(rowOffset + 8, true);
 
         // Calculate intervals
-        // Find the next non-zero offset to calculate interval count.
+        // Find the next non-zero offset or the string pool offset to calculate interval count.
         
         let nextOffset = stringPoolOffset;
         for (let j = i + 1; j < rowsCount; j++) {
@@ -61,7 +61,7 @@ export async function fetchBinaryLUT(url: string): Promise<(PCS_Entry | null)[]>
             }
         }
 
-        rows[i] = {
+        rows[decimal] = {
             decimal,
             chord_type: (chordTypeIdx < stringPool.length) ? stringPool[chordTypeIdx] : "",
             root_pc,

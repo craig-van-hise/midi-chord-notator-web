@@ -53,38 +53,33 @@ async function pack() {
     // [Rows...]
     // [String Pool...]
 
-    const rowsCount = packedRows.length;
+    const rowsCount = 4096; // Fixed size for decimal indexing (0-4095)
     const headerSize = 12;
-    
-    // Each row: decimal(4), root_pc(1), cardinality(1), chord_type_idx(2), base_triad_idx(2), intervals_ptr(4)
-    // Actually let's make it simpler: fixed size if possible, or use an offset table.
-    // Let's use an offset table for rows to support variable interval counts.
     
     const rowTableOffset = headerSize;
     const rowDataOffset = rowTableOffset + (rowsCount * 4);
     
     const rowBuffers = [];
-    const rowOffsets = [];
+    const rowOffsets = new Array(rowsCount).fill(0);
     let currentDataPos = rowDataOffset;
 
-    packedRows.forEach(row => {
-        if (!row) {
-            rowOffsets.push(0); // 0 means null row
+    rawData.forEach(row => {
+        if (!row || row.decimal === undefined || row.decimal >= rowsCount) {
             return;
         }
 
-        rowOffsets.push(currentDataPos);
+        rowOffsets[row.decimal] = currentDataPos;
         
-        const intervalsCount = row.intervals_indices.length;
+        const intervalsCount = (row.chord_intervals || []).length;
         const buffer = Buffer.alloc(10 + (intervalsCount * 2));
         buffer.writeUInt32LE(row.decimal, 0);
         buffer.writeUInt8(row.root_pc, 4);
         buffer.writeUInt8(row.cardinality, 5);
-        buffer.writeUInt16LE(row.chord_type_idx, 6);
-        buffer.writeUInt16LE(row.base_triad_idx, 8);
+        buffer.writeUInt16LE(getStringIndex(row.chord_type), 6);
+        buffer.writeUInt16LE(getStringIndex(row.base_triad), 8);
         
-        row.intervals_indices.forEach((idx, i) => {
-            buffer.writeUInt16LE(idx, 10 + (i * 2));
+        (row.chord_intervals || []).forEach((interval, i) => {
+            buffer.writeUInt16LE(getStringIndex(interval), 10 + (i * 2));
         });
         
         rowBuffers.push(buffer);
