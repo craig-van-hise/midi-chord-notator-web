@@ -218,4 +218,58 @@ describe('chordSpeller Interval Parsing', () => {
     const spelling2 = getChordSpelling([66, 68, 71], "C Major", mockLut);
     expect(spelling2).toEqual(["F#", "G#", "B"]);
   });
+
+  it('should follow Minor Pattern (#1, b3, #4, #5, b7) for m-type chords', () => {
+    const mockLut = new Array(4096).fill(null);
+    // C#m(maj7) -> [61, 64, 68, 72] -> Decimal 2185
+    mockLut[2185] = {
+        decimal: 2185,
+        chord_type: "m(maj7)",
+        root_pc: 0,
+        chord_intervals: ["1", "b3", "5", "7"],
+        base_triad: "min",
+        base_7th: 0,
+        cardinality: 4,
+        pitch_class_set: [0, 3, 7, 11]
+    };
+
+    const spelling = getChordSpelling([61, 64, 68, 72], "C Major", mockLut);
+    expect(spelling).toEqual(["C#", "E", "G#", "B#"]);
+  });
+
+  it('should follow Dominant Pattern (b2, b3, #4, b6, b7) for 7th-type chords', () => {
+    const mockLut = new Array(4096).fill(null);
+    // Db7 -> [61, 65, 68, 71] -> Decimal 1169
+    mockLut[1169] = {
+        decimal: 1169,
+        chord_type: "7",
+        root_pc: 0,
+        chord_intervals: ["1", "3", "5", "b7"],
+        base_triad: "maj",
+        base_7th: 7,
+        cardinality: 4,
+        pitch_class_set: [0, 4, 7, 10]
+    };
+
+    const spelling = getChordSpelling([61, 65, 68, 71], "C Major", mockLut);
+    expect(spelling).toEqual(["Db", "F", "Ab", "Cb"]);
+
+    // Bbm7 -> [70, 73, 77, 80] -> Rel PCs [0, 3, 7, 10] -> Decimal 1161 (already in MINOR_PATTERN_DECIMALS)
+    mockLut[1161] = {
+        decimal: 1161,
+        chord_type: "m7",
+        root_pc: 0,
+        chord_intervals: ["1", "b3", "5", "b7"],
+        base_triad: "min",
+        base_7th: 7,
+        cardinality: 4,
+        pitch_class_set: [0, 3, 7, 10]
+    };
+    const spelling2 = getChordSpelling([70, 73, 77, 80], "C Major", mockLut);
+    expect(spelling2).toEqual(["Bb", "Db", "F", "Ab"]);
+
+    // Ab7 -> [68, 72, 75, 78] -> Rel PCs [0, 4, 7, 10] -> Decimal 1169
+    const spelling3 = getChordSpelling([68, 72, 75, 78], "C Major", mockLut);
+    expect(spelling3).toEqual(["Ab", "C", "Eb", "Gb"]);
+  });
 });
