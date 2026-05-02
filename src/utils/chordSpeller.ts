@@ -104,7 +104,10 @@ function getChromaticRootInterval(rootPCN: number, cardinality: number, decimal:
     if (cardinality === 1) return chromaticIntervals[rootPCN][0];
 
     if (cardinality === 2) {
-        const check14679e = [3, 17, 65, 129, 513, 2049];
+        if (decimal === 33 && rootPCN === 6) {
+            return chromaticIntervals[rootPCN][1];
+        }
+        const check14679e = [3, 5, 17, 33, 65, 129, 513, 2049];
         return check14679e.includes(decimal) ? chromaticIntervals[rootPCN][0] : chromaticIntervals[rootPCN][1];
     }
 

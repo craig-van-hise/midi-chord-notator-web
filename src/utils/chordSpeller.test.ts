@@ -74,4 +74,57 @@ describe('chordSpeller Interval Parsing', () => {
     const symbol = getChordSymbol([64, 67, 70, 74], "C Major", mockLut);
     expect(symbol).toBe("Em7b5");
   });
+
+  it('should spell Major 2nd (decimal 5) as flat-side (Bb, C) in C Major', () => {
+    const mockLut = new Array(4096).fill(null);
+    mockLut[5] = {
+        decimal: 5,
+        chord_type: "M2",
+        root_pc: 0, 
+        chord_intervals: ["1", "2"],
+        base_triad: "other",
+        cardinality: 2,
+        pitch_class_set: [0, 2]
+    };
+
+    const spelling = getChordSpelling([58, 60], "C Major", mockLut);
+    expect(spelling).toEqual(["Bb", "C"]);
+  });
+
+  it('should spell Perfect 4th (decimal 33) as flat-side (Db, Gb) in C Major', () => {
+    const mockLut = new Array(4096).fill(null);
+    mockLut[33] = {
+        decimal: 33,
+        chord_type: "P4",
+        root_pc: 0, 
+        chord_intervals: ["1", "4"],
+        base_triad: "other",
+        cardinality: 2,
+        pitch_class_set: [0, 5]
+    };
+
+    const spelling = getChordSpelling([61, 66], "C Major", mockLut);
+    expect(spelling).toEqual(["Db", "Gb"]);
+  });
+
+  it('should spell Perfect 4th on tritone (decimal 33, rootPCN 6) as sharp-side (F#, B) in C Major', () => {
+    const mockLut = new Array(4096).fill(null);
+    mockLut[33] = {
+        decimal: 33,
+        chord_type: "P4",
+        root_pc: 0, 
+        chord_intervals: ["1", "4"],
+        base_triad: "other",
+        cardinality: 2,
+        pitch_class_set: [0, 5]
+    };
+
+    // MIDI [66, 71] -> PCs [6, 11]
+    // Low note PC: 6 (F#/Gb)
+    // Relative PCs: (6-6)=0, (11-6)=5
+    // Decimal: 2^0 + 2^5 = 33
+    // In C Major, rootPCN = (6 - 0) = 6
+    const spelling = getChordSpelling([66, 71], "C Major", mockLut);
+    expect(spelling).toEqual(["F#", "B"]);
+  });
 });
