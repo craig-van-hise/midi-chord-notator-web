@@ -127,4 +127,24 @@ describe('chordSpeller Interval Parsing', () => {
     const spelling = getChordSpelling([66, 71], "C Major", mockLut);
     expect(spelling).toEqual(["F#", "B"]);
   });
+
+  it('should spell Fb major triad (MIDI 64, 68, 71) correctly as [Fb, Ab, Cb] in Eb Major', () => {
+    const mockLut = new Array(4096).fill(null);
+    // MIDI [64, 68, 71] -> PCs [4, 8, 11]
+    // Low note PC: 4 (E/Fb)
+    // Relative PCs: (4-4)=0, (8-4)=4, (11-4)=7
+    // Decimal: 2^0 + 2^4 + 2^7 = 1 + 16 + 128 = 145
+    mockLut[145] = {
+        decimal: 145,
+        chord_type: "maj",
+        root_pc: 0, 
+        chord_intervals: ["1", "3", "5"],
+        base_triad: "maj",
+        cardinality: 3,
+        pitch_class_set: [0, 4, 7]
+    };
+
+    const spelling = getChordSpelling([64, 68, 71], "Eb Major", mockLut);
+    expect(spelling).toEqual(["Fb", "Ab", "Cb"]);
+  });
 });
