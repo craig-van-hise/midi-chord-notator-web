@@ -147,4 +147,75 @@ describe('chordSpeller Interval Parsing', () => {
     const spelling = getChordSpelling([64, 68, 71], "Eb Major", mockLut);
     expect(spelling).toEqual(["Fb", "Ab", "Cb"]);
   });
+
+  it('should spell minor 3rd on b3 and b7 (decimal 9, rootPCN 3/10) as flat-side in C Major', () => {
+    const mockLut = new Array(4096).fill(null);
+    mockLut[9] = {
+        decimal: 9,
+        chord_type: "m3",
+        root_pc: 0, 
+        chord_intervals: ["1", "b3"],
+        base_triad: "other",
+        cardinality: 2,
+        pitch_class_set: [0, 3]
+    };
+
+    // Case 1: rootPCN 3 (b3) -> [63, 66]
+    const spelling1 = getChordSpelling([63, 66], "C Major", mockLut);
+    expect(spelling1).toEqual(["Eb", "Gb"]);
+
+    // Case 2: rootPCN 10 (b7) -> [70, 73]
+    const spelling2 = getChordSpelling([70, 73], "C Major", mockLut);
+    expect(spelling2).toEqual(["Bb", "Db"]);
+
+    // Case 3 (Control): rootPCN 1 (#1) -> [61, 64]
+    const spelling3 = getChordSpelling([61, 64], "C Major", mockLut);
+    expect(spelling3).toEqual(["C#", "E"]);
+  });
+
+  it('should spell minor 7th on b3 and b7 (decimal 1025, rootPCN 3/10) as flat-side in C Major', () => {
+    const mockLut = new Array(4096).fill(null);
+    mockLut[1025] = {
+        decimal: 1025,
+        chord_type: "m7",
+        root_pc: 0, 
+        chord_intervals: ["1", "b7"],
+        base_triad: "other",
+        cardinality: 2,
+        pitch_class_set: [0, 10]
+    };
+
+    // Case 1: rootPCN 3 (b3) -> [63, 73]
+    const spelling1 = getChordSpelling([63, 73], "C Major", mockLut);
+    expect(spelling1).toEqual(["Eb", "Db"]);
+
+    // Case 2: rootPCN 10 (b7) -> [70, 80]
+    const spelling2 = getChordSpelling([70, 80], "C Major", mockLut);
+    expect(spelling2).toEqual(["Bb", "Ab"]);
+
+    // Case 3 (Control): rootPCN 1 (#1) -> [61, 71]
+    const spelling3 = getChordSpelling([61, 71], "C Major", mockLut);
+    expect(spelling3).toEqual(["C#", "B"]);
+  });
+
+  it('should spell m7(no5) in 3rd inversion (decimal 37) with sharps when root is #4 or #5 in C Major', () => {
+    const mockLut = new Array(4096).fill(null);
+    mockLut[37] = {
+        decimal: 37,
+        chord_type: "m7(no5)",
+        root_pc: 2, // F# is 2 semitones above E (low note)
+        chord_intervals: ["b7", "1", "b3"], // Intervals relative to root F#: E is b7, F# is 1, A is b3
+        base_triad: "other",
+        cardinality: 3,
+        pitch_class_set: [0, 2, 5]
+    };
+
+    // Case 1: rootPCN 6 (#4) -> [64, 66, 69] (E, F#, A)
+    const spelling1 = getChordSpelling([64, 66, 69], "C Major", mockLut);
+    expect(spelling1).toEqual(["E", "F#", "A"]);
+
+    // Case 2: rootPCN 8 (#5) -> [66, 68, 71] (F#, G#, B)
+    const spelling2 = getChordSpelling([66, 68, 71], "C Major", mockLut);
+    expect(spelling2).toEqual(["F#", "G#", "B"]);
+  });
 });
