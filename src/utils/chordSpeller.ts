@@ -114,6 +114,9 @@ function getChromaticRootInterval(rootPCN: number, cardinality: number, decimal:
         if ((decimal === 9 || decimal === 1025) && (rootPCN === 3 || rootPCN === 10)) {
             return chromaticIntervals[rootPCN][0];
         }
+        if (decimal === 257 && rootPCN === 10) {
+            return chromaticIntervals[rootPCN][0];
+        }
         const check14679e = [3, 5, 17, 33, 65, 129, 513, 2049];
         return check14679e.includes(decimal) ? chromaticIntervals[rootPCN][0] : chromaticIntervals[rootPCN][1];
     }
@@ -125,12 +128,12 @@ function getChromaticRootInterval(rootPCN: number, cardinality: number, decimal:
 
         if (MINOR_PATTERN_DECIMALS.has(decimal)) {
             const minMapping: Record<number, string> = { 1: "#1", 3: "b3", 6: "#4", 8: "#5", 10: "b7" };
-            return minMapping[rootPCN] || "1";
+            if (rootPCN in minMapping) return minMapping[rootPCN];
         }
 
         if (DOMINANT_PATTERN_DECIMALS.has(decimal)) {
             const domMapping: Record<number, string> = { 1: "b2", 3: "b3", 6: "#4", 8: "b6", 10: "b7" };
-            return domMapping[rootPCN] || "1";
+            if (rootPCN in domMapping) return domMapping[rootPCN];
         }
 
         const triadMappings: Record<string, Record<number, string>> = {

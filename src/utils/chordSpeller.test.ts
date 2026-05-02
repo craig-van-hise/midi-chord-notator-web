@@ -272,4 +272,28 @@ describe('chordSpeller Interval Parsing', () => {
     const spelling3 = getChordSpelling([68, 72, 75, 78], "C Major", mockLut);
     expect(spelling3).toEqual(["Ab", "C", "Eb", "Gb"]);
   });
+
+  it('should spell minor 6th on b7 (decimal 257, rootPCN 10) as flat-side in C Major', () => {
+    const mockLut = new Array(4096).fill(null);
+    mockLut[257] = {
+        decimal: 257,
+        chord_type: "m6",
+        root_pc: 0, 
+        chord_intervals: ["1", "b6"],
+        base_triad: "other",
+        base_7th: 0,
+        cardinality: 2,
+        pitch_class_set: [0, 8]
+    };
+
+    // Case 1: rootPCN 10 (b7) -> [70, 78]
+    const spelling1 = getChordSpelling([70, 78], "C Major", mockLut);
+    expect(spelling1).toEqual(["Bb", "Gb"]);
+
+    // Case 2 (Control): rootPCN 2 (2) -> [62, 70]
+    const spelling2 = getChordSpelling([62, 70], "C Major", mockLut);
+    // Root is 2 (D). Rel PCs [0, 8].
+    // Interval "b6" of D is Bb.
+    expect(spelling2).toEqual(["D", "Bb"]);
+  });
 });
