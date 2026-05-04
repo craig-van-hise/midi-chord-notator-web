@@ -296,4 +296,90 @@ describe('chordSpeller Interval Parsing', () => {
     // Interval "b6" of D is Bb.
     expect(spelling2).toEqual(["D", "Bb"]);
   });
+
+  describe('Phase 47: m2, Dorian, and Phrygian Rules', () => {
+    it('Test Case 1 (m2 - Sharp): m2 should be sharp (C#) when out of key context', () => {
+      const mockLut = new Array(4096).fill(null);
+      mockLut[3] = {
+          decimal: 3,
+          chord_type: "m2",
+          root_pc: 0,
+          chord_intervals: ["1", "b2"],
+          base_triad: "other",
+          cardinality: 2,
+          pitch_class_set: [0, 1]
+      };
+      // MIDI [61, 62] -> PCs [1, 2]. Root is 1. rootPCN = 1.
+      const spelling = getChordSpelling([61, 62], "C Major", mockLut);
+      expect(spelling[0]).toBe("C#");
+    });
+
+    it('Test Case 2 (Dorian - Minor Pattern): Dorian should follow Minor Pattern (#1)', () => {
+      const mockLut = new Array(4096).fill(null);
+      mockLut[653] = {
+          decimal: 653,
+          chord_type: "Dorian5",
+          root_pc: 0,
+          chord_intervals: ["1", "2", "b3", "5", "6"],
+          base_triad: "min",
+          cardinality: 5,
+          pitch_class_set: [0, 2, 3, 5, 7]
+      };
+      // [61, 64, 68, 70, 75] -> PCs [1, 4, 8, 10, 3]. Root is 1. rootPCN = 1.
+      const spelling = getChordSpelling([61, 64, 68, 70, 75], "C Major", mockLut);
+      expect(spelling[0]).toBe("C#");
+    });
+
+    it('Test Case 3 (Phrygian - Sharp Pattern): Phrygian should resolve to sharp mapping (#1)', () => {
+      const mockLut = new Array(4096).fill(null);
+      mockLut[171] = {
+          decimal: 171,
+          chord_type: "Phrygian5",
+          root_pc: 0,
+          chord_intervals: ["1", "b2", "b3", "4", "5"],
+          base_triad: "other",
+          cardinality: 5,
+          pitch_class_set: [0, 1, 3, 5, 7]
+      };
+      // [61, 62, 64, 66, 68] -> PCs [1, 2, 4, 6, 8]. Root is 1. rootPCN = 1.
+      const spelling = getChordSpelling([61, 62, 64, 66, 68], "C Major", mockLut);
+      expect(spelling[0]).toBe("C#");
+    });
+  });
+
+  describe('Phase 48: Double Accidental Inheritance', () => {
+    it('Test Case 1 (Bbb Major in Db Major): Notes should inherit double flats', () => {
+      const mockLut = new Array(4096).fill(null);
+      mockLut[145] = {
+          decimal: 145,
+          chord_type: "maj",
+          root_pc: 0,
+          chord_intervals: ["1", "3", "5"],
+          base_triad: "maj",
+          cardinality: 3,
+          pitch_class_set: [0, 4, 7]
+      };
+      // [69, 73, 76] -> PCs [9, 1, 4]. Root PC: 9. rootPCN relative to Db (1) is 8.
+      // b6 of Db is Bbb. Major triad on Bbb is Bbb, Db, Fb.
+      const spelling = getChordSpelling([69, 73, 76], "Db Major", mockLut);
+      expect(spelling).toEqual(["Bbb", "Db", "Fb"]);
+    });
+
+    it('Test Case 2 (Fx°7 in F# Major): Notes should inherit double sharps', () => {
+      const mockLut = new Array(4096).fill(null);
+      mockLut[585] = {
+          decimal: 585,
+          chord_type: "°7",
+          root_pc: 0,
+          chord_intervals: ["1", "b3", "b5", "bb7"],
+          base_triad: "dim",
+          cardinality: 4,
+          pitch_class_set: [0, 3, 6, 9]
+      };
+      // [67, 70, 73, 76] -> PCs [7, 10, 1, 4]. Root PC: 7. rootPCN relative to F# (6) is 1.
+      // #1 of F# is Fx. Dim7 on Fx is Fx, A#, C#, E.
+      const spelling = getChordSpelling([67, 70, 73, 76], "F# Major", mockLut);
+      expect(spelling).toEqual(["Fx", "A#", "C#", "E"]);
+    });
+  });
 });
