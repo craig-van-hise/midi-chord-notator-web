@@ -67,6 +67,7 @@ export async function fetchBinaryLUT(url: string): Promise<(PCS_Entry | null)[]>
             root_pc,
             cardinality,
             base_triad: (baseTriadIdx < stringPool.length) ? stringPool[baseTriadIdx] : "",
+            base_7th: 0,
             chord_intervals,
             pitch_class_set: []
         };

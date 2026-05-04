@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assignXLevels, NotePosition } from './notationMath';
+import { assignXLevels, type NotePosition } from './notationMath';
 
 describe('Phase 1: Greedy X-Level Assignment Algorithm', () => {
     it('Test Case 1 (No Collision): C Major triad (C, E, G, ySteps: 0, 2, 4)', () => {
