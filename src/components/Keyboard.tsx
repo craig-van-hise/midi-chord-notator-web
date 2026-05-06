@@ -198,12 +198,28 @@ export const Piano88: React.FC = () => {
         }
     }
 
+    const handleToggleModeClick = () => {
+        const nextMode = !isToggleMode;
+        setIsToggleMode(nextMode);
+        
+        if (nextMode) {
+            // Turning ON: Enforce mutual exclusivity
+            setIsHoldModeActive(false);
+        } else {
+            // Turning OFF: Flush all toggled notes
+            virtualHeldNotes.forEach(note => {
+                dispatchVirtualMidi(new Uint8Array([0x80, note, 0]));
+            });
+            setVirtualHeldNotes(new Set());
+        }
+    };
+
     return (
         <div className="flex flex-col items-center gap-2">
             {/* Mode Controls - Moved up slightly */}
             <div className="flex items-center gap-2 mb-1">
                 <button
-                    onClick={() => { setIsToggleMode(!isToggleMode); if (!isToggleMode) setIsHoldModeActive(false); }}
+                    onClick={handleToggleModeClick}
                     className={`px-3 py-1 text-[10px] uppercase tracking-widest font-bold rounded border transition-all duration-200 ${
                         isToggleMode 
                         ? 'bg-[#aa3bff] border-[#aa3bff] text-white shadow-lg shadow-[#aa3bff]/30 translate-y-[1px]' 
