@@ -36,9 +36,11 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 |  ├── components
 |  |  ├── Keyboard.tsx
 |  |  ├── NotationCanvas.tsx
-|  |  └── KeySignatureSelector.tsx
+|  |  ├── KeySignatureSelector.tsx
+|  |  └── SettingsModal.tsx
 |  ├── midi
 |  |  ├── MIDIProvider.tsx
+|  |  ├── MidiPortSelector.tsx
 |  |  └── midiAccess.ts
 |  └── utils
 |     ├── chordSpeller.ts

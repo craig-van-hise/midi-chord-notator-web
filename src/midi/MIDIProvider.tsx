@@ -27,6 +27,8 @@ interface MidiContextType {
   setSplitPoint: (note: number) => void;
   handleMidiPanic: () => void;
   isSustainActive: boolean;
+  isHoldModeActive: boolean;
+  setIsHoldModeActive: (b: boolean) => void;
   dispatchVirtualMidi: (data: Uint8Array) => void;
   lut: (PCS_Entry | null)[];
 }
@@ -42,12 +44,29 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isSustainActive, setIsSustainActive] = useState<boolean>(false);
+  const [isHoldModeActive, setIsHoldModeActive] = useState<boolean>(false);
   const [lut, setLut] = useState<(PCS_Entry | null)[]>([]);
+
+  const selectedOutputPortRef = React.useRef<MIDIOutput | null>(null);
+
+  useEffect(() => {
+    selectedOutputPortRef.current = selectedOutputPort;
+  }, [selectedOutputPort]);
 
   const physicallyHeldNotes = React.useRef<Set<number>>(new Set());
   const pendingNoteOffs = React.useRef<Set<number>>(new Set());
+  const heldModePendingNoteOffs = React.useRef<Set<number>>(new Set());
 
   const dispatchMidiEvent = useCallback((data: Uint8Array) => {
+    // Output hardware sync: Sends to synth in sync with UI
+    if (selectedOutputPortRef.current) {
+      try {
+        selectedOutputPortRef.current.send(data);
+      } catch (e) {
+        console.warn("Failed to send MIDI data to output port:", e);
+      }
+    }
+
     const midiEventDetail = {
       data,
       timestamp: performance.now(),
@@ -57,7 +76,8 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     window.dispatchEvent(customEvent);
   }, []);
 
-  const handleIncomingMidi = useCallback((data: Uint8Array) => {
+  const handleIncomingMidi = useCallback((data: Uint8Array, isVirtual: boolean = false) => {
+
     const [status, note, velocity] = data;
     const command = status & 0xF0;
     const channel = status & 0x0F;
@@ -80,17 +100,33 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Note On
     if (command === 0x90 && velocity > 0) {
-      physicallyHeldNotes.current.add(note);
+      if (!isVirtual && isHoldModeActive && physicallyHeldNotes.current.size === 0) {
+        // Flush old held notes before starting new chord
+        heldModePendingNoteOffs.current.forEach(noteNum => {
+          dispatchMidiEvent(new Uint8Array([0x80 + channel, noteNum, 0]));
+        });
+        heldModePendingNoteOffs.current.clear();
+      }
+      
+      if (!isVirtual) {
+        physicallyHeldNotes.current.add(note);
+      }
       pendingNoteOffs.current.delete(note);
+      heldModePendingNoteOffs.current.delete(note);
       dispatchMidiEvent(data);
       return;
     }
 
     // Note Off
     if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-      physicallyHeldNotes.current.delete(note);
+      if (!isVirtual) {
+        physicallyHeldNotes.current.delete(note);
+      }
+      
       if (isSustainActive) {
         pendingNoteOffs.current.add(note);
+      } else if (isHoldModeActive && !isVirtual) {
+        heldModePendingNoteOffs.current.add(note);
       } else {
         dispatchMidiEvent(data);
       }
@@ -99,10 +135,10 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Default: Dispatch other messages
     dispatchMidiEvent(data);
-  }, [isSustainActive, dispatchMidiEvent]);
+  }, [isSustainActive, isHoldModeActive, dispatchMidiEvent]);
 
   const dispatchVirtualMidi = useCallback((data: Uint8Array) => {
-    handleIncomingMidi(data);
+    handleIncomingMidi(data, true);
   }, [handleIncomingMidi]);
 
   const handleMidiPanic = useCallback(() => {
@@ -121,7 +157,9 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Reset sustain state
     setIsSustainActive(false);
+    setIsHoldModeActive(false);
     pendingNoteOffs.current.clear();
+    heldModePendingNoteOffs.current.clear();
 
     // Dispatch proprietary PANIC flag
     const panicEvent = new CustomEvent('MIDI_MESSAGE_RECEIVED', {
@@ -134,6 +172,16 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     window.dispatchEvent(panicEvent);
   }, [selectedOutputPort]);
 
+  useEffect(() => {
+    if (!isHoldModeActive) {
+      // Flush held notes when mode is deactivated
+      heldModePendingNoteOffs.current.forEach(noteNum => {
+        dispatchMidiEvent(new Uint8Array([0x80, noteNum, 0])); // Use channel 0 for virtual flush
+      });
+      heldModePendingNoteOffs.current.clear();
+    }
+  }, [isHoldModeActive, dispatchMidiEvent]);
+
   const handleMidiMessage = useCallback((_event: Event) => {
     // const customEvent = _event as CustomEvent<MidiMessageReceivedEventDetail>;
   }, []);
@@ -143,6 +191,20 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     midiAccessRef.current = midiAccess;
   }, [midiAccess]);
+
+  useEffect(() => {
+    if (!selectedInputPort) return;
+    
+    selectedInputPort.onmidimessage = (event: MIDIMessageEvent) => {
+      if (event.data) {
+        handleIncomingMidi(event.data as Uint8Array, false);
+      }
+    };
+
+    return () => {
+      selectedInputPort.onmidimessage = null;
+    };
+  }, [selectedInputPort, handleIncomingMidi]);
 
   useEffect(() => {
     let isMounted = true;
@@ -205,14 +267,6 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     initializeMidi();
     
-    const handleRawMidi = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.data) {
-        handleIncomingMidi(customEvent.detail.data);
-      }
-    };
-
-    window.addEventListener('RAW_MIDI_MESSAGE_RECEIVED', handleRawMidi);
     window.addEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
 
     return () => {
@@ -227,7 +281,6 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           output.close().catch(err => console.error('Error closing MIDI output:', err));
         });
       }
-      window.removeEventListener('RAW_MIDI_MESSAGE_RECEIVED', handleRawMidi);
       window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
     };
   }, [handleMidiMessage, handleIncomingMidi]);
@@ -278,6 +331,8 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSplitPoint,
         handleMidiPanic,
         isSustainActive,
+        isHoldModeActive,
+        setIsHoldModeActive,
         dispatchVirtualMidi,
         lut,
       }}

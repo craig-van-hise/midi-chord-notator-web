@@ -15,21 +15,12 @@ const BLACK_KEY_WIDTH = 11;
 const BLACK_KEY_HEIGHT = 56;
 
 export const Piano88: React.FC = () => {
-    const { dispatchVirtualMidi, lut, keySignature } = useMidi();
+    const { dispatchVirtualMidi, lut, keySignature, isHoldModeActive, setIsHoldModeActive } = useMidi();
     const [isToggleMode, setIsToggleMode] = React.useState(false);
-    const [isHoldModeEnabled, setIsHoldModeEnabled] = React.useState(false);
     const [virtualHeldNotes, setVirtualHeldNotes] = React.useState<Set<number>>(new Set());
-    const activePitches = React.useRef<Set<number>>(new Set());
     const displayedPitches = React.useRef<Set<number>>(new Set());
-    const isHoldModeEnabledRef = React.useRef<boolean>(false);
-    const isWaitingForNewChord = React.useRef<boolean>(false);
     const pianoKeys = [];
 
-    // Sync Hold Mode state to imperative engine
-    React.useEffect(() => {
-        isHoldModeEnabledRef.current = isHoldModeEnabled;
-        window.dispatchEvent(new CustomEvent('HOLD_MODE_CHANGED', { detail: { enabled: isHoldModeEnabled } }));
-    }, [isHoldModeEnabled]);
 
     // Listen for MIDI messages to update spelled notes strip
     React.useEffect(() => {
@@ -38,9 +29,7 @@ export const Piano88: React.FC = () => {
             if (!detail) return;
 
             if (detail.panic) {
-                activePitches.current.clear();
                 displayedPitches.current.clear();
-                isWaitingForNewChord.current = false;
                 updateSpelledNotesStrip([]);
                 return;
             }
@@ -51,19 +40,9 @@ export const Piano88: React.FC = () => {
                 const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && velocity === 0);
 
                 if (isNoteOn) {
-                    activePitches.current.add(note);
-                    if (isHoldModeEnabledRef.current && isWaitingForNewChord.current) {
-                        displayedPitches.current.clear();
-                        isWaitingForNewChord.current = false;
-                    }
                     displayedPitches.current.add(note);
                 } else if (isNoteOff) {
-                    activePitches.current.delete(note);
-                    if (!isHoldModeEnabledRef.current) {
-                        displayedPitches.current.delete(note);
-                    } else if (activePitches.current.size === 0) {
-                        isWaitingForNewChord.current = true;
-                    }
+                    displayedPitches.current.delete(note);
                 }
 
                 if (lut.length > 0) {
@@ -91,38 +70,13 @@ export const Piano88: React.FC = () => {
             }
         };
 
-        const handleHoldModeChange = (event: Event) => {
-            const detail = (event as CustomEvent).detail;
-            if (!detail) return;
-            const enabled = detail.enabled;
-
-            if (!enabled) {
-                isWaitingForNewChord.current = false;
-                displayedPitches.current = new Set(activePitches.current);
-                
-                if (lut.length > 0) {
-                    const pitches = Array.from(displayedPitches.current).sort((a, b) => a - b);
-                    const spellings = getChordSpelling(pitches, keySignature, lut);
-                    const spelledData = pitches.map((p, i) => ({
-                        note: p,
-                        spelling: spellings[i]
-                    }));
-                    updateSpelledNotesStrip(spelledData);
-                } else {
-                    updateSpelledNotesStrip([]);
-                }
-            }
-        };
-
         window.addEventListener('MIDI_MESSAGE_RECEIVED', handleMidi);
-        window.addEventListener('HOLD_MODE_CHANGED', handleHoldModeChange);
         return () => {
             window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidi);
-            window.removeEventListener('HOLD_MODE_CHANGED', handleHoldModeChange);
         };
     }, [lut, keySignature]);
 
-    const handleKeyInteraction = (note: number, isDown: boolean) => {
+    const handleKeyInteraction = (note: number, isDown: boolean, velocity: number = 100) => {
         if (isToggleMode) {
             // In toggle mode, only onPointerDown matters
             if (isDown) {
@@ -136,7 +90,7 @@ export const Piano88: React.FC = () => {
                     });
                 } else {
                     // Turn on
-                    dispatchVirtualMidi(new Uint8Array([0x90, note, 100]));
+                    dispatchVirtualMidi(new Uint8Array([0x90, note, velocity]));
                     setVirtualHeldNotes(prev => {
                         const next = new Set(prev);
                         next.add(note);
@@ -147,7 +101,7 @@ export const Piano88: React.FC = () => {
         } else {
             // Standard behavior
             if (isDown) {
-                dispatchVirtualMidi(new Uint8Array([0x90, note, 100]));
+                dispatchVirtualMidi(new Uint8Array([0x90, note, velocity]));
             } else {
                 dispatchVirtualMidi(new Uint8Array([0x80, note, 0]));
             }
@@ -170,7 +124,11 @@ export const Piano88: React.FC = () => {
                     id={`pk88-${note}`}
                     onPointerDown={(e) => {
                         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-                        handleKeyInteraction(note, true);
+                        const offsetY = e.nativeEvent.offsetY;
+                        const height = (e.target as HTMLElement).clientHeight;
+                        let vel = Math.floor((offsetY / height) * 127);
+                        vel = Math.max(1, Math.min(127, vel)); // Clamp 1-127
+                        handleKeyInteraction(note, true, vel);
                     }}
                     onPointerUp={() => handleKeyInteraction(note, false)}
                     onPointerLeave={() => handleKeyInteraction(note, false)}
@@ -197,7 +155,11 @@ export const Piano88: React.FC = () => {
                             onPointerDown={(e) => {
                                 e.stopPropagation();
                                 (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-                                handleKeyInteraction(note + 1, true);
+                                const offsetY = e.nativeEvent.offsetY;
+                                const height = (e.target as HTMLElement).clientHeight;
+                                let vel = Math.floor((offsetY / height) * 127);
+                                vel = Math.max(1, Math.min(127, vel)); // Clamp 1-127
+                                handleKeyInteraction(note + 1, true, vel);
                             }}
                             onPointerUp={(e) => { e.stopPropagation(); handleKeyInteraction(note + 1, false); }}
                             onPointerLeave={(e) => { e.stopPropagation(); handleKeyInteraction(note + 1, false); }}
@@ -241,7 +203,7 @@ export const Piano88: React.FC = () => {
             {/* Mode Controls - Moved up slightly */}
             <div className="flex items-center gap-2 mb-1">
                 <button
-                    onClick={() => setIsToggleMode(!isToggleMode)}
+                    onClick={() => { setIsToggleMode(!isToggleMode); if (!isToggleMode) setIsHoldModeActive(false); }}
                     className={`px-3 py-1 text-[10px] uppercase tracking-widest font-bold rounded border transition-all duration-200 ${
                         isToggleMode 
                         ? 'bg-[#aa3bff] border-[#aa3bff] text-white shadow-lg shadow-[#aa3bff]/30 translate-y-[1px]' 
@@ -251,9 +213,9 @@ export const Piano88: React.FC = () => {
                     TOGGLE MODE
                 </button>
                 <button
-                    onClick={() => setIsHoldModeEnabled(!isHoldModeEnabled)}
+                    onClick={() => { setIsHoldModeActive(!isHoldModeActive); if (!isHoldModeActive) setIsToggleMode(false); }}
                     className={`px-3 py-1 text-[10px] uppercase tracking-widest font-bold rounded border transition-all duration-200 ${
-                        isHoldModeEnabled 
+                        isHoldModeActive 
                         ? 'bg-[#aa3bff] border-[#aa3bff] text-white shadow-lg shadow-[#aa3bff]/30 translate-y-[1px]' 
                         : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
