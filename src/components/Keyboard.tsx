@@ -137,6 +137,7 @@ export const Piano88: React.FC = () => {
                         height: `${WHITE_KEY_HEIGHT}px`,
                         borderLeft: '1px solid #ccc',
                         borderRight: '1px solid #ccc',
+                        borderBottom: '1px solid #ccc',
                         backgroundColor: '#fff',
                         position: 'relative',
                         boxSizing: 'border-box',
@@ -259,12 +260,13 @@ export const Piano88: React.FC = () => {
                     style={{
                         display: 'flex',
                         width: '936px', 
-                        height: `${WHITE_KEY_HEIGHT}px`,
-                        backgroundColor: '#fff',
+                        height: 'fit-content',
+                        backgroundColor: '#ccc',
                         borderTop: '1px solid #ddd',
+                        borderBottom: '1px solid #ccc',
                         boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
                         position: 'relative',
-                        borderRadius: '4px',
+                        borderRadius: '4px 4px 3px 3px',
                         overflow: 'hidden',
                         touchAction: 'none'
                     }}
