@@ -58,6 +58,10 @@ export const Piano88: React.FC = () => {
             }
 
             if (detail.refresh && lut.length > 0) {
+                if (detail.notes) {
+                    displayedPitches.current.clear();
+                    detail.notes.forEach(n => displayedPitches.current.add(n));
+                }
                 const pitches = Array.from(displayedPitches.current).sort((a, b) => a - b);
                 const keyName = keySignature;
                 const spellings = getChordSpelling(pitches, keyName, lut);
@@ -67,6 +71,15 @@ export const Piano88: React.FC = () => {
                     spelling: spellings[i]
                 }));
                 updateSpelledNotesStrip(spelledData);
+                
+                // Also update key visuals (assuming we want to see the new notes highlighted)
+                // Clear all previous visuals first? (Expensive)
+                // Actually, displayedPitches tracks which ones should be colored.
+                // We'll rely on the next MIDI message or manual trigger to color them?
+                // No, we should color them now.
+                for (let n = 21; n <= 108; n++) {
+                    updateKeyVisuals88(n, displayedPitches.current.has(n) ? '#ef4444' : '');
+                }
             }
         };
 

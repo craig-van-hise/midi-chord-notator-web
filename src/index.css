@@ -107,3 +107,27 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Selection Styles */
+.notation-note-container {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.notation-note-container[data-selected="true"] .notehead {
+  color: #ef4444 !important;
+  filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.4));
+}
+
+.notation-note-container[data-selected="true"] [data-is-accidental="true"] {
+  color: #ef4444 !important;
+}
+
+/* Marquee Style (Phase 2 Preparation) */
+.selection-marquee {
+  position: fixed;
+  border: 1px solid #aa3bff;
+  background: rgba(170, 59, 255, 0.1);
+  pointer-events: none;
+  z-index: 1000;
+}
