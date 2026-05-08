@@ -15,9 +15,11 @@ interface ActiveNoteData {
 }
 
 const NotationCanvas: React.FC = () => {
+  const [, setTick] = useState(0);
+  const forceUpdate = () => setTick(t => t + 1);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [staffSpace, setStaffSpace] = useState<number>(12); // Default value
-  const activeNotes = useRef<Map<number, ActiveNoteData>>(new Map());
+  const activeNotes = useRef<ActiveNoteData[]>([]);
   const [chordSymbol, setChordSymbol] = useState<string>("");
   const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes } = useMidi();
   const keySignatureRef = useRef(keySignature);
@@ -39,6 +41,8 @@ const NotationCanvas: React.FC = () => {
     isDragging: false,
     startX: 0,
     startY: 0,
+    currentX: 0,
+    currentY: 0,
   });
 
   
@@ -58,7 +62,7 @@ const NotationCanvas: React.FC = () => {
   // 2. Logic functions defined in component body for access to latest state
   const recalculateLayout = () => {
     try {
-      const noteDatas = Array.from(activeNotes.current.values());
+      const noteDatas = activeNotes.current;
       if (noteDatas.length === 0) {
         setRenderedNotes([]);
         setOttavaLabels([]);
@@ -259,7 +263,7 @@ const NotationCanvas: React.FC = () => {
 
   const updateSpellings = () => {
     try {
-      const pitches = Array.from(activeNotes.current.keys()).sort((a, b) => a - b);
+      const pitches = activeNotes.current.map(n => n.note);
       if (pitches.length === 0) {
         setChordSymbol("");
         setRenderedNotes([]);
@@ -271,14 +275,14 @@ const NotationCanvas: React.FC = () => {
       const symbol = getChordSymbol(pitches, keyName, lutRef.current);
       setChordSymbol(symbol);
 
-      pitches.forEach((pitch, i) => {
-        const { stepOffset, accidental } = getSpellingData(pitch, spellings[i]);
-        activeNotes.current.set(pitch, {
-          note: pitch,
+      activeNotes.current.forEach((data, i) => {
+        const { stepOffset, accidental } = getSpellingData(data.note, spellings[i]);
+        activeNotes.current[i] = {
+          ...data,
           stepOffset,
           accidental,
-          isTreble: pitch >= splitPointRef.current
-        });
+          isTreble: data.note >= splitPointRef.current
+        };
       });
       recalculateLayout();
     } catch (e) {
@@ -305,9 +309,9 @@ const NotationCanvas: React.FC = () => {
       isHoldModeEnabled.current = enabled;
       if (!enabled) {
         isWaitingForNewChord.current = false;
-        activeNotes.current.clear();
+        activeNotes.current = [];
         physicalKeysDown.current.forEach(note => {
-          activeNotes.current.set(note, {
+          activeNotes.current.push({
             note,
             stepOffset: 0,
             accidental: null,
@@ -327,7 +331,7 @@ const NotationCanvas: React.FC = () => {
       const { data, panic, refresh, notes } = customEvent.detail || {};
 
       if (panic) {
-        activeNotes.current.clear();
+        activeNotes.current = [];
         physicalKeysDown.current.clear();
         isWaitingForNewChord.current = false;
         setRenderedNotes([]);
@@ -337,15 +341,12 @@ const NotationCanvas: React.FC = () => {
 
       if (refresh) {
         if (notes) {
-          activeNotes.current.clear();
-          notes.forEach((pitch: number) => {
-            activeNotes.current.set(pitch, {
-              note: pitch,
-              stepOffset: 0,
-              accidental: null,
-              isTreble: pitch >= splitPointRef.current
-            });
-          });
+          activeNotes.current = notes.map((pitch: number) => ({
+            note: pitch,
+            stepOffset: 0,
+            accidental: null,
+            isTreble: pitch >= splitPointRef.current
+          }));
         }
         updateSpellings();
         return;
@@ -361,11 +362,11 @@ const NotationCanvas: React.FC = () => {
       if (isNoteOn) {
         physicalKeysDown.current.add(note);
         if (isHoldModeEnabled.current && isWaitingForNewChord.current) {
-          activeNotes.current.clear();
+          activeNotes.current = [];
           isWaitingForNewChord.current = false;
         }
-        if (!activeNotes.current.has(note)) {
-          activeNotes.current.set(note, {
+        if (!activeNotes.current.some(n => n.note === note)) {
+          activeNotes.current.push({
             note,
             stepOffset: 0,
             accidental: null,
@@ -376,8 +377,9 @@ const NotationCanvas: React.FC = () => {
       } else if (isNoteOff) {
         physicalKeysDown.current.delete(note);
         if (!isHoldModeEnabled.current) {
-          if (activeNotes.current.has(note)) {
-            activeNotes.current.delete(note);
+          const index = activeNotes.current.findIndex(n => n.note === note);
+          if (index !== -1) {
+            activeNotes.current.splice(index, 1);
             updateSpellings();
           }
         }
@@ -392,93 +394,79 @@ const NotationCanvas: React.FC = () => {
   }, []);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    let noteEl = (e.target as HTMLElement).closest('[data-note-id]') as HTMLElement;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pointerX = e.clientX - rect.left;
+    const pointerY = e.clientY - rect.top;
     
-    // Fallback: tight radius hit-test if target isn't the note
-    if (!noteEl) {
-      const radius = 15;
-      const notes = document.querySelectorAll('[data-note-id]');
-      for (const el of notes) {
-        const rect = el.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        const dist = Math.sqrt(Math.pow(e.clientX - centerX, 2) + Math.pow(e.clientY - centerY, 2));
-        if (dist <= radius) {
-          noteEl = el as HTMLElement;
-          break;
-        }
-      }
-    }
+    // Mathematical Hit-Test
+    const staffSpacePx = 10; 
+    const horizontalThreshold = staffSpacePx * 1.5;
+    const verticalThreshold = staffSpacePx * 0.8;
+    
+    const clickedNote = renderedNotes.find((note, index) => {
+      const centerX = rect.width / 2 + (note.xOffset || 0);
+      const centerY = rect.height / 2 - note.y;
+      
+      const dx = Math.abs(pointerX - centerX);
+      const dy = Math.abs(pointerY - centerY);
+      const match = dx < horizontalThreshold && dy < verticalThreshold;
+      if (match) note._index = index; // Temp storage for index
+      return match;
+    });
 
-    if (noteEl) {
-      const id = noteEl.getAttribute('data-note-id')!;
-      const pitch = parseInt(noteEl.getAttribute('data-pitch') || "0");
+    if (clickedNote) {
+      const index = clickedNote._index;
+      const id = `${clickedNote.note}-${index}`;
+      const pitch = clickedNote.note;
 
       if (e.shiftKey && lastSelectedNoteId.current) {
         // Range Selection
-        const lastEl = document.querySelector(`[data-note-id="${lastSelectedNoteId.current}"]`) as HTMLElement;
-        if (lastEl) {
-          const lastPitch = parseInt(lastEl.getAttribute('data-pitch') || "0");
-          const min = Math.min(pitch, lastPitch);
-          const max = Math.max(pitch, lastPitch);
+        const [lastPitchStr] = lastSelectedNoteId.current.split('-');
+        const lastPitch = parseInt(lastPitchStr);
+        const min = Math.min(pitch, lastPitch);
+        const max = Math.max(pitch, lastPitch);
 
-          const allNotes = document.querySelectorAll('[data-note-id]');
-          allNotes.forEach(el => {
-            const p = parseInt(el.getAttribute('data-pitch') || "0");
-            const noteId = el.getAttribute('data-note-id')!;
-            if (p >= min && p <= max) {
-              selectedNoteIds.current.add(noteId);
-              (el as HTMLElement).setAttribute('data-selected', 'true');
-            }
-          });
-        }
+        renderedNotes.forEach((n, idx) => {
+          if (n.note >= min && n.note <= max) {
+            selectedNoteIds.current.add(`${n.note}-${idx}`);
+          }
+        });
       } else if (e.metaKey || e.ctrlKey) {
         // Multi-Selection (Toggle)
         if (selectedNoteIds.current.has(id)) {
           selectedNoteIds.current.delete(id);
-          noteEl.removeAttribute('data-selected');
         } else {
           selectedNoteIds.current.add(id);
-          noteEl.setAttribute('data-selected', 'true');
         }
       } else {
         // Single Selection
-        document.querySelectorAll('[data-selected="true"]').forEach(el => el.removeAttribute('data-selected'));
         selectedNoteIds.current.clear();
-        
         selectedNoteIds.current.add(id);
-        noteEl.setAttribute('data-selected', 'true');
       }
+      
       lastSelectedNoteId.current = id;
-    } else {
-      // Clear Selection if clicking background (unless multi-selecting)
-      if (!e.metaKey && !e.ctrlKey) {
-        document.querySelectorAll('[data-selected="true"]').forEach(el => el.removeAttribute('data-selected'));
-        selectedNoteIds.current.clear();
-        lastSelectedNoteId.current = null;
-      }
-      
-      // Start Marquee Drag
-      dragTracker.current.isDragging = true;
-      dragTracker.current.startX = e.clientX;
-      dragTracker.current.startY = e.clientY;
-      
-      if (marqueeRef.current) {
-        marqueeRef.current.style.display = 'none';
-        marqueeRef.current.style.width = '0';
-        marqueeRef.current.style.height = '0';
-      }
+      forceUpdate(); 
     }
+
+    // Initialize Marquee
+    dragTracker.current = {
+      isDragging: true,
+      startX: pointerX,
+      startY: pointerY,
+      currentX: pointerX,
+      currentY: pointerY,
+    };
   };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (selectedNoteIds.current.size === 0) return;
 
-      const allPitches = Array.from(activeNotes.current.keys()).sort((a, b) => a - b);
-      const selectedPitches = Array.from(selectedNoteIds.current)
-        .map(id => parseInt(id))
-        .sort((a, b) => a - b);
+      const allPitches = activeNotes.current.map(n => n.note).sort((a, b) => a - b);
+      const selectedEntries = Array.from(selectedNoteIds.current).map(id => {
+        const [p, i] = id.split('-');
+        return { pitch: parseInt(p), index: parseInt(i) };
+      }).sort((a, b) => a.pitch - b.pitch);
 
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         const delta = e.key === 'ArrowUp' ? 1 : -1;
@@ -487,12 +475,15 @@ const NotationCanvas: React.FC = () => {
           e.preventDefault();
           
           if (e.altKey && (e.metaKey || e.ctrlKey)) {
-            // Phase 4: Voicing-Aware PCS Rotation
-            const pcs = Array.from(new Set(selectedPitches.map(n => n % 12))).sort((a,b)=>a-b);
-            const mutations: Map<number, number> = new Map();
+            // Voicing-Aware PCS Rotation
+            const pcs = Array.from(new Set(selectedEntries.map(e => e.pitch % 12))).sort((a,b)=>a-b);
             const newSelection = new Set<string>();
 
-            selectedPitches.forEach(note => {
+            activeNotes.current = activeNotes.current.map((noteData, idx) => {
+              const isSelected = selectedNoteIds.current.has(`${noteData.note}-${idx}`);
+              if (!isSelected) return noteData;
+
+              const note = noteData.note;
               const currentPC = note % 12;
               const currentPcsIndex = pcs.indexOf(currentPC);
               const nextPcsIndex = delta === 1 
@@ -508,33 +499,28 @@ const NotationCanvas: React.FC = () => {
                 newNote--;
                 while(newNote % 12 !== targetPC) { newNote--; }
               }
-              mutations.set(note, newNote);
-              newSelection.add(newNote.toString());
-            });
-            
-            const newActiveNotes = new Map(activeNotes.current);
-            selectedPitches.forEach(p => newActiveNotes.delete(p));
-            mutations.forEach((newNote, oldNote) => {
-              const data = activeNotes.current.get(oldNote);
-              if (data) newActiveNotes.set(newNote, { ...data, note: newNote });
+              newSelection.add(`${newNote}-${idx}`);
+              return { ...noteData, note: newNote };
             });
 
-            activeNotes.current = newActiveNotes;
             selectedNoteIds.current = newSelection;
             updateSpellings();
-            updateActiveNotes(Array.from(activeNotes.current.keys()));
+            updateActiveNotes(activeNotes.current.map(n => n.note));
           } else if (e.altKey) {
-            // Phase 3: Diatonic Transposition
+            // Diatonic Transposition
             const keyRootName = keySignatureRef.current.split(' ')[0];
             const majorPattern = [0, 2, 4, 5, 7, 9, 11];
             const rootMap: Record<string, number> = { 'C':0, 'C#':1, 'Db':1, 'D':2, 'D#':3, 'Eb':3, 'E':4, 'F':5, 'F#':6, 'Gb':6, 'G':7, 'G#':8, 'Ab':8, 'A':9, 'A#':10, 'Bb':10, 'B':11 };
             const currentRootPC = rootMap[keyRootName] ?? 0;
             const scale = majorPattern.map(p => (p + currentRootPC) % 12).sort((a, b) => a - b);
 
-            const mutations: Map<number, number> = new Map();
             const newSelection = new Set<string>();
 
-            selectedPitches.forEach(note => {
+            activeNotes.current = activeNotes.current.map((noteData, idx) => {
+              const isSelected = selectedNoteIds.current.has(`${noteData.note}-${idx}`);
+              if (!isSelected) return noteData;
+
+              const note = noteData.note;
               let currentPC = note % 12;
               if (!scale.includes(currentPC)) {
                 let closest = scale[0];
@@ -558,62 +544,49 @@ const NotationCanvas: React.FC = () => {
                 newNote--;
                 while(newNote % 12 !== targetPC) { newNote--; }
               }
-              mutations.set(note, newNote);
-              newSelection.add(newNote.toString());
+              newSelection.add(`${newNote}-${idx}`);
+              return { ...noteData, note: newNote };
             });
 
-            const newActiveNotes = new Map(activeNotes.current);
-            selectedPitches.forEach(p => newActiveNotes.delete(p));
-            mutations.forEach((newNote, oldNote) => {
-              const data = activeNotes.current.get(oldNote);
-              if (data) newActiveNotes.set(newNote, { ...data, note: newNote });
-            });
-
-            activeNotes.current = newActiveNotes;
             selectedNoteIds.current = newSelection;
             updateSpellings();
-            updateActiveNotes(Array.from(activeNotes.current.keys()));
+            updateActiveNotes(activeNotes.current.map(n => n.note));
           } else {
             // Chromatic Transposition
             const multiplier = (e.metaKey || e.ctrlKey) ? 12 : 1;
             const shift = delta * multiplier;
             
-            const mutations: Map<number, number> = new Map();
             const newSelection = new Set<string>();
 
-            selectedPitches.forEach(pitch => {
-              const newPitch = pitch + shift;
-              mutations.set(pitch, newPitch);
-              newSelection.add(newPitch.toString());
+            activeNotes.current = activeNotes.current.map((noteData, idx) => {
+              const isSelected = selectedNoteIds.current.has(`${noteData.note}-${idx}`);
+              if (!isSelected) return noteData;
+
+              const newPitch = noteData.note + shift;
+              newSelection.add(`${newPitch}-${idx}`);
+              return { ...noteData, note: newPitch };
             });
 
-            const newActiveNotes = new Map(activeNotes.current);
-            selectedPitches.forEach(p => newActiveNotes.delete(p));
-            mutations.forEach((newNote, oldNote) => {
-              const data = activeNotes.current.get(oldNote);
-              if (data) newActiveNotes.set(newNote, { ...data, note: newNote });
-            });
-
-            activeNotes.current = newActiveNotes;
             selectedNoteIds.current = newSelection;
             updateSpellings();
-            updateActiveNotes(Array.from(activeNotes.current.keys()));
+            updateActiveNotes(activeNotes.current.map(n => n.note));
           }
         } else {
           // SELECTION TRAVERSAL
-          if (selectedPitches.length === 1) {
+          if (selectedEntries.length === 1) {
             e.preventDefault();
-            const currentIndex = allPitches.indexOf(selectedPitches[0]);
+            const currentPitch = selectedEntries[0].pitch;
+            const currentIndex = allPitches.indexOf(currentPitch);
             const nextIndex = (currentIndex + delta + allPitches.length) % allPitches.length;
             const nextPitch = allPitches[nextIndex];
             
-            document.querySelectorAll('[data-selected="true"]').forEach(el => el.removeAttribute('data-selected'));
-            selectedNoteIds.current.clear();
-            selectedNoteIds.current.add(nextPitch.toString());
+            // Find the first occurrence of nextPitch
+            const actualIndex = activeNotes.current.findIndex(n => n.note === nextPitch);
             
-            const nextEl = document.querySelector(`[data-note-id="${nextPitch}"]`);
-            if (nextEl) nextEl.setAttribute('data-selected', 'true');
-            lastSelectedNoteId.current = nextPitch.toString();
+            selectedNoteIds.current.clear();
+            selectedNoteIds.current.add(`${nextPitch}-${actualIndex}`);
+            lastSelectedNoteId.current = `${nextPitch}-${actualIndex}`;
+            forceUpdate();
           }
         }
       }
@@ -623,29 +596,26 @@ const NotationCanvas: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Sync selection attributes after re-render
-  useEffect(() => {
-    selectedNoteIds.current.forEach(id => {
-      const el = document.querySelector(`[data-note-id="${id}"]`);
-      if (el) el.setAttribute('data-selected', 'true');
-    });
-  }, [renderedNotes]);
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!dragTracker.current.isDragging) return;
+    const rect = e.currentTarget.getBoundingClientRect();
     
-    const currentX = e.clientX;
-    const currentY = e.clientY;
+    const currentX = e.clientX - rect.left;
+    const currentY = e.clientY - rect.top;
     const { startX, startY } = dragTracker.current;
     
+    dragTracker.current.currentX = currentX;
+    dragTracker.current.currentY = currentY;
+
     const left = Math.min(startX, currentX);
     const top = Math.min(startY, currentY);
     const width = Math.abs(startX - currentX);
     const height = Math.abs(startY - currentY);
     
     if (marqueeRef.current) {
-      if (width > 5 || height > 5) { // Small threshold
-        marqueeRef.current.style.display = 'block';
+      if (width > 5 || height > 5) {
+        marqueeRef.current.classList.remove('hidden');
         marqueeRef.current.style.left = `${left}px`;
         marqueeRef.current.style.top = `${top}px`;
         marqueeRef.current.style.width = `${width}px`;
@@ -658,30 +628,25 @@ const NotationCanvas: React.FC = () => {
     if (!dragTracker.current.isDragging) return;
     dragTracker.current.isDragging = false;
     
-    if (marqueeRef.current && marqueeRef.current.style.display === 'block') {
-      const marqueeRect = marqueeRef.current.getBoundingClientRect();
-      marqueeRef.current.style.display = 'none';
+    if (marqueeRef.current && !marqueeRef.current.classList.contains('hidden')) {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const left = Math.min(dragTracker.current.startX, dragTracker.current.currentX);
+      const right = Math.max(dragTracker.current.startX, dragTracker.current.currentX);
+      const top = Math.min(dragTracker.current.startY, dragTracker.current.currentY);
+      const bottom = Math.max(dragTracker.current.startY, dragTracker.current.currentY);
       
-      const notes = document.querySelectorAll('[data-note-id]');
-      notes.forEach(el => {
-        const noteRect = el.getBoundingClientRect();
+      marqueeRef.current.classList.add('hidden');
+      
+      renderedNotes.forEach((note, idx) => {
+        const noteX = rect.width / 2 + (note.xOffset || 0);
+        const noteY = rect.height / 2 - note.y;
         
-        // Phase 1: Center-Point Collision Math
-        const noteCenterX = noteRect.left + noteRect.width / 2;
-        const noteCenterY = noteRect.top + noteRect.height / 2;
-        
-        const isInside = 
-          noteCenterX >= marqueeRect.left &&
-          noteCenterX <= marqueeRect.right &&
-          noteCenterY >= marqueeRect.top &&
-          noteCenterY <= marqueeRect.bottom;
-        
-        if (isInside) {
-          const id = el.getAttribute('data-note-id')!;
-          selectedNoteIds.current.add(id);
-          (el as HTMLElement).setAttribute('data-selected', 'true');
+        if (noteX >= left && noteX <= right && noteY >= top && noteY <= bottom) {
+          selectedNoteIds.current.add(`${note.note}-${idx}`);
         }
       });
+      
+      forceUpdate();
     }
   };
 
@@ -706,7 +671,6 @@ const NotationCanvas: React.FC = () => {
       data-testid="notation-canvas-container"
       className="notation-canvas-container relative w-full h-[320px] bg-white dark:bg-[#0a0a0a] overflow-visible flex items-start justify-center select-none"
     >
-      <div ref={marqueeRef} className="selection-marquee" style={{ display: 'none' }} />
       {/* Compact Grand Staff System */}
       <div className="grand-staff-system relative w-[300px] h-full flex flex-col justify-center items-center">
         {/* Key Signature Selector - Absolute Positioned */}
@@ -738,31 +702,27 @@ const NotationCanvas: React.FC = () => {
                 left: `calc(50% + ${note.xOffset || 0}px)`,
                 top: `calc(50% - ${note.y}px)`,
                 transform: 'translate(-50%, -50%)',
-                pointerEvents: 'all',
-                cursor: 'pointer'
+                pointerEvents: 'none'
               }}
-              data-note-id={note.note.toString()}
-              data-pitch={note.note}
-              data-midi-note={note.note}
-              data-step-offset={note.finalStep}
-              data-x-offset-px={note.xOffset}
-              data-x-level={note.xLevel}
-              data-testid={`note-container-${note.note}`}
             >
-              {/* Notehead */}
-              <div className="notehead" style={{
-                fontFamily: "'Bravura', sans-serif",
-                fontSize: `calc(var(${STAFF_SPACE_CSS_VAR}) * 4.2)`,
-                color: 'var(--accent, #aa3bff)',
-                textShadow: '0 0 10px rgba(170, 59, 255, 0.3)'
-              }}>
+              {/* Visual Notehead (SMuFL) */}
+              <div 
+                className="notehead" 
+                style={{
+                  fontFamily: "'Bravura', sans-serif",
+                  fontSize: `calc(var(${STAFF_SPACE_CSS_VAR}) * 4.2)`,
+                  color: selectedNoteIds.current.has(`${note.note}-${renderedNotes.indexOf(note)}`) ? '#ef4444' : 'var(--accent, #aa3bff)',
+                  textShadow: selectedNoteIds.current.has(`${note.note}-${renderedNotes.indexOf(note)}`) ? '0 0 15px rgba(239, 68, 68, 0.4)' : '0 0 10px rgba(170, 59, 255, 0.3)',
+                  pointerEvents: 'none',
+                  transition: 'color 0.1s ease, text-shadow 0.1s ease'
+                }}
+              >
                 {SMuFL.noteheadWhole}
               </div>
 
-              {/* Accidental */}
+              {/* Visual Accidental (SMuFL) */}
               {(note.accidental || note.forceAccidentalDisplay) && (
                 <div 
-                  data-is-accidental="true"
                   style={{
                     position: 'absolute',
                     left: note.accidentalLeft || `calc(-1.5 * var(${STAFF_SPACE_CSS_VAR}))`,
@@ -770,7 +730,9 @@ const NotationCanvas: React.FC = () => {
                     transform: 'translateY(-50%)',
                     fontFamily: "'Bravura', sans-serif",
                     fontSize: `calc(var(${STAFF_SPACE_CSS_VAR}) * 3)`,
-                    color: 'var(--accent, #aa3bff)'
+                    color: selectedNoteIds.current.has(`${note.note}-${renderedNotes.indexOf(note)}`) ? '#ef4444' : 'var(--accent, #aa3bff)',
+                    pointerEvents: 'none',
+                    transition: 'color 0.1s ease'
                   }}
                 >
                   {note.accidental || SMuFL.accidentalNatural}
@@ -861,6 +823,7 @@ const NotationCanvas: React.FC = () => {
         <div className="absolute w-full h-0 border-t border-transparent" style={{ top: '50%' }} />
 
       </div>
+      <div ref={marqueeRef} className="absolute border border-blue-500 bg-blue-500/20 z-50 pointer-events-none hidden" style={{ left: 0, top: 0, width: 0, height: 0 }} />
     </div>
   );
 };
