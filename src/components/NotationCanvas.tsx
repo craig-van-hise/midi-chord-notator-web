@@ -98,17 +98,7 @@ const NotationCanvas: React.FC = () => {
         else if (minBassStep <= -23) { bassShift = 7; bassLabelText = "8vb"; }
       }
 
-      // Wide-interval check: Disable Ottava shifts if chord spans across both staves
-      const allPitches = noteDatas.map(n => n.note);
-      const totalSpan = Math.max(...allPitches) - Math.min(...allPitches);
-      const isWideChord = totalSpan > 24; // 2 octaves
 
-      if (isWideChord) {
-        trebleShift = 0;
-        trebleLabelText = null;
-        bassShift = 0;
-        bassLabelText = null;
-      }
 
       const labels: any[] = [];
       const allNotes: any[] = [];
@@ -472,11 +462,13 @@ const NotationCanvas: React.FC = () => {
 
       if (e.shiftKey && lastSelectedNoteId.current) {
         // Range Selection
-        const [lastPitchStr] = lastSelectedNoteId.current.split('-');
-        const lastPitch = parseInt(lastPitchStr);
+        const anchorNote = renderedNotes.find(n => n.id === lastSelectedNoteId.current);
+        if (!anchorNote) return;
+        const lastPitch = anchorNote.note;
         const min = Math.min(pitch, lastPitch);
         const max = Math.max(pitch, lastPitch);
 
+        selectedNoteIds.current.clear();
         renderedNotes.forEach((n) => {
           if (n.note >= min && n.note <= max) {
             selectedNoteIds.current.add(n.id);
@@ -489,13 +481,14 @@ const NotationCanvas: React.FC = () => {
         } else {
           selectedNoteIds.current.add(id);
         }
+        lastSelectedNoteId.current = id;
       } else {
         // Single Selection
         selectedNoteIds.current.clear();
         selectedNoteIds.current.add(id);
+        lastSelectedNoteId.current = id;
       }
       
-      lastSelectedNoteId.current = id;
       forceUpdate(); 
     } else {
       // Click-away deselection
