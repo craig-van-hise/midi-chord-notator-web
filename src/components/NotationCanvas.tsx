@@ -55,6 +55,17 @@ const NotationCanvas: React.FC = () => {
     currentX: 0,
     currentY: 0,
   });
+  
+  const undoStack = useRef<ActiveNoteData[][]>([]);
+  const redoStack = useRef<ActiveNoteData[][]>([]);
+  const isWriteMode = useRef<boolean>(false);
+  const lastPointerY = useRef<number>(0);
+  
+  const commitState = () => {
+    undoStack.current.push(activeNotes.current.map(n => ({ ...n })));
+    redoStack.current = []; // Clear redo stack on new action
+    if (undoStack.current.length > 50) undoStack.current.shift(); // Max 50 states
+  };
 
   
   // 1. Update staffSpace from CSS
@@ -71,6 +82,28 @@ const NotationCanvas: React.FC = () => {
   }, []);
 
   // 2. Logic functions defined in component body for access to latest state
+  const snapGhostNote = (clientY: number, rect: DOMRect) => {
+    const pointerY = clientY - rect.top;
+    const canvasCenterY = rect.height / 2;
+    const relativeY = canvasCenterY - pointerY;
+    let stepOffset = 0;
+
+    if (relativeY >= 0) {
+        stepOffset = Math.round((relativeY - staffSpace) / (staffSpace / 2));
+    } else {
+        stepOffset = Math.round((relativeY + staffSpace) / (staffSpace / 2));
+    }
+
+    const snappedY = canvasCenterY - (((stepOffset) * (staffSpace / 2)) + (relativeY >= 0 ? staffSpace : -staffSpace));
+
+    const ghost = document.getElementById('ghost-note');
+    if (ghost) {
+        ghost.classList.remove('hidden');
+        ghost.style.top = `${snappedY}px`;
+        (ghost as any).dataset.step = stepOffset.toString();
+    }
+  };
+
   const recalculateLayout = () => {
     try {
       const noteDatas = activeNotes.current;
@@ -292,7 +325,7 @@ const NotationCanvas: React.FC = () => {
         return;
       }
       const keyName = keySignatureRef.current;
-      const spellings = getChordSpelling(activeNotes.current, keyName, lutRef.current);
+      const spellings = getChordSpelling(pitches, keyName, lutRef.current);
       const symbol = getChordSymbol(pitches, keyName, lutRef.current);
       setChordSymbol(symbol);
 
@@ -345,7 +378,7 @@ const NotationCanvas: React.FC = () => {
           });
         });
         updateSpellings();
-        updateActiveNotes([...activeNotes.current]);
+        updateActiveNotes?.([...activeNotes.current]);
       }
     };
     window.addEventListener('HOLD_MODE_CHANGED', handleHoldModeChange);
@@ -363,7 +396,7 @@ const NotationCanvas: React.FC = () => {
         isWaitingForNewChord.current = false;
         setRenderedNotes([]);
         setOttavaLabels([]);
-        updateActiveNotes([]);
+        updateActiveNotes?.([]);
         return;
       }
 
@@ -382,7 +415,7 @@ const NotationCanvas: React.FC = () => {
           });
         }
         updateSpellings();
-        updateActiveNotes([...activeNotes.current]);
+        updateActiveNotes?.([...activeNotes.current]);
         return;
       }
 
@@ -400,6 +433,7 @@ const NotationCanvas: React.FC = () => {
           isWaitingForNewChord.current = false;
         }
         if (!activeNotes.current.some(n => n.sourceMidi === note || n.note === note)) {
+          commitState();
           activeNotes.current.push({
             id: generateId(),
             note,
@@ -412,16 +446,17 @@ const NotationCanvas: React.FC = () => {
             status: (typeof status !== 'undefined') ? status : 0x90
           });
           updateSpellings();
-          updateActiveNotes([...activeNotes.current]);
+          updateActiveNotes?.([...activeNotes.current]);
         }
       } else if (isNoteOff) {
         physicalKeysDown.current.delete(note);
         if (!isHoldModeEnabled.current) {
           const index = activeNotes.current.findIndex(n => n.sourceMidi === note || n.note === note);
           if (index !== -1) {
+            commitState();
             activeNotes.current.splice(index, 1);
             updateSpellings();
-            updateActiveNotes([...activeNotes.current]);
+            updateActiveNotes?.([...activeNotes.current]);
           }
         }
         if (isHoldModeEnabled.current && physicalKeysDown.current.size === 0) {
@@ -451,6 +486,41 @@ const NotationCanvas: React.FC = () => {
     const rect = e.currentTarget.getBoundingClientRect();
     const pointerX = e.clientX - rect.left;
     const pointerY = e.clientY - rect.top;
+
+    if (isWriteMode.current) {
+      const isOutsideStaves = pointerX < (rect.width / 2 - 150) || pointerX > (rect.width / 2 + 150);
+      if (isOutsideStaves) {
+        isWriteMode.current = false;
+        const ghost = document.getElementById('ghost-note');
+        if (ghost) ghost.classList.add('hidden');
+        forceUpdate();
+        return;
+      } else {
+        // Write the note
+        commitState();
+        const ghost = document.getElementById('ghost-note');
+        const step = parseInt((ghost as any)?.dataset.step || '0');
+        
+        // Calculate the pitch: transposeDiatonically(referenceStep, stepDelta, keySignature)
+        // Reference is Middle C (MIDI 60), which corresponds to stepOffset 0 in our engine usually,
+        // but transposeDiatonically uses the stepOffset of a note.
+        // The prompt says: const newPitch = transposeDiatonically(0, step, keySignatureRef.current);
+        const newPitch = transposeDiatonically(0, step, keySignatureRef.current);
+        
+        activeNotes.current.push({
+          id: generateId(),
+          note: newPitch,
+          stepOffset: 0,
+          accidental: null,
+          isTreble: newPitch >= splitPointRef.current,
+          sourceMidi: undefined // Manually written note
+        });
+        
+        updateSpellings();
+        updateActiveNotes?.([...activeNotes.current]);
+        return; // DO NOT fall through to selection logic
+      }
+    }
     
     // Mathematical Hit-Test
     const staffSpacePx = 10; 
@@ -525,6 +595,61 @@ const NotationCanvas: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // --- 1. GLOBAL SHORTCUTS (No selection required) ---
+      
+      // Escape: Exit Write Mode & Clear Selection
+      if (e.key === 'Escape') {
+        isWriteMode.current = false;
+        const ghost = document.getElementById('ghost-note');
+        if (ghost) ghost.classList.add('hidden');
+        selectedNoteIds.current.clear();
+        lastSelectedNoteId.current = null;
+        forceUpdate();
+        return;
+      }
+
+      // Shift + W: Toggle Write Mode
+      if (e.key === 'W' || (e.key === 'w' && e.shiftKey)) {
+        isWriteMode.current = !isWriteMode.current;
+        selectedNoteIds.current.clear();
+        const ghost = document.getElementById('ghost-note');
+        if (isWriteMode.current && ghost && canvasRef.current) {
+            // Instantly snap ghost note to last known pointer Y
+            snapGhostNote(lastPointerY.current, canvasRef.current.getBoundingClientRect());
+        } else if (ghost) {
+            ghost.classList.add('hidden');
+        }
+        forceUpdate();
+        return;
+      }
+
+      // Cmd/Ctrl + Z: Undo
+      if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        e.preventDefault();
+        if (undoStack.current.length > 0) {
+           redoStack.current.push(activeNotes.current.map(n => ({ ...n })));
+           activeNotes.current = undoStack.current.pop() || [];
+           selectedNoteIds.current.clear();
+           updateSpellings();
+           updateActiveNotes?.([...activeNotes.current]);
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + Shift + Z (or Cmd+Y): Redo
+      if (((e.key === 'Z' || e.key === 'z') && e.shiftKey && (e.metaKey || e.ctrlKey)) || (e.key === 'y' && (e.metaKey || e.ctrlKey))) {
+        e.preventDefault();
+        if (redoStack.current.length > 0) {
+           undoStack.current.push(activeNotes.current.map(n => ({ ...n })));
+           activeNotes.current = redoStack.current.pop() || [];
+           selectedNoteIds.current.clear();
+           updateSpellings();
+           updateActiveNotes?.([...activeNotes.current]);
+        }
+        return;
+      }
+
+      // --- 2. SELECTION-DEPENDENT SHORTCUTS ---
       if (selectedNoteIds.current.size === 0) return;
 
       const allPitches = activeNotes.current.map(n => n.note).sort((a, b) => a - b);
@@ -534,17 +659,19 @@ const NotationCanvas: React.FC = () => {
           id, 
           pitch: noteData ? noteData.note : 0 
         };
-      }).filter(e => e.pitch !== 0).sort((a, b) => a.pitch - b.pitch);
+      }).filter(en => en.pitch !== 0).sort((a, b) => a.pitch - b.pitch);
 
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         const delta = e.key === 'ArrowUp' ? 1 : -1;
 
         if (e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) {
           e.preventDefault();
+          commitState();
+
           
           if (e.altKey && (e.metaKey || e.ctrlKey)) {
             // Voicing-Aware PCS Rotation
-            const pcs = Array.from(new Set(selectedEntries.map(e => e.pitch % 12))).sort((a,b)=>a-b);
+            const pcs = Array.from(new Set(selectedEntries.map(se => se.pitch % 12))).sort((a,b)=>a-b);
             const newSelection = new Set<string>();
 
             activeNotes.current = activeNotes.current.map((noteData) => {
@@ -573,7 +700,7 @@ const NotationCanvas: React.FC = () => {
 
             selectedNoteIds.current = newSelection;
             updateSpellings();
-            updateActiveNotes(activeNotes.current);
+            updateActiveNotes?.([...activeNotes.current]);
           } else if (e.altKey) {
             // Diatonic Transposition
             const keyName = keySignatureRef.current;
@@ -592,7 +719,7 @@ const NotationCanvas: React.FC = () => {
 
             selectedNoteIds.current = newSelection;
             updateSpellings();
-            updateActiveNotes(activeNotes.current);
+            updateActiveNotes?.([...activeNotes.current]);
           } else {
             // Chromatic Transposition
             const multiplier = (e.metaKey || e.ctrlKey) ? 12 : 1;
@@ -611,7 +738,7 @@ const NotationCanvas: React.FC = () => {
 
             selectedNoteIds.current = newSelection;
             updateSpellings();
-            updateActiveNotes(activeNotes.current);
+            updateActiveNotes?.([...activeNotes.current]);
           }
         } else {
           // SELECTION TRAVERSAL
@@ -637,6 +764,17 @@ const NotationCanvas: React.FC = () => {
           }
         }
       }
+
+      // Deletion
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          commitState();
+          activeNotes.current = activeNotes.current.filter(n => !selectedNoteIds.current.has(n.id));
+          selectedNoteIds.current.clear();
+          updateSpellings();
+          updateActiveNotes?.([...activeNotes.current]);
+          return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -645,8 +783,14 @@ const NotationCanvas: React.FC = () => {
 
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragTracker.current.isDragging) return;
+    lastPointerY.current = e.clientY;
     const rect = e.currentTarget.getBoundingClientRect();
+
+    if (isWriteMode.current) {
+      snapGhostNote(e.clientY, rect);
+    }
+
+    if (!dragTracker.current.isDragging) return;
     
     const currentX = e.clientX - rect.left;
     const currentY = e.clientY - rect.top;
@@ -715,6 +859,17 @@ const NotationCanvas: React.FC = () => {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
+      onDoubleClick={() => {
+        isWriteMode.current = !isWriteMode.current;
+        selectedNoteIds.current.clear();
+        const ghost = document.getElementById('ghost-note');
+        if (isWriteMode.current && ghost && canvasRef.current) {
+            snapGhostNote(lastPointerY.current, canvasRef.current.getBoundingClientRect());
+        } else if (ghost) {
+            ghost.classList.add('hidden');
+        }
+        forceUpdate();
+      }}
       data-testid="notation-canvas-container"
       className="notation-canvas-container relative w-full h-[320px] bg-white dark:bg-[#0a0a0a] overflow-visible flex items-start justify-center select-none"
     >
@@ -739,12 +894,22 @@ const NotationCanvas: React.FC = () => {
         )}
         
         {/* Notes Layer */}
-        <div id="notes-layer" className="absolute inset-0 pointer-events-none z-10">
+        <div id="notes-layer" data-testid="notes-layer" className="absolute inset-0 pointer-events-none z-10">
+          <div 
+              id="ghost-note" 
+              className="absolute hidden pointer-events-none opacity-40 z-50 transition-none"
+              style={{ left: '50%', transform: 'translate(-50%, -50%)', fontFamily: "'Bravura', sans-serif", fontSize: `calc(var(${STAFF_SPACE_CSS_VAR}) * 4.2)`, color: 'var(--accent, #aa3bff)' }}
+          >
+              {SMuFL.noteheadBlack}
+          </div>
           {renderedNotes.map(note => (
             <div 
               key={note.id}
               className="notation-note-container transition-all duration-75"
               data-midi-note={note.note}
+              data-note-id={note.note}
+              data-testid={`note-container-${note.note}`}
+              data-selected={selectedNoteIds.current.has(note.id) || undefined}
               style={{
                 position: 'absolute',
                 left: note.xOffset ? `calc(50% + ${note.xOffset}px)` : '50%',

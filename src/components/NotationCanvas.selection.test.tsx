@@ -19,12 +19,13 @@ describe('NotationCanvas Selection Logic', () => {
       keySignature: 'C Major',
       splitPoint: 60,
       lut: Array(4096).fill(null),
+      updateActiveNotes: vi.fn(),
     });
   });
 
   test('Single Selection: Clicking a note selects only that note', async () => {
     render(<NotationCanvas />);
-
+ 
     // Add notes via MIDI
     act(() => {
       window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
@@ -34,24 +35,24 @@ describe('NotationCanvas Selection Logic', () => {
         detail: { data: new Uint8Array([0x90, 64, 100]) }
       }));
     });
-
-    const note60 = screen.getByTestId('note-container-60');
-    const note64 = screen.getByTestId('note-container-64');
-
+ 
+    const note60 = await screen.findByTestId('note-container-60');
+    const note64 = await screen.findByTestId('note-container-64');
+ 
     // Click note 60
     fireEvent.pointerDown(note60);
     expect(note60).toHaveAttribute('data-selected', 'true');
     expect(note64).not.toHaveAttribute('data-selected');
-
+ 
     // Click note 64
     fireEvent.pointerDown(note64);
     expect(note64).toHaveAttribute('data-selected', 'true');
     expect(note60).not.toHaveAttribute('data-selected');
   });
-
+ 
   test('Multi-Selection: Cmd+Click toggles selection', async () => {
     render(<NotationCanvas />);
-
+ 
     act(() => {
       window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
         detail: { data: new Uint8Array([0x90, 60, 100]) }
@@ -60,28 +61,28 @@ describe('NotationCanvas Selection Logic', () => {
         detail: { data: new Uint8Array([0x90, 64, 100]) }
       }));
     });
-
-    const note60 = screen.getByTestId('note-container-60');
-    const note64 = screen.getByTestId('note-container-64');
-
+ 
+    const note60 = await screen.findByTestId('note-container-60');
+    const note64 = await screen.findByTestId('note-container-64');
+ 
     // Cmd+Click note 60
     fireEvent.pointerDown(note60, { metaKey: true });
     expect(note60).toHaveAttribute('data-selected', 'true');
-
+ 
     // Cmd+Click note 64
     fireEvent.pointerDown(note64, { metaKey: true });
     expect(note60).toHaveAttribute('data-selected', 'true');
     expect(note64).toHaveAttribute('data-selected', 'true');
-
+ 
     // Cmd+Click note 60 again (toggle off)
     fireEvent.pointerDown(note60, { metaKey: true });
     expect(note60).not.toHaveAttribute('data-selected');
     expect(note64).toHaveAttribute('data-selected', 'true');
   });
-
+ 
   test('Range Selection: Shift+Click selects range of pitches', async () => {
     render(<NotationCanvas />);
-
+ 
     act(() => {
       [60, 62, 64, 65, 67].forEach(midi => {
         window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
@@ -89,48 +90,48 @@ describe('NotationCanvas Selection Logic', () => {
         }));
       });
     });
-
-    const note60 = screen.getByTestId('note-container-60');
-    const note64 = screen.getByTestId('note-container-64');
-    const note67 = screen.getByTestId('note-container-67');
-
+ 
+    const note60 = await screen.findByTestId('note-container-60');
+    const note64 = await screen.findByTestId('note-container-64');
+    const note67 = await screen.findByTestId('note-container-67');
+ 
     // 1. Click 60
     fireEvent.pointerDown(note60);
     expect(note60).toHaveAttribute('data-selected', 'true');
-
+ 
     // 2. Shift+Click 64
     fireEvent.pointerDown(note64, { shiftKey: true });
     
     // Should select 60, 62, 64
-    expect(screen.getByTestId('note-container-60')).toHaveAttribute('data-selected', 'true');
-    expect(screen.getByTestId('note-container-62')).toHaveAttribute('data-selected', 'true');
-    expect(screen.getByTestId('note-container-64')).toHaveAttribute('data-selected', 'true');
+    expect(await screen.findByTestId('note-container-60')).toHaveAttribute('data-selected', 'true');
+    expect(await screen.findByTestId('note-container-62')).toHaveAttribute('data-selected', 'true');
+    expect(await screen.findByTestId('note-container-64')).toHaveAttribute('data-selected', 'true');
     expect(screen.getByTestId('note-container-65')).not.toHaveAttribute('data-selected');
     expect(screen.getByTestId('note-container-67')).not.toHaveAttribute('data-selected');
   });
-
+ 
   test('Clicking background clears selection', async () => {
     render(<NotationCanvas />);
-
+ 
     act(() => {
       window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
         detail: { data: new Uint8Array([0x90, 60, 100]) }
       }));
     });
-
-    const note60 = screen.getByTestId('note-container-60');
-    const container = note60.parentElement.parentElement; // The container
-
+ 
+    const note60 = await screen.findByTestId('note-container-60');
+    const container = note60.parentElement!.parentElement!; // The container
+ 
     fireEvent.pointerDown(note60);
     expect(note60).toHaveAttribute('data-selected', 'true');
-
+ 
     fireEvent.pointerDown(container);
     expect(note60).not.toHaveAttribute('data-selected');
   });
-
+ 
   test('Marquee Selection: Dragging over notes selects them', async () => {
     render(<NotationCanvas />);
-
+ 
     act(() => {
       [60, 64].forEach(midi => {
         window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
@@ -138,10 +139,10 @@ describe('NotationCanvas Selection Logic', () => {
         }));
       });
     });
-
-    const note60 = screen.getByTestId('note-container-60');
-    const note64 = screen.getByTestId('note-container-64');
-    const container = note60.parentElement.parentElement;
+ 
+    const note60 = await screen.findByTestId('note-container-60');
+    const note64 = await screen.findByTestId('note-container-64');
+    const container = note60.parentElement!.parentElement!;
 
     // Mock getBoundingClientRect for notes
     // Note 60 at (10, 10, 10, 10)
@@ -183,20 +184,20 @@ describe('NotationCanvas Selection Logic', () => {
       });
     });
 
-    const note60 = screen.getByTestId('note-container-60');
+    const note60 = await screen.findByTestId('note-container-60');
     fireEvent.pointerDown(note60, { metaKey: true });
-    fireEvent.pointerDown(screen.getByTestId('note-container-64'), { metaKey: true });
-    fireEvent.pointerDown(screen.getByTestId('note-container-67'), { metaKey: true });
+    fireEvent.pointerDown(await screen.findByTestId('note-container-64'), { metaKey: true });
+    fireEvent.pointerDown(await screen.findByTestId('note-container-67'), { metaKey: true });
 
     // Press Option+Cmd+Up
     fireEvent.keyDown(window, { key: 'ArrowUp', altKey: true, metaKey: true });
 
     await waitFor(() => {
       // 60 should be gone, 64, 67, 72 should be present
-      expect(document.querySelector('[data-note-id="60"]')).not.toBeInTheDocument();
-      expect(document.querySelector('[data-note-id="64"]')).toBeInTheDocument();
-      expect(document.querySelector('[data-note-id="67"]')).toBeInTheDocument();
-      expect(document.querySelector('[data-note-id="72"]')).toBeInTheDocument();
+      expect(document.querySelector('[data-midi-note="60"]')).not.toBeInTheDocument();
+      expect(document.querySelector('[data-midi-note="64"]')).toBeInTheDocument();
+      expect(document.querySelector('[data-midi-note="67"]')).toBeInTheDocument();
+      expect(document.querySelector('[data-midi-note="72"]')).toBeInTheDocument();
     });
   });
 });
