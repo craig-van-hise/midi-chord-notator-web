@@ -60,7 +60,10 @@ export const Piano88: React.FC = () => {
             if (detail.refresh && lut.length > 0) {
                 if (detail.notes) {
                     displayedPitches.current.clear();
-                    detail.notes.forEach(n => displayedPitches.current.add(n));
+                    detail.notes.forEach((n: any) => {
+                        const pitch = typeof n === 'object' ? n.note : n;
+                        displayedPitches.current.add(pitch);
+                    });
                 }
                 const pitches = Array.from(displayedPitches.current).sort((a, b) => a - b);
                 const keyName = keySignature;

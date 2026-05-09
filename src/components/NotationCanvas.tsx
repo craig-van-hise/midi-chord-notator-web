@@ -8,11 +8,21 @@ import { getChordSpelling, getSpellingData, getChordSymbol } from '../utils/chor
 const STAFF_SPACE_CSS_VAR = '--staff-space';
 
 interface ActiveNoteData {
+  id: string;
   note: number;
   stepOffset: number;
   accidental: string | null;
   isTreble: boolean;
+  [key: string]: any; // Preserve MIDI metadata (velocity, etc.)
 }
+
+const generateId = () => {
+  try {
+    return crypto.randomUUID();
+  } catch (e) {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+  }
+};
 
 const NotationCanvas: React.FC = () => {
   const [, setTick] = useState(0);
@@ -86,6 +96,18 @@ const NotationCanvas: React.FC = () => {
         const minBassStep = Math.min(...bassNotesRaw.map(n => n.stepOffset));
         if (minBassStep <= -30) { bassShift = 14; bassLabelText = "15mb"; }
         else if (minBassStep <= -23) { bassShift = 7; bassLabelText = "8vb"; }
+      }
+
+      // Wide-interval check: Disable Ottava shifts if chord spans across both staves
+      const allPitches = noteDatas.map(n => n.note);
+      const totalSpan = Math.max(...allPitches) - Math.min(...allPitches);
+      const isWideChord = totalSpan > 24; // 2 octaves
+
+      if (isWideChord) {
+        trebleShift = 0;
+        trebleLabelText = null;
+        bassShift = 0;
+        bassLabelText = null;
       }
 
       const labels: any[] = [];
@@ -241,7 +263,11 @@ const NotationCanvas: React.FC = () => {
           processAccColumns(rightAccNotes, rightBaseX);
         }
 
-        allNotes.push(...assigned);
+        assigned.forEach(n => {
+          if (!allNotes.some(existing => existing.id === n.id)) {
+            allNotes.push(n);
+          }
+        });
         if (isTreble && trebleLabelText && assigned.length > 0) {
           const highest = assigned.reduce((prev, curr) => (curr.finalStep > prev.finalStep) ? curr : prev);
           labels.push({ text: trebleLabelText, y: highest.y, type: 'treble', offset: -staffSpace * 2.8 });
@@ -263,6 +289,7 @@ const NotationCanvas: React.FC = () => {
 
   const updateSpellings = () => {
     try {
+      activeNotes.current.sort((a, b) => a.note - b.note);
       const pitches = activeNotes.current.map(n => n.note);
       if (pitches.length === 0) {
         setChordSymbol("");
@@ -271,7 +298,7 @@ const NotationCanvas: React.FC = () => {
         return;
       }
       const keyName = keySignatureRef.current;
-      const spellings = getChordSpelling(pitches, keyName, lutRef.current);
+      const spellings = getChordSpelling(activeNotes.current, keyName, lutRef.current);
       const symbol = getChordSymbol(pitches, keyName, lutRef.current);
       setChordSymbol(symbol);
 
@@ -312,10 +339,14 @@ const NotationCanvas: React.FC = () => {
         activeNotes.current = [];
         physicalKeysDown.current.forEach(note => {
           activeNotes.current.push({
+            id: generateId(),
             note,
             stepOffset: 0,
             accidental: null,
-            isTreble: note >= splitPointRef.current
+            isTreble: note >= splitPointRef.current,
+            velocity: 100,
+            channel: 0,
+            status: 0x90
           });
         });
         updateSpellings();
@@ -341,12 +372,16 @@ const NotationCanvas: React.FC = () => {
 
       if (refresh) {
         if (notes) {
-          activeNotes.current = notes.map((pitch: number) => ({
-            note: pitch,
-            stepOffset: 0,
-            accidental: null,
-            isTreble: pitch >= splitPointRef.current
-          }));
+          activeNotes.current = notes.map((item: any) => {
+            if (typeof item === 'object' && item.id) return item;
+            return {
+              id: generateId(),
+              note: item,
+              stepOffset: 0,
+              accidental: null,
+              isTreble: item >= splitPointRef.current
+            };
+          });
         }
         updateSpellings();
         return;
@@ -367,10 +402,14 @@ const NotationCanvas: React.FC = () => {
         }
         if (!activeNotes.current.some(n => n.note === note)) {
           activeNotes.current.push({
+            id: generateId(),
             note,
             stepOffset: 0,
             accidental: null,
-            isTreble: note >= splitPointRef.current
+            isTreble: note >= splitPointRef.current,
+            velocity: (typeof velocity !== 'undefined') ? velocity : 100,
+            channel: (typeof status !== 'undefined') ? (status & 0x0F) : 0,
+            status: (typeof status !== 'undefined') ? status : 0x90
           });
           updateSpellings();
         }
@@ -393,6 +432,19 @@ const NotationCanvas: React.FC = () => {
     return () => window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
   }, []);
 
+  // Selection Garbage Collector: Prune selected IDs that no longer exist in activeNotes
+  useEffect(() => {
+    const validIds = new Set(activeNotes.current.map(n => n.id));
+    let changed = false;
+    selectedNoteIds.current.forEach(id => {
+      if (!validIds.has(id)) {
+        selectedNoteIds.current.delete(id);
+        changed = true;
+      }
+    });
+    if (changed) forceUpdate();
+  }, [renderedNotes]); // renderedNotes updates whenever activeNotes is processed
+
   const handlePointerDown = (e: React.PointerEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const pointerX = e.clientX - rect.left;
@@ -403,20 +455,19 @@ const NotationCanvas: React.FC = () => {
     const horizontalThreshold = staffSpacePx * 1.5;
     const verticalThreshold = staffSpacePx * 0.8;
     
-    const clickedNote = renderedNotes.find((note, index) => {
+    
+    const clickedNote = renderedNotes.find((note) => {
       const centerX = rect.width / 2 + (note.xOffset || 0);
       const centerY = rect.height / 2 - note.y;
       
       const dx = Math.abs(pointerX - centerX);
       const dy = Math.abs(pointerY - centerY);
       const match = dx < horizontalThreshold && dy < verticalThreshold;
-      if (match) note._index = index; // Temp storage for index
       return match;
     });
 
     if (clickedNote) {
-      const index = clickedNote._index;
-      const id = `${clickedNote.note}-${index}`;
+      const id = clickedNote.id;
       const pitch = clickedNote.note;
 
       if (e.shiftKey && lastSelectedNoteId.current) {
@@ -426,9 +477,9 @@ const NotationCanvas: React.FC = () => {
         const min = Math.min(pitch, lastPitch);
         const max = Math.max(pitch, lastPitch);
 
-        renderedNotes.forEach((n, idx) => {
+        renderedNotes.forEach((n) => {
           if (n.note >= min && n.note <= max) {
-            selectedNoteIds.current.add(`${n.note}-${idx}`);
+            selectedNoteIds.current.add(n.id);
           }
         });
       } else if (e.metaKey || e.ctrlKey) {
@@ -446,6 +497,15 @@ const NotationCanvas: React.FC = () => {
       
       lastSelectedNoteId.current = id;
       forceUpdate(); 
+    } else {
+      // Click-away deselection
+      if (!e.shiftKey && !e.metaKey && !e.ctrlKey) {
+        if (selectedNoteIds.current.size > 0) {
+          selectedNoteIds.current.clear();
+          lastSelectedNoteId.current = null;
+          forceUpdate();
+        }
+      }
     }
 
     // Initialize Marquee
@@ -464,9 +524,12 @@ const NotationCanvas: React.FC = () => {
 
       const allPitches = activeNotes.current.map(n => n.note).sort((a, b) => a - b);
       const selectedEntries = Array.from(selectedNoteIds.current).map(id => {
-        const [p, i] = id.split('-');
-        return { pitch: parseInt(p), index: parseInt(i) };
-      }).sort((a, b) => a.pitch - b.pitch);
+        const noteData = activeNotes.current.find(n => n.id === id);
+        return { 
+          id, 
+          pitch: noteData ? noteData.note : 0 
+        };
+      }).filter(e => e.pitch !== 0).sort((a, b) => a.pitch - b.pitch);
 
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         const delta = e.key === 'ArrowUp' ? 1 : -1;
@@ -479,8 +542,8 @@ const NotationCanvas: React.FC = () => {
             const pcs = Array.from(new Set(selectedEntries.map(e => e.pitch % 12))).sort((a,b)=>a-b);
             const newSelection = new Set<string>();
 
-            activeNotes.current = activeNotes.current.map((noteData, idx) => {
-              const isSelected = selectedNoteIds.current.has(`${noteData.note}-${idx}`);
+            activeNotes.current = activeNotes.current.map((noteData) => {
+              const isSelected = selectedNoteIds.current.has(noteData.id);
               if (!isSelected) return noteData;
 
               const note = noteData.note;
@@ -499,13 +562,13 @@ const NotationCanvas: React.FC = () => {
                 newNote--;
                 while(newNote % 12 !== targetPC) { newNote--; }
               }
-              newSelection.add(`${newNote}-${idx}`);
+              newSelection.add(noteData.id);
               return { ...noteData, note: newNote };
             });
 
             selectedNoteIds.current = newSelection;
             updateSpellings();
-            updateActiveNotes(activeNotes.current.map(n => n.note));
+            updateActiveNotes(activeNotes.current);
           } else if (e.altKey) {
             // Diatonic Transposition
             const keyRootName = keySignatureRef.current.split(' ')[0];
@@ -516,8 +579,8 @@ const NotationCanvas: React.FC = () => {
 
             const newSelection = new Set<string>();
 
-            activeNotes.current = activeNotes.current.map((noteData, idx) => {
-              const isSelected = selectedNoteIds.current.has(`${noteData.note}-${idx}`);
+            activeNotes.current = activeNotes.current.map((noteData) => {
+              const isSelected = selectedNoteIds.current.has(noteData.id);
               if (!isSelected) return noteData;
 
               const note = noteData.note;
@@ -544,13 +607,13 @@ const NotationCanvas: React.FC = () => {
                 newNote--;
                 while(newNote % 12 !== targetPC) { newNote--; }
               }
-              newSelection.add(`${newNote}-${idx}`);
+              newSelection.add(noteData.id);
               return { ...noteData, note: newNote };
             });
 
             selectedNoteIds.current = newSelection;
             updateSpellings();
-            updateActiveNotes(activeNotes.current.map(n => n.note));
+            updateActiveNotes(activeNotes.current);
           } else {
             // Chromatic Transposition
             const multiplier = (e.metaKey || e.ctrlKey) ? 12 : 1;
@@ -558,35 +621,40 @@ const NotationCanvas: React.FC = () => {
             
             const newSelection = new Set<string>();
 
-            activeNotes.current = activeNotes.current.map((noteData, idx) => {
-              const isSelected = selectedNoteIds.current.has(`${noteData.note}-${idx}`);
+            activeNotes.current = activeNotes.current.map((noteData) => {
+              const isSelected = selectedNoteIds.current.has(noteData.id);
               if (!isSelected) return noteData;
 
               const newPitch = noteData.note + shift;
-              newSelection.add(`${newPitch}-${idx}`);
+              newSelection.add(noteData.id);
               return { ...noteData, note: newPitch };
             });
 
             selectedNoteIds.current = newSelection;
             updateSpellings();
-            updateActiveNotes(activeNotes.current.map(n => n.note));
+            updateActiveNotes(activeNotes.current);
           }
         } else {
           // SELECTION TRAVERSAL
           if (selectedEntries.length === 1) {
             e.preventDefault();
-            const currentPitch = selectedEntries[0].pitch;
-            const currentIndex = allPitches.indexOf(currentPitch);
-            const nextIndex = (currentIndex + delta + allPitches.length) % allPitches.length;
-            const nextPitch = allPitches[nextIndex];
+            const currentNoteId = selectedEntries[0].id;
+            const currentIndexInActive = activeNotes.current.findIndex(n => n.id === currentNoteId);
+            if (currentIndexInActive === -1) return;
             
-            // Find the first occurrence of nextPitch
-            const actualIndex = activeNotes.current.findIndex(n => n.note === nextPitch);
+            const currentPitch = activeNotes.current[currentIndexInActive].note;
+            const currentIndexInSorted = allPitches.indexOf(currentPitch);
+            const nextIndexInSorted = (currentIndexInSorted + delta + allPitches.length) % allPitches.length;
+            const nextPitch = allPitches[nextIndexInSorted];
             
-            selectedNoteIds.current.clear();
-            selectedNoteIds.current.add(`${nextPitch}-${actualIndex}`);
-            lastSelectedNoteId.current = `${nextPitch}-${actualIndex}`;
-            forceUpdate();
+            // Find the note object for the next pitch
+            const nextNote = activeNotes.current.find(n => n.note === nextPitch);
+            if (nextNote) {
+              selectedNoteIds.current.clear();
+              selectedNoteIds.current.add(nextNote.id);
+              lastSelectedNoteId.current = nextNote.id;
+              forceUpdate();
+            }
           }
         }
       }
@@ -637,12 +705,12 @@ const NotationCanvas: React.FC = () => {
       
       marqueeRef.current.classList.add('hidden');
       
-      renderedNotes.forEach((note, idx) => {
+      renderedNotes.forEach((note) => {
         const noteX = rect.width / 2 + (note.xOffset || 0);
         const noteY = rect.height / 2 - note.y;
         
         if (noteX >= left && noteX <= right && noteY >= top && noteY <= bottom) {
-          selectedNoteIds.current.add(`${note.note}-${idx}`);
+          selectedNoteIds.current.add(note.id);
         }
       });
       
@@ -695,7 +763,7 @@ const NotationCanvas: React.FC = () => {
         <div id="notes-layer" className="absolute inset-0 pointer-events-none z-10">
           {renderedNotes.map(note => (
             <div 
-              key={`note-${note.note}`}
+              key={note.id}
               className="notation-note-container transition-all duration-75"
               style={{
                 position: 'absolute',
@@ -711,8 +779,8 @@ const NotationCanvas: React.FC = () => {
                 style={{
                   fontFamily: "'Bravura', sans-serif",
                   fontSize: `calc(var(${STAFF_SPACE_CSS_VAR}) * 4.2)`,
-                  color: selectedNoteIds.current.has(`${note.note}-${renderedNotes.indexOf(note)}`) ? '#ef4444' : 'var(--accent, #aa3bff)',
-                  textShadow: selectedNoteIds.current.has(`${note.note}-${renderedNotes.indexOf(note)}`) ? '0 0 15px rgba(239, 68, 68, 0.4)' : '0 0 10px rgba(170, 59, 255, 0.3)',
+                  color: selectedNoteIds.current.has(note.id) ? '#ef4444' : 'var(--accent, #aa3bff)',
+                  textShadow: selectedNoteIds.current.has(note.id) ? '0 0 15px rgba(239, 68, 68, 0.4)' : '0 0 10px rgba(170, 59, 255, 0.3)',
                   pointerEvents: 'none',
                   transition: 'color 0.1s ease, text-shadow 0.1s ease'
                 }}
@@ -730,7 +798,7 @@ const NotationCanvas: React.FC = () => {
                     transform: 'translateY(-50%)',
                     fontFamily: "'Bravura', sans-serif",
                     fontSize: `calc(var(${STAFF_SPACE_CSS_VAR}) * 3)`,
-                    color: selectedNoteIds.current.has(`${note.note}-${renderedNotes.indexOf(note)}`) ? '#ef4444' : 'var(--accent, #aa3bff)',
+                    color: selectedNoteIds.current.has(note.id) ? '#ef4444' : 'var(--accent, #aa3bff)',
                     pointerEvents: 'none',
                     transition: 'color 0.1s ease'
                   }}

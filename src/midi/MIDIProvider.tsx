@@ -30,7 +30,7 @@ interface MidiContextType {
   isHoldModeActive: boolean;
   setIsHoldModeActive: (b: boolean) => void;
   dispatchVirtualMidi: (data: Uint8Array) => void;
-  updateActiveNotes: (notes: number[]) => void;
+  updateActiveNotes: (notes: any[]) => void;
   lut: (PCS_Entry | null)[];
 }
 
@@ -316,7 +316,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const updateActiveNotes = useCallback((notes: number[]) => {
+  const updateActiveNotes = useCallback((notes: any[]) => {
     const refreshEvent = new CustomEvent('MIDI_MESSAGE_RECEIVED', {
       detail: { 
         refresh: true,

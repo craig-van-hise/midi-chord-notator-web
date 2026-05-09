@@ -232,16 +232,27 @@ export function sumIntervalStrings(a: string, b: string): string {
     return acc + degSum;
 }
 
-export function getChordSpelling(ps: number[], keySignature: string = "C Major", lut: (PCS_Entry | null)[]): string[] {
+export function getChordSpelling(notes: any[], keySignature: string = "C Major", lut: (PCS_Entry | null)[]): string[] {
     const keyName = keySignature.split(' ')[0];
     const keySigPC = KEY_SIG_MAP[keyName] ?? 0;
-    const sortedPS = [...ps].sort((a, b) => a - b);
-    const decimal = psToDecimal(sortedPS);
+    
+    // Normalize input to handle both number[] and objects
+    const inputData = notes.map((n, i) => ({
+        pitch: typeof n === 'number' ? n : n.note,
+        originalIndex: i
+    }));
+
+    const sortedInput = [...inputData].sort((a, b) => a.pitch - b.pitch);
+    const sortedPitches = sortedInput.map(d => d.pitch);
+    
+    const decimal = psToDecimal(sortedPitches);
     const entry = lut[decimal];
+
+    let sortedSpellings: string[];
 
     if (!entry) {
         // Fallback: Use key-aware enharmonic spelling for individual notes
-        return sortedPS.map(pitch => {
+        sortedSpellings = sortedPitches.map(pitch => {
             const { stepOffset, accidental } = getEnharmonicSpelling(pitch, keySignature);
             const letter = DIATONIC_NAMES[((stepOffset % 7) + 7) % 7];
             let acc = "";
@@ -251,31 +262,38 @@ export function getChordSpelling(ps: number[], keySignature: string = "C Major",
             else if (accidental === SMuFL.accidentalDoubleFlat) acc = "bb";
             return letter + acc;
         });
+    } else {
+        const psRootName = getRootSpellingFromKey(sortedPitches, keySigPC, lut);
+        const rootRelKeyInterval = getIntervalBetweenPitches(keyName, psRootName);
+        const absoluteRootPC = (entry.root_pc + sortedPitches[0]) % 12;
+        
+        sortedSpellings = sortedPitches.map(pitch => {
+            const pc = pitch % 12;
+            const semitones = (pc - absoluteRootPC + 12) % 12;
+            
+            let toneInterval = "1";
+            const majorSteps = [0, 2, 4, 5, 7, 9, 11];
+            
+            for (const interval of entry.chord_intervals) {
+                 const [deg, off] = parseIntervalString(interval);
+                 const simpleDeg = ((deg - 1) % 7) + 1;
+                 if ((majorSteps[simpleDeg - 1] + off + 12) % 12 === semitones) {
+                     toneInterval = interval;
+                     break;
+                 }
+            }
+            
+            const absoluteInterval = sumIntervalStrings(toneInterval, rootRelKeyInterval);
+            return convertIntervalToPitchSpelling(absoluteInterval, keySigPC);
+        });
     }
 
-    const psRootName = getRootSpellingFromKey(sortedPS, keySigPC, lut);
-    const rootRelKeyInterval = getIntervalBetweenPitches(keyName, psRootName);
-    const absoluteRootPC = (entry.root_pc + sortedPS[0]) % 12;
-    
-    return sortedPS.map(pitch => {
-        const pc = pitch % 12;
-        const semitones = (pc - absoluteRootPC + 12) % 12;
-        
-        let toneInterval = "1";
-        const majorSteps = [0, 2, 4, 5, 7, 9, 11];
-        
-        for (const interval of entry.chord_intervals) {
-             const [deg, off] = parseIntervalString(interval);
-             const simpleDeg = ((deg - 1) % 7) + 1;
-             if ((majorSteps[simpleDeg - 1] + off + 12) % 12 === semitones) {
-                 toneInterval = interval;
-                 break;
-             }
-        }
-        
-        const absoluteInterval = sumIntervalStrings(toneInterval, rootRelKeyInterval);
-        return convertIntervalToPitchSpelling(absoluteInterval, keySigPC);
+    // Map back to original order
+    const result = new Array(notes.length);
+    sortedInput.forEach((data, i) => {
+        result[data.originalIndex] = sortedSpellings[i];
     });
+    return result;
 }
 
 function getIntervalBetweenPitches(rootName: string, targetName: string): string {
