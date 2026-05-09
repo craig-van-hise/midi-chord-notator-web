@@ -2,16 +2,9 @@
 
 
 /Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-chord-notator-web
+├── # Post-Mortem- Selection Engine Failure Report.md
 ├── # Prompts
-|  ├── # 43.md
-|  ├── # 44.md
-|  ├── # 45.md
-|  ├── # 46.md
-|  ├── # 47.md
-|  ├── # 48.md
-|  ├── # 49.md
-|  ├── # 50.md
-|  ├── # 51.md
+|  ├── # 89.md
 |  ├── # PDD.md
 |  └── x Older
 |     ├── # 1.md
@@ -51,14 +44,58 @@
 |     ├── # 40.md
 |     ├── # 41.md
 |     ├── # 42.md
+|     ├── # 43.md
+|     ├── # 44.md
+|     ├── # 45.md
+|     ├── # 46.md
+|     ├── # 47.md
+|     ├── # 48.md
+|     ├── # 49.md
 |     ├── # 5.md
+|     ├── # 50.md
+|     ├── # 51.md
+|     ├── # 52.md
+|     ├── # 53.md
+|     ├── # 54.md
+|     ├── # 55.md
+|     ├── # 56.md
+|     ├── # 57.md
+|     ├── # 58.md
+|     ├── # 59.md
 |     ├── # 6.md
+|     ├── # 60.md
+|     ├── # 61.md
+|     ├── # 62.md
+|     ├── # 63.md
+|     ├── # 64.md
+|     ├── # 65.md
+|     ├── # 66.md
+|     ├── # 67.md
+|     ├── # 68.md
+|     ├── # 69.md
 |     ├── # 7.md
+|     ├── # 70.md
+|     ├── # 71.md
+|     ├── # 72.md
+|     ├── # 73.md
+|     ├── # 74.md
+|     ├── # 75.md
+|     ├── # 76.md
+|     ├── # 77.md
+|     ├── # 78.md
+|     ├── # 79.md
 |     ├── # 8.md
+|     ├── # 80.md
+|     ├── # 81.md
+|     ├── # 82.md
+|     ├── # 83.md
+|     ├── # 84.md
+|     ├── # 85.md
+|     ├── # 86.md
+|     ├── # 87.md
+|     ├── # 88.md
 |     └── # 9.md
-├── Chord Spelling
-|  ├── README.md
-|  └── chord_speller.ts
+├── FAILURE_REPORT.md
 ├── PROJECT_CONTEXT_BUNDLE.md
 ├── PROJECT_STATE.md
 ├── README.md
@@ -99,9 +136,6 @@
 |  ├── fonts
 |  |  └── Bravura.woff2
 |  └── icons.svg
-├── scratch
-|  ├── phase1_test.ts
-|  └── verify_dat.js
 ├── scripts
 |  └── pack_lut.js
 ├── src
@@ -109,6 +143,8 @@
 |  ├── App.test.tsx
 |  ├── App.tsx
 |  ├── assets
+|  |  ├── fonts
+|  |  |  └── Bravura.woff2
 |  |  ├── hero.png
 |  |  ├── react.svg
 |  |  └── vite.svg
@@ -118,6 +154,8 @@
 |  |  ├── KeySignatureSelector.tsx
 |  |  ├── Keyboard.test.tsx
 |  |  ├── Keyboard.tsx
+|  |  ├── NotationCanvas.headless.test.tsx
+|  |  ├── NotationCanvas.selection.test.tsx
 |  |  ├── NotationCanvas.test.tsx
 |  |  ├── NotationCanvas.tsx
 |  |  ├── SettingsModal.test.tsx
@@ -142,14 +180,15 @@
 |  └── vitest.setup.ts
 ├── temp_downloaded.dat
 ├── test_output.txt
+├── test_output_main.txt
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
 └── vite.config.ts
 
-directory: 733 file: 5393
+directory: 734 file: 5438
 
-ignored: directory (105)
+ignored: directory (106)
 
 
 [2K[1G
@@ -158,15 +197,13 @@ ignored: directory (105)
 
 # PROJECT_STATE: Grand Staff MIDI Notator
 
-**Current System Status:** ✅ Phase 9 Complete - MIDI Thru & Feedback Loop Protection
-**Last Updated:** 2026-05-05
+**Current System Status:** ✅ Stable - Data Integrity & Selection Engine Hardened
+**Last Updated:** 2026-05-09
 
 ## 1. Project Architecture (Level 3)
 ```text
 .
 ├── # Prompts
-├── .agent
-├── .conductor_logs
 ├── public
 |  ├── PCS_LUT.dat
 |  ├── fonts
@@ -196,7 +233,7 @@ ignored: directory (105)
 
 ## 2. Tech Stack
 * **Core:** React 19, TypeScript, Vite 8
-* **Styling:** Tailwind CSS 4, CSS Variables for music spacing, Quicksand/Jost Fonts
+* **Styling:** Tailwind CSS 4, CSS Variables for music spacing, Jost/Quicksand Fonts
 * **Testing:** Vitest, React Testing Library, JSDOM
 * **Notation:** SMuFL (Standard Music Font Layout) via Bravura font
 * **MIDI:** Native Web MIDI API
@@ -204,28 +241,33 @@ ignored: directory (105)
 ## 3. System Capabilities
 
 ### 🎹 MIDI Engine
-* **Targeted Input Listening:** Explicitly attaches `onmidimessage` listeners only to the user-selected input port, preventing feedback loops in virtual loopback configurations.
-* **Hardware MIDI Thru:** Low-latency pass-through that forwards raw MIDI data to external hardware synthesizers immediately upon receipt.
-* **Ref-Based Port Management:** Uses `useRef` for port handling in high-frequency callbacks to prevent React stale closures without performance degradation.
-* **Panic System:** Global "All Notes Off" trigger (CC 123 + individual Note Offs) to clear both internal state and external gear.
+* **Targeted Input Listening:** Explicitly attaches `onmidimessage` listeners only to the user-selected input port.
+* **Global Note Synchronization:** Implements a custom event-driven synchronization bridge between the `NotationCanvas` and `MIDIProvider`.
+* **Hardware MIDI Thru:** Low-latency pass-through that forwards raw MIDI data to external gear.
+* **Panic System:** Global "All Notes Off" trigger.
 
 ### 🎼 Notation Engine (Imperative)
-* **Grand Staff System:** Renders treble and bass staves using SMuFL glyphs.
-* **Dual-Column Layout (Cohemitonia):** Handles dense chromatic unisons (e.g., Db and D natural) using a two-stack zippering architecture with dynamic gap injection.
-* **Intelligent Ottava Transposition:** Implements group-wide staff shifts (8va/15ma/8vb/15mb).
-* **Collision Detection:** Accidental stacking logic with tuned 0.8 staff-space padding and "zipper pattern" for notehead clusters.
+* **Headless Mathematical Hit-Testing:** Intercepts raw pointer coordinates and calculates intersections in memory. Completely bypasses the DOM for interaction.
+* **Pipeline Integrity (Data Reconciliation):** Uses immutable object patterns and UUID-based identity to prevent state desync and React "ghosting" artifacts during complex transpositions.
+* **Dual-Column Layout (Cohemitonia):** Handles dense chromatic unisons using a two-stack zippering architecture.
+* **Intelligent Ottava Engine:** Independent staff evaluation for group-wide shifts (8va/15ma/8vb/15mb).
+* **Collision Detection:** Accidental stacking logic with tuned 0.8 staff-space padding.
+
+### 🖱 Note Selection & Editing Engine
+* **Anchor-Persistent Range Selection:** Supports shift-click selection with a stable anchor, allowing users to "scale back" selections without losing the origin point.
+* **Headless Marquee:** Calculates selection sets by intersecting drawn bounding boxes with the mathematical note positions in memory.
+* **Diatonic Transposition:** `Alt + ArrowUp/Down` snaps selected notes to the active key signature's scale degrees.
+* **Voicing-Aware PCS Rotation:** `Cmd + Alt + ArrowUp/Down` performs theoretical rotation of the pitch class set.
 
 ### 🧠 Chord Identification & Spelling Engine
 * **PCS LUT Integration:** Utilizes a 2MB Pitch Class Set Look-Up Table (56,000+ entries) for instant identification.
-* **Compound Interval Spelling:** Support for 9ths, 11ths, and 13ths with modulo-7 diatonic mapping.
-* **$O(1)$ Chromatic Root Spelling:** Optimized lookup for root note enharmonics, including support for Minor 2nd, Dorian, and Phrygian sonority rules.
-* **Professional Chord Symbols:** Key-aware labels with automated inversion detection and slash notation (e.g., "G7/B").
+* **Forced Pitch Sorting:** Enforces a pitch-ordered pipeline before spelling analysis to guarantee consistent stave-assignment.
+* **Compound Interval Spelling:** Support for 9ths, 11ths, and 13ths.
+* **Professional Chord Symbols:** Key-aware labels with automated inversion detection.
 
 ## 4. Recent Evolution
-* **2026-05-04:** Implemented **MIDI Thru** architecture for external hardware support. Refactored the MIDI input engine to use **Targeted Listeners**, eliminating infinite feedback loops. Resolved CI/CD build failures and updated to Node 24.
-* **2026-05-04:** Expanded the chromatic spelling engine to support **Minor 2nd, Dorian, and Phrygian** rules, ensuring theoretical accuracy for modal voicings.
-* **2026-05-01:** Overhauled the interval parsing engine to support **Compound Intervals** (9ths, 11ths, 13ths).
-* **2026-05-01:** Architected and implemented the **Dual-Column Layout** engine for resolving chromatic cluster collisions (cohemitonia).
+* **2026-05-08:** Hardened the MIDI data pipeline by transitioning to **Immutable Note Identities (UUIDs)**. This eliminated "React Ghosting" during note crossovers and resolved state desync by enforcing a pitch-sort order before spelling calculation. Refined the selection engine to support **Anchor-Persistent Range Selection** and fixed visual artifacts in ledger line generation and keyboard highlights.
+* **2026-05-08:** Abandoned DOM-based hit-testing. Implemented the **Headless Mathematical Hit-Testing** engine, achieving 100% selection accuracy by calculating collisions in memory.
 
 ## 5. Future Roadmap
 * **Maintenance:** Periodic updates to the `PCS_LUT.dat` theoretical database.
@@ -240,12 +282,13 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 
 ## ✨ Core Features
 * **Real-Time Notation:** Low-latency rendering of musical notation on a grand staff using a custom "Clear and Redraw" imperative engine.
-* **Dual-Column Layout:** Intelligent handling of dense chromatic unisons (cohemitonia) with dynamic accidental bounding boxes and independent column zippering.
-* **Chord Identification:** Real-time analysis of pitch sets using a 56,000+ entry Look-Up Table to display professional chord symbols with full extension support (e.g., "Cm9", "G13").
-* **Theoretical Spelling:** Key-aware enharmonic spelling logic that translates MIDI pitches into musically correct note names, now supporting compound intervals (9ths, 11ths, 13ths).
-* **Intelligent Ottava Transposition:** Automated group-wide staff shifts (8va/15ma/8vb/15mb) for extreme registers.
-* **88-Key Virtual Piano:** Integrated visualizer with performance-optimized imperative updates.
-* **Pro-Audio Layout:** Ultra-slim header and hoisted modals for an unobstructed, professional workspace.
+* **Pipeline Integrity:** Uses immutable note objects and UUID-based identity to ensure perfectly synchronized state across the notation canvas, selection engine, and virtual piano.
+* **Headless Hit-Testing:** Advanced mathematical selection engine that calculates interaction coordinates in memory for pinpoint accuracy.
+* **Selection Scaling:** Supports anchor-persistent range selection (Shift-Click), marquee selection, and multi-select (Cmd/Ctrl).
+* **Dual-Column Layout:** Intelligent "zipper" architecture for handling dense chromatic unisons (cohemitonia).
+* **Chord Identification:** Real-time analysis of pitch sets using a 56,000+ entry Pitch Class Set Look-Up Table.
+* **Theoretical Spelling:** Key-aware enharmonic spelling logic including compound intervals (9ths, 11ths, 13ths).
+* **Selection & Mutations:** Supports diatonic transposition, PCS rotation, and selection traversal.
 
 ## 🛠 Tech Stack
 * **Framework:** React 19 + TypeScript

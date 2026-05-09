@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SMuFL, assignXLevels } from '../utils/notationMath';
+import { SMuFL, assignXLevels, transposeDiatonically } from '../utils/notationMath';
 import { useMidi } from '../midi/MIDIProvider';
 import KeySignatureSelector from './KeySignatureSelector';
 import { getChordSpelling, getSpellingData, getChordSymbol } from '../utils/chordSpeller';
@@ -13,6 +13,7 @@ interface ActiveNoteData {
   stepOffset: number;
   accidental: string | null;
   isTreble: boolean;
+  sourceMidi?: number;
   [key: string]: any; // Preserve MIDI metadata (velocity, etc.)
 }
 
@@ -235,7 +236,10 @@ const NotationCanvas: React.FC = () => {
                 
                 // Calculate position relative to the note's xOffset, but anchored to the stack's baseX
                 const relativeShift = (note.xOffset || 0) - baseX;
-                note.accidentalLeft = `calc(${offsetMultiplier} * var(${STAFF_SPACE_CSS_VAR}) + ${currentCompaction}px - ${relativeShift}px)`;
+                const leftStr = `${offsetMultiplier} * var(${STAFF_SPACE_CSS_VAR})`;
+                const compactionStr = currentCompaction !== 0 ? ` + ${currentCompaction.toFixed(1)}px` : '';
+                const shiftStr = relativeShift !== 0 ? ` - ${relativeShift}px` : '';
+                note.accidentalLeft = (compactionStr || shiftStr) ? `calc(${leftStr}${compactionStr}${shiftStr})` : `calc(${leftStr})`;
                 placed = true;
               } else {
                 col++;
@@ -334,12 +338,14 @@ const NotationCanvas: React.FC = () => {
             stepOffset: 0,
             accidental: null,
             isTreble: note >= splitPointRef.current,
+            sourceMidi: note,
             velocity: 100,
             channel: 0,
             status: 0x90
           });
         });
         updateSpellings();
+        updateActiveNotes([...activeNotes.current]);
       }
     };
     window.addEventListener('HOLD_MODE_CHANGED', handleHoldModeChange);
@@ -357,6 +363,7 @@ const NotationCanvas: React.FC = () => {
         isWaitingForNewChord.current = false;
         setRenderedNotes([]);
         setOttavaLabels([]);
+        updateActiveNotes([]);
         return;
       }
 
@@ -369,11 +376,13 @@ const NotationCanvas: React.FC = () => {
               note: item,
               stepOffset: 0,
               accidental: null,
-              isTreble: item >= splitPointRef.current
+              isTreble: item >= splitPointRef.current,
+              sourceMidi: item
             };
           });
         }
         updateSpellings();
+        updateActiveNotes([...activeNotes.current]);
         return;
       }
 
@@ -390,26 +399,29 @@ const NotationCanvas: React.FC = () => {
           activeNotes.current = [];
           isWaitingForNewChord.current = false;
         }
-        if (!activeNotes.current.some(n => n.note === note)) {
+        if (!activeNotes.current.some(n => n.sourceMidi === note || n.note === note)) {
           activeNotes.current.push({
             id: generateId(),
             note,
             stepOffset: 0,
             accidental: null,
             isTreble: note >= splitPointRef.current,
+            sourceMidi: note,
             velocity: (typeof velocity !== 'undefined') ? velocity : 100,
             channel: (typeof status !== 'undefined') ? (status & 0x0F) : 0,
             status: (typeof status !== 'undefined') ? status : 0x90
           });
           updateSpellings();
+          updateActiveNotes([...activeNotes.current]);
         }
       } else if (isNoteOff) {
         physicalKeysDown.current.delete(note);
         if (!isHoldModeEnabled.current) {
-          const index = activeNotes.current.findIndex(n => n.note === note);
+          const index = activeNotes.current.findIndex(n => n.sourceMidi === note || n.note === note);
           if (index !== -1) {
             activeNotes.current.splice(index, 1);
             updateSpellings();
+            updateActiveNotes([...activeNotes.current]);
           }
         }
         if (isHoldModeEnabled.current && physicalKeysDown.current.size === 0) {
@@ -564,44 +576,18 @@ const NotationCanvas: React.FC = () => {
             updateActiveNotes(activeNotes.current);
           } else if (e.altKey) {
             // Diatonic Transposition
-            const keyRootName = keySignatureRef.current.split(' ')[0];
-            const majorPattern = [0, 2, 4, 5, 7, 9, 11];
-            const rootMap: Record<string, number> = { 'C':0, 'C#':1, 'Db':1, 'D':2, 'D#':3, 'Eb':3, 'E':4, 'F':5, 'F#':6, 'Gb':6, 'G':7, 'G#':8, 'Ab':8, 'A':9, 'A#':10, 'Bb':10, 'B':11 };
-            const currentRootPC = rootMap[keyRootName] ?? 0;
-            const scale = majorPattern.map(p => (p + currentRootPC) % 12).sort((a, b) => a - b);
-
+            const keyName = keySignatureRef.current;
             const newSelection = new Set<string>();
 
             activeNotes.current = activeNotes.current.map((noteData) => {
               const isSelected = selectedNoteIds.current.has(noteData.id);
               if (!isSelected) return noteData;
 
-              const note = noteData.note;
-              let currentPC = note % 12;
-              if (!scale.includes(currentPC)) {
-                let closest = scale[0];
-                let minDist = 12;
-                scale.forEach(s => {
-                   const d = Math.abs(s - currentPC);
-                   if (d < minDist) { minDist = d; closest = s; }
-                });
-                currentPC = closest;
-              }
+              // Use the new mathematical transposition engine
+              const newMidiNote = transposeDiatonically(noteData.stepOffset, delta, keyName);
 
-              const currentIndex = scale.indexOf(currentPC);
-              const nextIndex = (currentIndex + delta + scale.length) % scale.length;
-              const targetPC = scale[nextIndex];
-
-              let newNote = note;
-              if (delta > 0) {
-                newNote++;
-                while(newNote % 12 !== targetPC) { newNote++; }
-              } else {
-                newNote--;
-                while(newNote % 12 !== targetPC) { newNote--; }
-              }
               newSelection.add(noteData.id);
-              return { ...noteData, note: newNote };
+              return { ...noteData, note: newMidiNote };
             });
 
             selectedNoteIds.current = newSelection;
@@ -758,10 +744,11 @@ const NotationCanvas: React.FC = () => {
             <div 
               key={note.id}
               className="notation-note-container transition-all duration-75"
+              data-midi-note={note.note}
               style={{
                 position: 'absolute',
-                left: `calc(50% + ${note.xOffset || 0}px)`,
-                top: `calc(50% - ${note.y}px)`,
+                left: note.xOffset ? `calc(50% + ${note.xOffset}px)` : '50%',
+                top: note.y ? `calc(50% - ${note.y}px)` : '50%',
                 transform: 'translate(-50%, -50%)',
                 pointerEvents: 'none'
               }}
@@ -784,6 +771,7 @@ const NotationCanvas: React.FC = () => {
               {/* Visual Accidental (SMuFL) */}
               {(note.accidental || note.forceAccidentalDisplay) && (
                 <div 
+                  data-is-accidental="true"
                   style={{
                     position: 'absolute',
                     left: note.accidentalLeft || `calc(-1.5 * var(${STAFF_SPACE_CSS_VAR}))`,

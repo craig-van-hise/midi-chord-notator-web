@@ -68,7 +68,7 @@ describe('NotationCanvas - calculateStaffPosition', () => {
     });
 
     test('should render left and right system barlines', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     const leftEdge = document.querySelector('.system-left-edge');
@@ -79,7 +79,7 @@ describe('NotationCanvas - calculateStaffPosition', () => {
   });
 
   test('should position treble clef correctly at top: calc(var(--staff-space) * 2)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     const trebleClef = screen.getByTestId('treble-clef');
@@ -87,7 +87,7 @@ describe('NotationCanvas - calculateStaffPosition', () => {
   });
 
   test('should render 1 ledger line for Middle C (MIDI 60)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     act(() => {
@@ -107,7 +107,7 @@ describe('NotationCanvas - calculateStaffPosition', () => {
   });
 
   test('should render multiple ledger lines for C6 (MIDI 84)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     act(() => {
@@ -149,6 +149,7 @@ describe('NotationCanvas - Phase 4 Behavioral Tests', () => {
       keySignature: 'F Major',
       splitPoint: 60,
       lut: [null],
+      updateActiveNotes: vi.fn(),
     });
 
     render(<NotationCanvas />);
@@ -186,7 +187,7 @@ describe('NotationCanvas - Phase 4 Behavioral Tests', () => {
   });
 
   test('should apply Bass Offset Shift and directional ledger lines for B3 (59) when splitPoint is 60', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     act(() => {
@@ -211,7 +212,7 @@ describe('NotationCanvas - Phase 4 Behavioral Tests', () => {
   });
 
   test('should render ledger line for Middle C (60) in Bass group with correct direction', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 72, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 72, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     act(() => {
@@ -231,7 +232,7 @@ describe('NotationCanvas - Phase 4 Behavioral Tests', () => {
   });
 
   test('should render multiple ledger lines for A3 (57) in Treble group (splitPoint 48)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 48, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 48, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     act(() => {
@@ -259,7 +260,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
   });
 
   test('should apply 1px vertical correction to ledger lines', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     act(() => {
@@ -275,7 +276,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
   });
 
   test('should apply horizontal offset (zipper pattern) for adjacent notes (E4 and F4)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     // E4 (MIDI 64, stepOffset 2)
@@ -303,7 +304,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
   });
 
   test('should apply zipper pattern for a cluster (C4, D4, E4, F4)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     // MIDI 60, 62, 64, 65 (Steps 0, 1, 2, 3)
@@ -326,7 +327,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
   });
 
   test('should correctly handle Fmaj7 cluster (C4, E4, F4, A4)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     // Steps: 0, 2, 3, 5
@@ -352,7 +353,7 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
   });
 
   test('should stagger accidentals in a dense cluster (C#4, D#4, E#4, F#4)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     // MIDI 61, 63, 65, 66 (Steps 0, 1, 2, 3 with sharps)
@@ -378,15 +379,15 @@ describe('NotationCanvas - Collision and Alignment Tests', () => {
       // 63: -3.9
       // 61: -5.1
       
-      expect(accs[3]).toHaveStyle(`left: calc(-1.5 * var(--staff-space))`); // MIDI 66, Col 0, Not Shifted
+      expect(accs[3]).toHaveStyle(`left: calc(-1.5 * var(--staff-space) + 1.8px)`); // MIDI 66, Col 0, Not Shifted (Right Stack)
       expect(accs[2]).toBeNull(); // MIDI 65 (F natural) has no accidental
-      expect(accs[1]).toHaveStyle(`left: calc(-2.7 * var(--staff-space) - 19.4px)`); // MIDI 63, Col 1, Shifted
-      expect(accs[0]).toHaveStyle(`left: calc(-3.9 * var(--staff-space))`); // MIDI 61, Col 2, Not Shifted
+      expect(accs[1]).toHaveStyle(`left: calc(-1.5 * var(--staff-space) - 19.4px)`); // MIDI 63, Col 0 (Left Stack), Shifted
+      expect(accs[0]).toHaveStyle(`left: calc(-2.7 * var(--staff-space))`); // MIDI 61, Col 1 (Left Stack), Not Shifted
     });
   });
 
   test('should align accidentals vertically in a wide chord (C#4, G#4)', async () => {
-    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null] });
+    (useMidi as any).mockReturnValue({ keySignature: 'C Major', splitPoint: 60, lut: [null], updateActiveNotes: vi.fn() });
     render(<NotationCanvas />);
     
     // MIDI 61, 68 (Steps 0, 4)
@@ -416,7 +417,8 @@ describe('NotationCanvas - Hold Mode Logic', () => {
     (useMidi as any).mockReturnValue({
       keySignature: 'C Major',
       splitPoint: 60,
-      lut: Array(4096).fill(null) // Mock non-empty lut
+      lut: Array(4096).fill(null), // Mock non-empty lut
+      updateActiveNotes: vi.fn()
     });
   });
 
@@ -491,6 +493,200 @@ describe('NotationCanvas - Hold Mode Logic', () => {
     await waitFor(() => {
       expect(document.querySelector('[data-midi-note="60"]')).toBeInTheDocument();
       expect(document.querySelector('[data-midi-note="64"]')).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe('NotationCanvas - Hardware Reconciliation (Phase 2 fix)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    document.body.innerHTML = '';
+    (useMidi as any).mockReturnValue({
+      keySignature: 'C Major',
+      splitPoint: 60,
+      lut: Array(4096).fill(null),
+      updateActiveNotes: vi.fn()
+    });
+  });
+
+  test('should successfully remove a note via NoteOff even if it was computationally transposed', async () => {
+    render(<NotationCanvas />);
+
+    const container = document.querySelector('.notation-canvas-container')!;
+    container.getBoundingClientRect = vi.fn(() => ({
+      width: 1000,
+      height: 320,
+      left: 0,
+      top: 0,
+      bottom: 320,
+      right: 1000,
+    } as DOMRect));
+
+    // 1. Send Note On for pitch 64 (E4)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 64, 100]) }
+      }));
+    });
+
+    // Verify it's rendered (E4 in C Major is Step 2, y=24)
+    await waitFor(() => {
+      expect(document.querySelector('[data-midi-note="64"]')).toBeInTheDocument();
+    });
+
+    // 2. Select the note
+    // centerX = 500 + 0, centerY = 160 - 24 = 136
+    act(() => {
+      container.dispatchEvent(new MouseEvent('pointerdown', { 
+        bubbles: true, 
+        clientX: 500, 
+        clientY: 136 
+      }));
+    });
+
+    // 3. Trigger Diatonic Transposition (Alt + ArrowUp)
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }));
+    });
+
+    // Verify the note pitch changed in the DOM to 65 (F4)
+    await waitFor(() => {
+      expect(document.querySelector('[data-midi-note="65"]')).toBeInTheDocument();
+    });
+
+    // 4. Send Note Off for original pitch 64
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x80, 64, 0]) }
+      }));
+    });
+
+    // 5. Assert the note is removed (Hardware Garbage Collection)
+    await waitFor(() => {
+      expect(document.querySelector('[data-midi-note="65"]')).not.toBeInTheDocument();
+    });
+  });
+
+  test('should prevent duplicate note creation if a NoteOn for sourceMidi is received after transposition', async () => {
+    render(<NotationCanvas />);
+
+    const container = document.querySelector('.notation-canvas-container')!;
+    container.getBoundingClientRect = vi.fn(() => ({
+      width: 1000,
+      height: 320,
+      left: 0,
+      top: 0,
+      bottom: 320,
+      right: 1000,
+    } as DOMRect));
+
+    // 1. Send Note On for 64
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 64, 100]) }
+      }));
+    });
+
+    // 2. Select and Transpose to 65
+    act(() => {
+      container.dispatchEvent(new MouseEvent('pointerdown', { 
+        bubbles: true, 
+        clientX: 500, 
+        clientY: 136 
+      }));
+    });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }));
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-midi-note="65"]')).toBeInTheDocument();
+    });
+
+    // 3. Send ANOTHER Note On for 64
+    act(() => {
+      window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+        detail: { data: new Uint8Array([0x90, 64, 100]) }
+      }));
+    });
+
+    // 4. Assert that no second note is added (Duplicate Prevention)
+    await waitFor(() => {
+      expect(document.querySelectorAll('.notation-note-container').length).toBe(1);
+    });
+  });
+
+  describe('Global State Synchronization (Phase 1)', () => {
+    const mockUpdateActiveNotes = vi.fn();
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      // Reset the mock return value to include our spy
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        splitPoint: 60,
+        lut: [],
+        updateActiveNotes: mockUpdateActiveNotes
+      });
+    });
+
+    test('should call updateActiveNotes([]) on Panic', async () => {
+      render(<NotationCanvas />);
+      
+      act(() => {
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: { panic: true }
+        }));
+      });
+
+      expect(mockUpdateActiveNotes).toHaveBeenCalledWith([]);
+    });
+
+    test('should call updateActiveNotes with current state on Mode Toggle (OFF)', async () => {
+      render(<NotationCanvas />);
+      
+      // 1. Send a note
+      act(() => {
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: { data: new Uint8Array([0x90, 60, 100]) }
+        }));
+      });
+
+      // 2. Disable hold mode
+      act(() => {
+        window.dispatchEvent(new CustomEvent('HOLD_MODE_CHANGED', {
+          detail: { enabled: false }
+        }));
+      });
+
+      expect(mockUpdateActiveNotes).toHaveBeenCalled();
+      const lastCall = mockUpdateActiveNotes.mock.calls[mockUpdateActiveNotes.mock.calls.length - 1][0];
+      expect(lastCall).toBeInstanceOf(Array);
+      // Note 60 should be in the synced array because it was physically down
+      expect(lastCall.some(n => n.note === 60)).toBe(true);
+    });
+
+    test('should call updateActiveNotes on Note Off', async () => {
+      render(<NotationCanvas />);
+      
+      // Note On
+      act(() => {
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: { data: new Uint8Array([0x90, 60, 100]) }
+        }));
+      });
+
+      const callsAfterOn = mockUpdateActiveNotes.mock.calls.length;
+
+      // Note Off
+      act(() => {
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: { data: new Uint8Array([0x80, 60, 0]) }
+        }));
+      });
+
+      expect(mockUpdateActiveNotes.mock.calls.length).toBeGreaterThan(callsAfterOn);
+      expect(mockUpdateActiveNotes).toHaveBeenLastCalledWith([]);
     });
   });
 });

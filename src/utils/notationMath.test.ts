@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDiatonicMap, SMuFL, getEnharmonicSpelling } from './notationMath';
+import { getDiatonicMap, SMuFL, getEnharmonicSpelling, transposeDiatonically } from './notationMath';
 
 describe('Phase 1: Diatonic Scale Generator', () => {
     it('should generate Gb Major correctly (Test Case 1)', () => {
@@ -80,5 +80,32 @@ describe('Phase 3: Chromatic Fallback Handling', () => {
         // No octave shift needed. stepOffset = (4-4)*7 + 2 = 2 (E4 line)
         const result = getEnharmonicSpelling(65, "C# Major");
         expect(result.stepOffset).toBe(2);
+    });
+});
+
+describe('Phase 4: Diatonic Transposition Engine', () => {
+    it('should transpose F4 (step 3) up to G4 (step 4) in C Major', () => {
+        const result = transposeDiatonically(3, 1, "C Major");
+        expect(result).toBe(67); // G4
+    });
+
+    it('should transpose Eb4 (step 2) up to F4 (step 3) in C Major (Enharmonic shift)', () => {
+        // Eb4 is MIDI 63, but in C Major it's spelled as E natural (Step 2)
+        // If we have an Eb4 but we are in C Major, the engine uses the stepOffset.
+        // Eb4 would actually have stepOffset 2 if it was spelled as E natural.
+        // If it was spelled as Eb4, it would still have stepOffset 2.
+        const result = transposeDiatonically(2, 1, "C Major");
+        expect(result).toBe(65); // F4
+    });
+
+    it('should transpose B4 (step 6) up to C5 (step 7) in C Major (Octave wrap)', () => {
+        const result = transposeDiatonically(6, 1, "C Major");
+        expect(result).toBe(72); // C5
+    });
+
+    it('should handle Cb4 (step 0) in Cb Major (Octave correction)', () => {
+        // Cb4 is MIDI 59. In Cb Major, step 0 is Cb.
+        const result = transposeDiatonically(0, 0, "Cb Major");
+        expect(result).toBe(59); // MIDI 59
     });
 });

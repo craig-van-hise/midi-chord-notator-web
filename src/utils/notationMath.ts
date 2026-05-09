@@ -250,3 +250,37 @@ export function assignXLevels(notes: NotePosition[]): NotePosition[] {
 
     return [...zipperedLeft, ...zipperedRight];
 }
+
+/**
+ * Calculates the target MIDI note for a diatonic transposition.
+ * @param currentStepOffset - The current diatonic staff position of the note.
+ * @param delta - The shift amount (+1 for up, -1 for down).
+ * @param keySignature - The active key signature string.
+ * @returns The new MIDI note, clamped between 0 and 127.
+ */
+export function transposeDiatonically(currentStepOffset: number, delta: number, keySignature: string): number {
+    const targetStepOffset = currentStepOffset + delta;
+    
+    // Calculate scale step (0-6) and octave offset relative to Middle C (C4)
+    const targetScaleStep = ((targetStepOffset % 7) + 7) % 7;
+    const octaveOffset = Math.floor(targetStepOffset / 7);
+    let targetOctave = 4 + octaveOffset;
+
+    // Look up target Pitch Class from the active key's diatonic map
+    const diatonicMap = getDiatonicMap(keySignature);
+    let targetPC = 0;
+    for (const [pc, data] of diatonicMap.entries()) {
+        if (data.step === targetScaleStep) {
+            targetPC = pc;
+            break;
+        }
+    }
+
+    // Reverse Octave Boundary Corrections
+    if (targetPC === 11 && targetScaleStep === 0) targetOctave -= 1; // Cb correction (Cb4 -> MIDI B3)
+    if (targetPC === 0 && targetScaleStep === 6) targetOctave += 1;  // B# correction (B#3 -> MIDI C4)
+
+    // Calculate final MIDI pitch and clamp to valid range
+    const newMidiNote = ((targetOctave + 1) * 12) + targetPC;
+    return Math.max(0, Math.min(127, newMidiNote));
+}
