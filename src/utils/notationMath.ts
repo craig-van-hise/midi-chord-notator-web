@@ -329,3 +329,28 @@ export function calculateWriteModePitch(
     const diatonicMidi = ((targetOctave + 1) * 12) + targetPC;
     return { midiNote: Math.max(0, Math.min(127, diatonicMidi)), accidental: diatonicAcc };
 }
+
+export function getNoteNameFromPosition(stepOffset: number, accidental: string | null, keySignature: string): string {
+    const letters = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    const scaleStep = ((stepOffset % 7) + 7) % 7;
+    const letter = letters[scaleStep];
+    
+    let accStr = '';
+    if (accidental === SMuFL.accidentalSharp) accStr = '#';
+    else if (accidental === SMuFL.accidentalFlat) accStr = 'b';
+    else if (accidental === SMuFL.accidentalDoubleSharp) accStr = 'x';
+    else if (accidental === SMuFL.accidentalDoubleFlat) accStr = 'bb';
+    else if (accidental === SMuFL.accidentalNatural) accStr = '';
+    else {
+        // Fallback to diatonic accidental if null
+        const diatonicMap = getDiatonicMap(keySignature);
+        for (const [pc, data] of diatonicMap.entries()) {
+            if (data.step === scaleStep) {
+                if (data.acc === SMuFL.accidentalSharp) accStr = '#';
+                if (data.acc === SMuFL.accidentalFlat) accStr = 'b';
+                break;
+            }
+        }
+    }
+    return letter + accStr;
+}

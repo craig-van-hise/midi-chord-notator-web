@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SMuFL, assignXLevels, transposeDiatonically, calculateWriteModePitch, type AccidentalOverride } from '../utils/notationMath';
+import { SMuFL, assignXLevels, transposeDiatonically, calculateWriteModePitch, type AccidentalOverride, getNoteNameFromPosition } from '../utils/notationMath';
 import { useMidi } from '../midi/MIDIProvider';
 import KeySignatureSelector from './KeySignatureSelector';
 import { getChordSpelling, getSpellingData, getChordSymbol } from '../utils/chordSpeller';
@@ -14,7 +14,8 @@ interface ActiveNoteData {
   accidental: string | null;
   isTreble: boolean;
   sourceMidi?: number;
-  isLockedSpelling?: boolean;
+  spellingOverride?: string;
+  spellingString?: string;
   [key: string]: any; // Preserve MIDI metadata (velocity, etc.)
 }
 
@@ -343,17 +344,20 @@ const NotationCanvas: React.FC = () => {
         return;
       }
       const keyName = keySignatureRef.current;
-      const spellings = getChordSpelling(pitches, keyName, lutRef.current);
-      const symbol = getChordSymbol(pitches, keyName, lutRef.current);
+      
+      const overrides: Record<number, string> = {};
+      activeNotes.current.forEach(n => {
+          if (n.spellingOverride) overrides[n.note] = n.spellingOverride;
+      });
+
+      const spellings = getChordSpelling(pitches, keyName, lutRef.current, overrides);
+      const symbol = getChordSymbol(pitches, keyName, lutRef.current, overrides);
       setChordSymbol(symbol);
 
       activeNotes.current.forEach((data, i) => {
-        // Bypass chord speller logic for explicitly written notes
-        if (data.isLockedSpelling) {
-           activeNotes.current[i] = { ...data, isTreble: data.note >= splitPointRef.current };
-           return;
-        }
-
+        // Save the final broadcast string
+        activeNotes.current[i].spellingString = spellings[i];
+        
         const { stepOffset, accidental } = getSpellingData(data.note, spellings[i]);
         activeNotes.current[i] = {
           ...data,
@@ -502,6 +506,7 @@ const NotationCanvas: React.FC = () => {
         const step = parseInt((ghost as any)?.dataset.step || '0');
         const targetMidiNote = parseInt((ghost as any)?.dataset.midiNote || '60');
         const targetAccidental = (ghost as any)?.dataset.accidental === 'null' ? null : (ghost as any)?.dataset.accidental;
+        const overrideString = getNoteNameFromPosition(step, targetAccidental, keySignatureRef.current);
 
         commitState();
         activeNotes.current.push({
@@ -510,7 +515,7 @@ const NotationCanvas: React.FC = () => {
             sourceMidi: targetMidiNote,
             stepOffset: step,
             accidental: targetAccidental,
-            isLockedSpelling: true, // <--- Locks spelling to the Key/Override
+            spellingOverride: overrideString,
             isTreble: targetMidiNote >= splitPointRef.current,
             velocity: 100,
             channel: 0,
@@ -672,6 +677,12 @@ const NotationCanvas: React.FC = () => {
           if (e.altKey && (e.metaKey || e.ctrlKey)) {
             // Voicing-Aware PCS Rotation
             const pcs = Array.from(new Set(selectedEntries.map(se => se.pitch % 12))).sort((a,b)=>a-b);
+            
+            const pcOverrides: Record<number, string> = {};
+            activeNotes.current.forEach(n => {
+                if (n.spellingOverride) pcOverrides[n.note % 12] = n.spellingOverride;
+            });
+
             const newSelection = new Set<string>();
 
             activeNotes.current = activeNotes.current.map((noteData) => {
@@ -695,7 +706,7 @@ const NotationCanvas: React.FC = () => {
                 while(newNote % 12 !== targetPC) { newNote--; }
               }
               newSelection.add(noteData.id);
-              return { ...noteData, note: newNote, isLockedSpelling: false };
+              return { ...noteData, note: newNote, spellingOverride: pcOverrides[targetPC] };
             });
 
             selectedNoteIds.current = newSelection;
@@ -714,7 +725,7 @@ const NotationCanvas: React.FC = () => {
               const newMidiNote = transposeDiatonically(noteData.stepOffset, delta, keyName);
 
               newSelection.add(noteData.id);
-              return { ...noteData, note: newMidiNote, isLockedSpelling: false };
+              return { ...noteData, note: newMidiNote, spellingOverride: undefined };
             });
 
             selectedNoteIds.current = newSelection;
@@ -733,7 +744,7 @@ const NotationCanvas: React.FC = () => {
 
               const newPitch = noteData.note + shift;
               newSelection.add(noteData.id);
-              return { ...noteData, note: newPitch, isLockedSpelling: false };
+              return { ...noteData, note: newPitch, spellingOverride: undefined };
             });
 
             selectedNoteIds.current = newSelection;

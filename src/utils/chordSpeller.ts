@@ -232,7 +232,7 @@ export function sumIntervalStrings(a: string, b: string): string {
     return acc + degSum;
 }
 
-export function getChordSpelling(notes: any[], keySignature: string = "C Major", lut: (PCS_Entry | null)[]): string[] {
+export function getChordSpelling(notes: any[], keySignature: string = "C Major", lut: (PCS_Entry | null)[], overrides?: Record<number, string>): string[] {
     const keyName = keySignature.split(' ')[0];
     const keySigPC = KEY_SIG_MAP[keyName] ?? 0;
     
@@ -260,12 +260,20 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
             else if (accidental === SMuFL.accidentalDoubleSharp) acc = "x";
             else if (accidental === SMuFL.accidentalFlat) acc = "b";
             else if (accidental === SMuFL.accidentalDoubleFlat) acc = "bb";
+            if (overrides && overrides[pitch]) return overrides[pitch];
             return letter + acc;
         });
     } else {
-        const psRootName = getRootSpellingFromKey(sortedPitches, keySigPC, lut);
-        const rootRelKeyInterval = getIntervalBetweenPitches(keyName, psRootName);
+        let psRootName = getRootSpellingFromKey(sortedPitches, keySigPC, lut);
         const absoluteRootPC = (entry.root_pc + sortedPitches[0]) % 12;
+        const rootPitch = sortedPitches.find(p => p % 12 === absoluteRootPC);
+
+        // 1. Force the Root Spelling if overridden
+        if (rootPitch !== undefined && overrides && overrides[rootPitch]) {
+            psRootName = overrides[rootPitch];
+        }
+
+        const rootRelKeyInterval = getIntervalBetweenPitches(keyName, psRootName);
         
         sortedSpellings = sortedPitches.map(pitch => {
             const pc = pitch % 12;
@@ -284,6 +292,8 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
             }
             
             const absoluteInterval = sumIntervalStrings(toneInterval, rootRelKeyInterval);
+            // 2. Force exact individual note spellings
+            if (overrides && overrides[pitch]) return overrides[pitch];
             return convertIntervalToPitchSpelling(absoluteInterval, keySigPC);
         });
     }
@@ -351,7 +361,7 @@ export function getSpellingData(midiNote: number, spelling: string): { stepOffse
 /**
  * Derives a chord symbol from the pitch set and LUT entry.
  */
-export function getChordSymbol(ps: number[], keySignature: string = "C Major", lut: (PCS_Entry | null)[]): string {
+export function getChordSymbol(ps: number[], keySignature: string = "C Major", lut: (PCS_Entry | null)[], overrides?: Record<number, string>): string {
     const sortedPS = [...ps].sort((a, b) => a - b);
     if (sortedPS.length === 0) return "";
     
@@ -361,15 +371,30 @@ export function getChordSymbol(ps: number[], keySignature: string = "C Major", l
 
     const keyName = keySignature.split(' ')[0];
     const keySigPC = KEY_SIG_MAP[keyName] ?? 0;
-    const rootName = getRootSpellingFromKey(sortedPS, keySigPC, lut);
+    let rootName = getRootSpellingFromKey(sortedPS, keySigPC, lut);
+    
+    const absoluteRootPC = (entry.root_pc + sortedPS[0]) % 12;
+    const rootPitch = sortedPS.find(p => p % 12 === absoluteRootPC);
+
+    // Force the Root Spelling if overridden
+    if (rootPitch !== undefined && overrides && overrides[rootPitch]) {
+        rootName = overrides[rootPitch];
+    }
     
     let symbol = rootName + entry.chord_type;
     
     // Slash notation if root_pc != 0 (meaning the low note is not the root)
     if (entry.root_pc !== 0) {
         // Find the spelling of the lowest note
-        const spellings = getChordSpelling(sortedPS, keySignature, lut);
-        const lowNoteSpelling = spellings[0];
+        const spellings = getChordSpelling(sortedPS, keySignature, lut, overrides);
+        let lowNoteSpelling = spellings[0];
+        
+        // CRITICAL: Force override injection for the bass note specifically
+        const bassPitch = sortedPS[0];
+        if (overrides && overrides[bassPitch]) {
+            lowNoteSpelling = overrides[bassPitch];
+        }
+        
         symbol += " / " + lowNoteSpelling;
     }
     

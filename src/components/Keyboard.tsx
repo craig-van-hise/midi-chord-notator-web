@@ -35,19 +35,31 @@ export const Piano88: React.FC = () => {
 
             // Only update visuals when NotationCanvas broadcasts the true computational state
             if (detail.refresh && lut.length > 0) {
-                displayedPitches.current.clear();
                 if (detail.notes) {
+                    displayedPitches.current.clear();
+                    const spelledData: { note: number; spelling: string }[] = [];
+                    
                     detail.notes.forEach((n: any) => {
                         const pitch = typeof n === 'object' ? n.note : n;
                         displayedPitches.current.add(pitch);
+                        
+                        // Read directly from the NotationCanvas payload
+                        if (typeof n === 'object' && n.spellingString) {
+                            spelledData.push({ note: pitch, spelling: n.spellingString });
+                        }
                     });
+                    
+                    spelledData.sort((a, b) => a.note - b.note);
+                    
+                    if (spelledData.length > 0) {
+                        updateSpelledNotesStrip(spelledData);
+                    } else {
+                        // Fallback for empty state or legacy events
+                        const pitches = Array.from(displayedPitches.current).sort((a, b) => a - b);
+                        const spellings = getChordSpelling(pitches, keySignature, lut);
+                        updateSpelledNotesStrip(pitches.map((p, i) => ({ note: p, spelling: spellings[i] })));
+                    }
                 }
-                
-                // Update the Spelled Notes Strip
-                const pitches = Array.from(displayedPitches.current).sort((a, b) => a - b);
-                const spellings = getChordSpelling(pitches, keySignature, lut);
-                const spelledData = pitches.map((p, i) => ({ note: p, spelling: spellings[i] }));
-                updateSpelledNotesStrip(spelledData);
                 
                 // Update the physical key highlights
                 for (let n = 21; n <= 108; n++) {
