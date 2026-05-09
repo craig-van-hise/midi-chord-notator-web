@@ -81,7 +81,7 @@ export const Piano88: React.FC = () => {
                 // We'll rely on the next MIDI message or manual trigger to color them?
                 // No, we should color them now.
                 for (let n = 21; n <= 108; n++) {
-                    updateKeyVisuals88(n, displayedPitches.current.has(n) ? '#ef4444' : '');
+                    updateKeyVisuals88(n, displayedPitches.current.has(n) ? '#aa3bff' : '');
                 }
             }
         };

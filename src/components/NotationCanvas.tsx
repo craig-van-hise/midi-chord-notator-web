@@ -828,18 +828,14 @@ const NotationCanvas: React.FC = () => {
                 if (note.isTreble) {
                   if (note.finalStep >= 12) {
                     for (let ls = 12; ls <= note.finalStep; ls += 2) lines.push(renderLedgerLine(ls));
-                    if (note.finalStep % 2 !== 0 && note.finalStep > 12) lines.push(renderLedgerLine(note.finalStep - 1));
                   } else if (note.finalStep <= 0) {
                     for (let ls = 0; ls >= note.finalStep; ls -= 2) lines.push(renderLedgerLine(ls));
-                    if (note.finalStep % 2 !== 0 && note.finalStep < 0) lines.push(renderLedgerLine(note.finalStep + 1));
                   }
                 } else {
                   if (note.finalStep >= 0) {
                     for (let ls = 0; ls <= note.finalStep; ls += 2) lines.push(renderLedgerLine(ls));
-                    if (note.finalStep % 2 !== 0 && note.finalStep > 0) lines.push(renderLedgerLine(note.finalStep - 1));
                   } else if (note.finalStep <= -12) {
                     for (let ls = -12; ls >= note.finalStep; ls -= 2) lines.push(renderLedgerLine(ls));
-                    if (note.finalStep % 2 !== 0 && note.finalStep < -12) lines.push(renderLedgerLine(note.finalStep + 1));
                   }
                 }
                 return lines;
