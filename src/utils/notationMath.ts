@@ -1,5 +1,7 @@
 // src/utils/notationMath.ts
 
+export type AccidentalOverride = null | 'b' | 'bb' | 'n' | '#' | 'x';
+
 // Constants for SMuFL glyphs
 export const SMuFL = {
     noteheadWhole: '\uE0A2', // Whole Notehead
@@ -283,4 +285,47 @@ export function transposeDiatonically(currentStepOffset: number, delta: number, 
     // Calculate final MIDI pitch and clamp to valid range
     const newMidiNote = ((targetOctave + 1) * 12) + targetPC;
     return Math.max(0, Math.min(127, newMidiNote));
+}
+
+export function calculateWriteModePitch(
+    stepOffset: number, 
+    keySignature: string, 
+    override: AccidentalOverride
+): { midiNote: number, accidental: string | null } {
+    const scaleStep = ((stepOffset % 7) + 7) % 7;
+    const octaveOffset = Math.floor(stepOffset / 7);
+    let targetOctave = 4 + octaveOffset;
+    const basePCs = [0, 2, 4, 5, 7, 9, 11]; // Diatonic steps for C, D, E, F, G, A, B
+
+    // 1. Handle Explicit User Overrides
+    if (override) {
+        const naturalPitch = ((targetOctave + 1) * 12) + basePCs[scaleStep];
+        let offset = 0;
+        let accGlyph = null;
+        if (override === 'b') { offset = -1; accGlyph = SMuFL.accidentalFlat; }
+        if (override === 'bb') { offset = -2; accGlyph = SMuFL.accidentalDoubleFlat; }
+        if (override === 'n') { offset = 0; accGlyph = SMuFL.accidentalNatural; }
+        if (override === '#') { offset = 1; accGlyph = SMuFL.accidentalSharp; }
+        if (override === 'x') { offset = 2; accGlyph = SMuFL.accidentalDoubleSharp; }
+        return { midiNote: Math.max(0, Math.min(127, naturalPitch + offset)), accidental: accGlyph };
+    }
+
+    // 2. Diatonic Fallback (Adaptive to Key)
+    const diatonicMap = getDiatonicMap(keySignature);
+    let targetPC = 0;
+    let diatonicAcc = null;
+    for (const [pc, data] of diatonicMap.entries()) {
+        if (data.step === scaleStep) {
+            targetPC = pc;
+            diatonicAcc = data.acc;
+            break;
+        }
+    }
+
+    // Reverse Octave Boundary Corrections for calculation
+    if (targetPC === 11 && scaleStep === 0) targetOctave -= 1;
+    if (targetPC === 0 && scaleStep === 6) targetOctave += 1;
+
+    const diatonicMidi = ((targetOctave + 1) * 12) + targetPC;
+    return { midiNote: Math.max(0, Math.min(127, diatonicMidi)), accidental: diatonicAcc };
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SMuFL, assignXLevels, transposeDiatonically } from '../utils/notationMath';
+import { SMuFL, assignXLevels, transposeDiatonically, calculateWriteModePitch, type AccidentalOverride } from '../utils/notationMath';
 import { useMidi } from '../midi/MIDIProvider';
 import KeySignatureSelector from './KeySignatureSelector';
 import { getChordSpelling, getSpellingData, getChordSymbol } from '../utils/chordSpeller';
@@ -14,6 +14,7 @@ interface ActiveNoteData {
   accidental: string | null;
   isTreble: boolean;
   sourceMidi?: number;
+  isLockedSpelling?: boolean;
   [key: string]: any; // Preserve MIDI metadata (velocity, etc.)
 }
 
@@ -60,6 +61,17 @@ const NotationCanvas: React.FC = () => {
   const isWriteMode = useRef<boolean>(false);
   const lastPointerY = useRef<number>(0);
   
+  const [accidentalOverride, setAccidentalOverride] = useState<AccidentalOverride>(null);
+  const accidentalOverrideRef = useRef<AccidentalOverride>(null);
+
+  useEffect(() => {
+    accidentalOverrideRef.current = accidentalOverride;
+  }, [accidentalOverride]);
+
+  const handleFlatClick = () => setAccidentalOverride(prev => prev === 'b' ? 'bb' : prev === 'bb' ? null : 'b');
+  const handleNaturalClick = () => setAccidentalOverride(prev => prev === 'n' ? null : 'n');
+  const handleSharpClick = () => setAccidentalOverride(prev => prev === '#' ? 'x' : prev === 'x' ? null : '#');
+  
   const commitState = () => {
     undoStack.current.push(activeNotes.current.map(n => ({ ...n })));
     redoStack.current = []; // Clear redo stack on new action
@@ -100,6 +112,13 @@ const NotationCanvas: React.FC = () => {
         ghost.classList.remove('hidden');
         ghost.style.top = `${snappedY}px`;
         (ghost as any).dataset.step = stepOffset.toString();
+        
+        const { midiNote, accidental } = calculateWriteModePitch(stepOffset, keySignatureRef.current, accidentalOverrideRef.current);
+        (ghost as any).dataset.midiNote = midiNote.toString();
+        (ghost as any).dataset.accidental = accidental === null ? 'null' : accidental;
+        
+        const accElement = document.getElementById('ghost-accidental');
+        if (accElement) accElement.textContent = accidental || '';
     }
   };
 
@@ -329,6 +348,12 @@ const NotationCanvas: React.FC = () => {
       setChordSymbol(symbol);
 
       activeNotes.current.forEach((data, i) => {
+        // Bypass chord speller logic for explicitly written notes
+        if (data.isLockedSpelling) {
+           activeNotes.current[i] = { ...data, isTreble: data.note >= splitPointRef.current };
+           return;
+        }
+
         const { stepOffset, accidental } = getSpellingData(data.note, spellings[i]);
         activeNotes.current[i] = {
           ...data,
@@ -473,28 +498,27 @@ const NotationCanvas: React.FC = () => {
         return;
       } else {
         // Write the note
-        commitState();
         const ghost = document.getElementById('ghost-note');
         const step = parseInt((ghost as any)?.dataset.step || '0');
-        
-        // Calculate the pitch: transposeDiatonically(referenceStep, stepDelta, keySignature)
-        // Reference is Middle C (MIDI 60), which corresponds to stepOffset 0 in our engine usually,
-        // but transposeDiatonically uses the stepOffset of a note.
-        // The prompt says: const newPitch = transposeDiatonically(0, step, keySignatureRef.current);
-        const newPitch = transposeDiatonically(0, step, keySignatureRef.current);
-        
+        const targetMidiNote = parseInt((ghost as any)?.dataset.midiNote || '60');
+        const targetAccidental = (ghost as any)?.dataset.accidental === 'null' ? null : (ghost as any)?.dataset.accidental;
+
+        commitState();
         activeNotes.current.push({
-          id: generateId(),
-          note: newPitch,
-          stepOffset: 0,
-          accidental: null,
-          isTreble: newPitch >= splitPointRef.current,
-          sourceMidi: undefined // Manually written note
+            id: generateId(),
+            note: targetMidiNote,
+            sourceMidi: targetMidiNote,
+            stepOffset: step,
+            accidental: targetAccidental,
+            isLockedSpelling: true, // <--- Locks spelling to the Key/Override
+            isTreble: targetMidiNote >= splitPointRef.current,
+            velocity: 100,
+            channel: 0,
+            status: 0x90
         });
-        
         updateSpellings();
         updateActiveNotes?.([...activeNotes.current]);
-        return; // DO NOT fall through to selection logic
+        return; // Early return to prevent selection logic
       }
     }
     
@@ -671,7 +695,7 @@ const NotationCanvas: React.FC = () => {
                 while(newNote % 12 !== targetPC) { newNote--; }
               }
               newSelection.add(noteData.id);
-              return { ...noteData, note: newNote };
+              return { ...noteData, note: newNote, isLockedSpelling: false };
             });
 
             selectedNoteIds.current = newSelection;
@@ -690,7 +714,7 @@ const NotationCanvas: React.FC = () => {
               const newMidiNote = transposeDiatonically(noteData.stepOffset, delta, keyName);
 
               newSelection.add(noteData.id);
-              return { ...noteData, note: newMidiNote };
+              return { ...noteData, note: newMidiNote, isLockedSpelling: false };
             });
 
             selectedNoteIds.current = newSelection;
@@ -709,7 +733,7 @@ const NotationCanvas: React.FC = () => {
 
               const newPitch = noteData.note + shift;
               newSelection.add(noteData.id);
-              return { ...noteData, note: newPitch };
+              return { ...noteData, note: newPitch, isLockedSpelling: false };
             });
 
             selectedNoteIds.current = newSelection;
@@ -852,8 +876,26 @@ const NotationCanvas: React.FC = () => {
       {/* Compact Grand Staff System */}
       <div className="grand-staff-system relative w-[300px] h-full flex flex-col justify-center items-center">
         {/* Key Signature Selector - Absolute Positioned */}
-        <div className="absolute top-1/2 -translate-y-1/2 right-[100%] mr-8 z-20">
+        <div className="absolute top-1/2 -translate-y-1/2 right-[100%] mr-8 z-20 flex flex-col gap-3 items-end">
           <KeySignatureSelector />
+          
+          {isWriteMode.current && (
+            <div 
+              className="flex items-center gap-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-800 rounded p-1 shadow-sm"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button onClick={handleFlatClick} className={`w-8 h-8 flex items-center justify-center rounded text-[22px] font-['Bravura'] transition-colors ${accidentalOverride === 'b' || accidentalOverride === 'bb' ? 'bg-[#aa3bff]/20 text-[#aa3bff]' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+                {accidentalOverride === 'bb' ? SMuFL.accidentalDoubleFlat : SMuFL.accidentalFlat}
+              </button>
+              <button onClick={handleNaturalClick} className={`w-8 h-8 flex items-center justify-center rounded text-[22px] font-['Bravura'] transition-colors ${accidentalOverride === 'n' ? 'bg-[#aa3bff]/20 text-[#aa3bff]' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+                {SMuFL.accidentalNatural}
+              </button>
+              <button onClick={handleSharpClick} className={`w-8 h-8 flex items-center justify-center rounded text-[22px] font-['Bravura'] transition-colors ${accidentalOverride === '#' || accidentalOverride === 'x' ? 'bg-[#aa3bff]/20 text-[#aa3bff]' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+                {accidentalOverride === 'x' ? SMuFL.accidentalDoubleSharp : SMuFL.accidentalSharp}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Chord Symbol Label */}
@@ -871,12 +913,9 @@ const NotationCanvas: React.FC = () => {
         
         {/* Notes Layer */}
         <div id="notes-layer" data-testid="notes-layer" className="absolute inset-0 pointer-events-none z-10">
-          <div 
-              id="ghost-note" 
-              className="absolute hidden pointer-events-none opacity-40 z-50 transition-none"
-              style={{ left: '50%', transform: 'translate(-50%, -50%)', fontFamily: "'Bravura', sans-serif", fontSize: `calc(var(${STAFF_SPACE_CSS_VAR}) * 4.2)`, color: 'var(--accent, #aa3bff)' }}
-          >
-              {SMuFL.noteheadBlack}
+          <div id="ghost-note" className="absolute hidden pointer-events-none opacity-40 z-50 transition-none" style={{ left: '50%', transform: 'translate(-50%, -50%)' }}>
+              <div id="ghost-accidental" className="absolute" style={{ left: 'calc(-1.5 * var(--staff-space))', top: '50%', transform: 'translateY(-50%)', fontFamily: "'Bravura', sans-serif", fontSize: `calc(var(--staff-space) * 3)`, color: 'var(--accent, #aa3bff)' }}></div>
+              <div id="ghost-notehead" style={{ fontFamily: "'Bravura', sans-serif", fontSize: `calc(var(--staff-space) * 4.2)`, color: 'var(--accent, #aa3bff)' }}>{SMuFL.noteheadBlack}</div>
           </div>
           {renderedNotes.map(note => (
             <div 
