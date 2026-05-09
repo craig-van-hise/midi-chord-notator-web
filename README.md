@@ -5,6 +5,8 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 ## ✨ Core Features
 * **Real-Time Notation:** Low-latency rendering of musical notation on a grand staff using a custom "Clear and Redraw" imperative engine.
 * **Pipeline Integrity:** Uses immutable note objects and UUID-based identity to ensure perfectly synchronized state across the notation canvas, selection engine, and virtual piano.
+* **OMNI Input Engine:** Default "All Ports" listening mode ensures notes from multiple hardware devices and virtual keyboards are captured simultaneously without manual configuration.
+* **Toggle & Hold Modes:** Centralized global state for persistent note latching (Toggle) and chord-based flushing (Hold), allowing for advanced polyphonic exploration.
 * **Headless Hit-Testing:** Advanced mathematical selection engine that calculates interaction coordinates in memory for pinpoint accuracy.
 * **Selection Scaling:** Supports anchor-persistent range selection (Shift-Click), marquee selection, and multi-select (Cmd/Ctrl).
 * **Dual-Column Layout:** Intelligent "zipper" architecture for handling dense chromatic unisons (cohemitonia).
@@ -33,20 +35,32 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 ## 📂 Project Structure
 ```text
 .
+├── # Prompts
+├── public
+|  ├── PCS_LUT.dat
+|  ├── fonts
+|  |  ├── Bravura.woff2
+|  |  └── Bravura_metadata.json
+|  └── icons.svg
 ├── src
+|  ├── App.tsx
 |  ├── components
+|  |  ├── ErrorBoundary.tsx
+|  |  ├── InfoModal.tsx
+|  |  ├── KeySignatureSelector.tsx
 |  |  ├── Keyboard.tsx
 |  |  ├── NotationCanvas.tsx
-|  |  ├── KeySignatureSelector.tsx
 |  |  └── SettingsModal.tsx
 |  ├── midi
 |  |  ├── MIDIProvider.tsx
 |  |  ├── MidiPortSelector.tsx
 |  |  └── midiAccess.ts
-|  └── utils
-|     ├── chordSpeller.ts
-|     ├── notationMath.ts
-|     └── binaryLut.ts
+|  ├── utils
+|  |  ├── binaryLut.ts
+|  |  ├── chordSpeller.ts
+|  |  └── notationMath.ts
+|  └── vitest.setup.ts
+├── tsconfig.json
 └── vite.config.ts
 ```
 

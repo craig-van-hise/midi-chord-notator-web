@@ -14,7 +14,7 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const { splitPoint, setSplitPoint } = useMidi();
+  const { splitPoint, setSplitPoint, isToggleModeActive, setIsToggleModeActive, isHoldModeActive, setIsHoldModeActive } = useMidi();
 
   if (!isOpen) return null;
 
@@ -60,6 +60,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               Notes at or above this pitch will be shown on the Treble staff.
             </p>
+          </div>
+
+          <div className="space-y-4 pt-2 border-t border-gray-100 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <label className="text-xs uppercase tracking-wider font-bold opacity-50 dark:text-white">
+                Toggle Mode
+              </label>
+              <input 
+                type="checkbox" 
+                checked={isToggleModeActive}
+                onChange={(e) => setIsToggleModeActive(e.target.checked)}
+                className="w-5 h-5 accent-[#aa3bff]"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs uppercase tracking-wider font-bold opacity-50 dark:text-white">
+                Hold Mode
+              </label>
+              <input 
+                type="checkbox" 
+                checked={isHoldModeActive}
+                onChange={(e) => setIsHoldModeActive(e.target.checked)}
+                className="w-5 h-5 accent-[#aa3bff]"
+              />
+            </div>
           </div>
 
           <div className="pt-4 flex justify-end">

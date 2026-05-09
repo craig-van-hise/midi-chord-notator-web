@@ -15,9 +15,7 @@ const BLACK_KEY_WIDTH = 11;
 const BLACK_KEY_HEIGHT = 56;
 
 export const Piano88: React.FC = () => {
-    const { dispatchVirtualMidi, lut, keySignature, isHoldModeActive, setIsHoldModeActive } = useMidi();
-    const [isToggleMode, setIsToggleMode] = React.useState(false);
-    const [virtualHeldNotes, setVirtualHeldNotes] = React.useState<Set<number>>(new Set());
+    const { dispatchVirtualMidi, lut, keySignature } = useMidi();
     const displayedPitches = React.useRef<Set<number>>(new Set());
     const pianoKeys = [];
 
@@ -31,55 +29,27 @@ export const Piano88: React.FC = () => {
             if (detail.panic) {
                 displayedPitches.current.clear();
                 updateSpelledNotesStrip([]);
+                for (let n = 21; n <= 108; n++) updateKeyVisuals88(n, '');
                 return;
             }
 
-            if (detail.data) {
-                const [status, note, velocity] = detail.data;
-                const isNoteOn = (status & 0xF0) === 0x90 && velocity > 0;
-                const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && velocity === 0);
-
-                if (isNoteOn) {
-                    displayedPitches.current.add(note);
-                } else if (isNoteOff) {
-                    displayedPitches.current.delete(note);
-                }
-
-                if (lut.length > 0) {
-                    const pitches = Array.from(displayedPitches.current).sort((a, b) => a - b);
-                    const spellings = getChordSpelling(pitches, keySignature, lut);
-                    
-                    const spelledData = pitches.map((p, i) => ({
-                        note: p,
-                        spelling: spellings[i]
-                    }));
-                    updateSpelledNotesStrip(spelledData);
-                }
-            }
-
+            // Only update visuals when NotationCanvas broadcasts the true computational state
             if (detail.refresh && lut.length > 0) {
+                displayedPitches.current.clear();
                 if (detail.notes) {
-                    displayedPitches.current.clear();
                     detail.notes.forEach((n: any) => {
                         const pitch = typeof n === 'object' ? n.note : n;
                         displayedPitches.current.add(pitch);
                     });
                 }
-                const pitches = Array.from(displayedPitches.current).sort((a, b) => a - b);
-                const keyName = keySignature;
-                const spellings = getChordSpelling(pitches, keyName, lut);
                 
-                const spelledData = pitches.map((p, i) => ({
-                    note: p,
-                    spelling: spellings[i]
-                }));
+                // Update the Spelled Notes Strip
+                const pitches = Array.from(displayedPitches.current).sort((a, b) => a - b);
+                const spellings = getChordSpelling(pitches, keySignature, lut);
+                const spelledData = pitches.map((p, i) => ({ note: p, spelling: spellings[i] }));
                 updateSpelledNotesStrip(spelledData);
                 
-                // Also update key visuals (assuming we want to see the new notes highlighted)
-                // Clear all previous visuals first? (Expensive)
-                // Actually, displayedPitches tracks which ones should be colored.
-                // We'll rely on the next MIDI message or manual trigger to color them?
-                // No, we should color them now.
+                // Update the physical key highlights
                 for (let n = 21; n <= 108; n++) {
                     updateKeyVisuals88(n, displayedPitches.current.has(n) ? '#aa3bff' : '');
                 }
@@ -93,34 +63,10 @@ export const Piano88: React.FC = () => {
     }, [lut, keySignature]);
 
     const handleKeyInteraction = (note: number, isDown: boolean, velocity: number = 100) => {
-        if (isToggleMode) {
-            // In toggle mode, only onPointerDown matters
-            if (isDown) {
-                if (virtualHeldNotes.has(note)) {
-                    // Turn off
-                    dispatchVirtualMidi(new Uint8Array([0x80, note, 0]));
-                    setVirtualHeldNotes(prev => {
-                        const next = new Set(prev);
-                        next.delete(note);
-                        return next;
-                    });
-                } else {
-                    // Turn on
-                    dispatchVirtualMidi(new Uint8Array([0x90, note, velocity]));
-                    setVirtualHeldNotes(prev => {
-                        const next = new Set(prev);
-                        next.add(note);
-                        return next;
-                    });
-                }
-            }
+        if (isDown) {
+            dispatchVirtualMidi(new Uint8Array([0x90, note, velocity]));
         } else {
-            // Standard behavior
-            if (isDown) {
-                dispatchVirtualMidi(new Uint8Array([0x90, note, velocity]));
-            } else {
-                dispatchVirtualMidi(new Uint8Array([0x80, note, 0]));
-            }
+            dispatchVirtualMidi(new Uint8Array([0x80, note, 0]));
         }
     };
 
@@ -215,48 +161,8 @@ export const Piano88: React.FC = () => {
         }
     }
 
-    const handleToggleModeClick = () => {
-        const nextMode = !isToggleMode;
-        setIsToggleMode(nextMode);
-        
-        if (nextMode) {
-            // Turning ON: Enforce mutual exclusivity
-            setIsHoldModeActive(false);
-        } else {
-            // Turning OFF: Flush all toggled notes
-            virtualHeldNotes.forEach(note => {
-                dispatchVirtualMidi(new Uint8Array([0x80, note, 0]));
-            });
-            setVirtualHeldNotes(new Set());
-        }
-    };
-
     return (
         <div className="flex flex-col items-center gap-2">
-            {/* Mode Controls - Moved up slightly */}
-            <div className="flex items-center gap-2 mb-1">
-                <button
-                    onClick={handleToggleModeClick}
-                    className={`px-3 py-1 text-[10px] uppercase tracking-widest font-bold rounded border transition-all duration-200 ${
-                        isToggleMode 
-                        ? 'bg-[#aa3bff] border-[#aa3bff] text-white shadow-lg shadow-[#aa3bff]/30 translate-y-[1px]' 
-                        : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                >
-                    TOGGLE MODE
-                </button>
-                <button
-                    onClick={() => { setIsHoldModeActive(!isHoldModeActive); if (!isHoldModeActive) setIsToggleMode(false); }}
-                    className={`px-3 py-1 text-[10px] uppercase tracking-widest font-bold rounded border transition-all duration-200 ${
-                        isHoldModeActive 
-                        ? 'bg-[#aa3bff] border-[#aa3bff] text-white shadow-lg shadow-[#aa3bff]/30 translate-y-[1px]' 
-                        : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                >
-                    HOLD MODE
-                </button>
-            </div>
-
             {/* Spelled Notes Strip - Tall version with zipper logic support */}
             <div 
                 id="spelled-notes-strip"

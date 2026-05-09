@@ -32,7 +32,7 @@ const NotationCanvas: React.FC = () => {
   const [staffSpace, setStaffSpace] = useState<number>(12); // Default value
   const activeNotes = useRef<ActiveNoteData[]>([]);
   const [chordSymbol, setChordSymbol] = useState<string>("");
-  const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes } = useMidi();
+  const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes, isToggleModeActive, isHoldModeActive } = useMidi();
   const keySignatureRef = useRef(keySignature);
   const splitPointRef = useRef(splitPoint);
   const lutRef = useRef(lut);
@@ -43,7 +43,6 @@ const NotationCanvas: React.FC = () => {
   
   // Hold Mode State Machine Variables
   const physicalKeysDown = useRef<Set<number>>(new Set());
-  const isHoldModeEnabled = useRef<boolean>(false);
   const isWaitingForNewChord = useRef<boolean>(false);
   const selectedNoteIds = useRef<Set<string>>(new Set());
   const lastSelectedNoteId = useRef<string | null>(null);
@@ -355,35 +354,6 @@ const NotationCanvas: React.FC = () => {
     splitPointRef.current = splitPoint;
   }, [splitPoint]);
 
-  useEffect(() => {
-    const handleHoldModeChange = (event: Event) => {
-      const customEvent = event as CustomEvent<{ enabled: boolean }>;
-      if (!customEvent.detail) return;
-      const enabled = customEvent.detail.enabled;
-      isHoldModeEnabled.current = enabled;
-      if (!enabled) {
-        isWaitingForNewChord.current = false;
-        activeNotes.current = [];
-        physicalKeysDown.current.forEach(note => {
-          activeNotes.current.push({
-            id: generateId(),
-            note,
-            stepOffset: 0,
-            accidental: null,
-            isTreble: note >= splitPointRef.current,
-            sourceMidi: note,
-            velocity: 100,
-            channel: 0,
-            status: 0x90
-          });
-        });
-        updateSpellings();
-        updateActiveNotes?.([...activeNotes.current]);
-      }
-    };
-    window.addEventListener('HOLD_MODE_CHANGED', handleHoldModeChange);
-    return () => window.removeEventListener('HOLD_MODE_CHANGED', handleHoldModeChange);
-  }, []);
 
   useEffect(() => {
     const handleMidiMessage = (event: Event) => {
@@ -415,7 +385,6 @@ const NotationCanvas: React.FC = () => {
           });
         }
         updateSpellings();
-        updateActiveNotes?.([...activeNotes.current]);
         return;
       }
 
@@ -428,40 +397,47 @@ const NotationCanvas: React.FC = () => {
 
       if (isNoteOn) {
         physicalKeysDown.current.add(note);
-        if (isHoldModeEnabled.current && isWaitingForNewChord.current) {
-          activeNotes.current = [];
-          isWaitingForNewChord.current = false;
+        
+        if (isToggleModeActive) {
+           commitState();
+           // Toggle Mode overrides Hold Mode's new chord flush
+           const existingIndex = activeNotes.current.findIndex(n => n.note === note);
+           if (existingIndex !== -1) {
+               activeNotes.current.splice(existingIndex, 1);
+           } else {
+               activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: (status & 0x0F) || 0, status: status || 0x90, sourceMidi: note });
+           }
+           updateSpellings();
+        } else {
+            if (isHoldModeActive && isWaitingForNewChord.current) {
+              commitState();
+              activeNotes.current = [];
+              isWaitingForNewChord.current = false;
+            }
+            if (!activeNotes.current.some(n => n.note === note)) {
+              commitState();
+              activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: (status & 0x0F) || 0, status: status || 0x90, sourceMidi: note });
+              updateSpellings();
+            }
         }
-        if (!activeNotes.current.some(n => n.sourceMidi === note || n.note === note)) {
-          commitState();
-          activeNotes.current.push({
-            id: generateId(),
-            note,
-            stepOffset: 0,
-            accidental: null,
-            isTreble: note >= splitPointRef.current,
-            sourceMidi: note,
-            velocity: (typeof velocity !== 'undefined') ? velocity : 100,
-            channel: (typeof status !== 'undefined') ? (status & 0x0F) : 0,
-            status: (typeof status !== 'undefined') ? status : 0x90
-          });
-          updateSpellings();
-          updateActiveNotes?.([...activeNotes.current]);
-        }
+        updateActiveNotes?.([...activeNotes.current]);
       } else if (isNoteOff) {
         physicalKeysDown.current.delete(note);
-        if (!isHoldModeEnabled.current) {
-          const index = activeNotes.current.findIndex(n => n.sourceMidi === note || n.note === note);
+        
+        // Only delete the note on key release if BOTH modes are OFF
+        if (!isHoldModeActive && !isToggleModeActive) {
+          const index = activeNotes.current.findIndex(n => n.note === note);
           if (index !== -1) {
             commitState();
             activeNotes.current.splice(index, 1);
             updateSpellings();
-            updateActiveNotes?.([...activeNotes.current]);
           }
         }
-        if (isHoldModeEnabled.current && physicalKeysDown.current.size === 0) {
+        
+        if (isHoldModeActive && physicalKeysDown.current.size === 0) {
           isWaitingForNewChord.current = true;
         }
+        updateActiveNotes?.([...activeNotes.current]);
       }
       recalculateLayout();
     };

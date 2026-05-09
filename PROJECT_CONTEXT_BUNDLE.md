@@ -5,6 +5,13 @@
 ├── # Post-Mortem- Selection Engine Failure Report.md
 ├── # Prompts
 |  ├── # 89.md
+|  ├── # 90.md
+|  ├── # 91.md
+|  ├── # 92.md
+|  ├── # 93.md
+|  ├── # 94.md
+|  ├── # 95.md
+|  ├── # 96.md
 |  ├── # PDD.md
 |  └── x Older
 |     ├── # 1.md
@@ -95,6 +102,9 @@
 |     ├── # 87.md
 |     ├── # 88.md
 |     └── # 9.md
+├── Chord Spelling
+|  ├── README.md
+|  └── chord_speller.ts
 ├── FAILURE_REPORT.md
 ├── PROJECT_CONTEXT_BUNDLE.md
 ├── PROJECT_STATE.md
@@ -154,10 +164,13 @@
 |  |  ├── KeySignatureSelector.tsx
 |  |  ├── Keyboard.test.tsx
 |  |  ├── Keyboard.tsx
+|  |  ├── NotationCanvas.bugs.test.tsx
 |  |  ├── NotationCanvas.headless.test.tsx
+|  |  ├── NotationCanvas.history.test.tsx
 |  |  ├── NotationCanvas.selection.test.tsx
 |  |  ├── NotationCanvas.test.tsx
 |  |  ├── NotationCanvas.tsx
+|  |  ├── NotationCanvasV2.tsx
 |  |  ├── SettingsModal.test.tsx
 |  |  └── SettingsModal.tsx
 |  ├── index.css
@@ -186,7 +199,7 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-directory: 734 file: 5438
+directory: 734 file: 5447
 
 ignored: directory (106)
 
@@ -197,7 +210,7 @@ ignored: directory (106)
 
 # PROJECT_STATE: Grand Staff MIDI Notator
 
-**Current System Status:** ✅ Stable - Data Integrity & Selection Engine Hardened
+**Current System Status:** ✅ Stable - OMNI Architecture & Multi-Mode Engine Hardened
 **Last Updated:** 2026-05-09
 
 ## 1. Project Architecture (Level 3)
@@ -214,6 +227,7 @@ ignored: directory (106)
 |  ├── App.tsx
 |  ├── components
 |  |  ├── ErrorBoundary.tsx
+|  |  ├── InfoModal.tsx
 |  |  ├── KeySignatureSelector.tsx
 |  |  ├── Keyboard.tsx
 |  |  ├── NotationCanvas.tsx
@@ -240,38 +254,35 @@ ignored: directory (106)
 
 ## 3. System Capabilities
 
-### 🎹 MIDI Engine
-* **Targeted Input Listening:** Explicitly attaches `onmidimessage` listeners only to the user-selected input port.
-* **Global Note Synchronization:** Implements a custom event-driven synchronization bridge between the `NotationCanvas` and `MIDIProvider`.
-* **Hardware MIDI Thru:** Low-latency pass-through that forwards raw MIDI data to external gear.
-* **Panic System:** Global "All Notes Off" trigger.
+### 🎹 MIDI & UX Engine
+* **OMNI Input Engine:** Defaults to "All Ports" listening, dynamically binding `onmidimessage` listeners to every active hardware and virtual input.
+* **Consolidated Multi-Mode Logic:** Implements simultaneous **Toggle** (persistent latching) and **Hold** (chord-based flushing) modes.
+* **History Engine (Undo/Redo):** Comprehensive state tracking that captures all MIDI-driven and pointer-driven mutations.
+* **Panic System:** Global "All Notes Off" trigger that clears both internal state and physical key trackers.
 
 ### 🎼 Notation Engine (Imperative)
-* **Headless Mathematical Hit-Testing:** Intercepts raw pointer coordinates and calculates intersections in memory. Completely bypasses the DOM for interaction.
-* **Pipeline Integrity (Data Reconciliation):** Uses immutable object patterns and UUID-based identity to prevent state desync and React "ghosting" artifacts during complex transpositions.
-* **Dual-Column Layout (Cohemitonia):** Handles dense chromatic unisons using a two-stack zippering architecture.
-* **Intelligent Ottava Engine:** Independent staff evaluation for group-wide shifts (8va/15ma/8vb/15mb).
-* **Collision Detection:** Accidental stacking logic with tuned 0.8 staff-space padding.
+* **Headless Mathematical Hit-Testing:** Calculates intersections in memory based on staff-space coordinates, bypassing the DOM for 100% selection accuracy.
+* **Pipeline Integrity:** Uses immutable UUID-based note identities to prevent React reconciliation artifacts.
+* **Dual-Column Layout (Cohemitonia):** Automatically zippers dense chromatic unisons into a legible two-column stack.
+* **Intelligent Ottava Engine:** Dynamically evaluates staff density to apply 8va/15ma/8vb/15mb shifts.
 
-### 🖱 Note Selection & Editing Engine
-* **Anchor-Persistent Range Selection:** Supports shift-click selection with a stable anchor, allowing users to "scale back" selections without losing the origin point.
-* **Headless Marquee:** Calculates selection sets by intersecting drawn bounding boxes with the mathematical note positions in memory.
-* **Diatonic Transposition:** `Alt + ArrowUp/Down` snaps selected notes to the active key signature's scale degrees.
-* **Voicing-Aware PCS Rotation:** `Cmd + Alt + ArrowUp/Down` performs theoretical rotation of the pitch class set.
+### 🖱 Selection & Editing Engine
+* **Anchor-Persistent Range Selection:** Supports shift-click selection with a stable origin, allowing users to expand or contract selections fluidly.
+* **Diatonic Transposition:** `Alt + ArrowUp/Down` performs key-signature-aware pitch shifts.
+* **Voicing-Aware PCS Rotation:** `Cmd + Alt + ArrowUp/Down` rotates the active pitch class set while maintaining voicing structure.
 
 ### 🧠 Chord Identification & Spelling Engine
-* **PCS LUT Integration:** Utilizes a 2MB Pitch Class Set Look-Up Table (56,000+ entries) for instant identification.
-* **Forced Pitch Sorting:** Enforces a pitch-ordered pipeline before spelling analysis to guarantee consistent stave-assignment.
-* **Compound Interval Spelling:** Support for 9ths, 11ths, and 13ths.
-* **Professional Chord Symbols:** Key-aware labels with automated inversion detection.
+* **PCS LUT Integration:** 2MB binary database for instant lookup of 56,000+ pitch class sets.
+* **Enforced Sort-Order:** Pitch-ordered analysis pipeline guarantees consistent enharmonic spelling and stave assignment.
+* **Compound Interval Support:** Advanced spelling for 9ths, 11ths, and 13ths with automated inversion detection.
 
 ## 4. Recent Evolution
-* **2026-05-08:** Hardened the MIDI data pipeline by transitioning to **Immutable Note Identities (UUIDs)**. This eliminated "React Ghosting" during note crossovers and resolved state desync by enforcing a pitch-sort order before spelling calculation. Refined the selection engine to support **Anchor-Persistent Range Selection** and fixed visual artifacts in ledger line generation and keyboard highlights.
-* **2026-05-08:** Abandoned DOM-based hit-testing. Implemented the **Headless Mathematical Hit-Testing** engine, achieving 100% selection accuracy by calculating collisions in memory.
+* **2026-05-09:** Streamlined the MIDI architecture by **eradicating all MIDI Output logic** and implementing a default **OMNI Input Engine**. Consolidated Toggle and Hold modes into the global state and hardened the state-synchronization between the canvas and virtual keyboard to eliminate "flickering" and "Maximum call stack" errors.
+* **2026-05-08:** Transitioned to **Immutable Note Identities (UUIDs)** and **Headless Mathematical Hit-Testing**. Resolved persistent React "ghosting" artifacts and achieved perfect selection accuracy.
 
 ## 5. Future Roadmap
-* **Maintenance:** Periodic updates to the `PCS_LUT.dat` theoretical database.
-* **UI Polish:** Fine-tuning accidental compaction for extremely dense clusters (> 5 notes).
+* **Performance:** Optimizing accidental compaction for extremely dense (> 8 note) clusters.
+* **UI:** Enhanced visual feedback for OMNI routing status in the main HUD.
 
 
 ### FILE: README.md
@@ -283,6 +294,8 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 ## ✨ Core Features
 * **Real-Time Notation:** Low-latency rendering of musical notation on a grand staff using a custom "Clear and Redraw" imperative engine.
 * **Pipeline Integrity:** Uses immutable note objects and UUID-based identity to ensure perfectly synchronized state across the notation canvas, selection engine, and virtual piano.
+* **OMNI Input Engine:** Default "All Ports" listening mode ensures notes from multiple hardware devices and virtual keyboards are captured simultaneously without manual configuration.
+* **Toggle & Hold Modes:** Centralized global state for persistent note latching (Toggle) and chord-based flushing (Hold), allowing for advanced polyphonic exploration.
 * **Headless Hit-Testing:** Advanced mathematical selection engine that calculates interaction coordinates in memory for pinpoint accuracy.
 * **Selection Scaling:** Supports anchor-persistent range selection (Shift-Click), marquee selection, and multi-select (Cmd/Ctrl).
 * **Dual-Column Layout:** Intelligent "zipper" architecture for handling dense chromatic unisons (cohemitonia).
@@ -311,20 +324,32 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 ## 📂 Project Structure
 ```text
 .
+├── # Prompts
+├── public
+|  ├── PCS_LUT.dat
+|  ├── fonts
+|  |  ├── Bravura.woff2
+|  |  └── Bravura_metadata.json
+|  └── icons.svg
 ├── src
+|  ├── App.tsx
 |  ├── components
+|  |  ├── ErrorBoundary.tsx
+|  |  ├── InfoModal.tsx
+|  |  ├── KeySignatureSelector.tsx
 |  |  ├── Keyboard.tsx
 |  |  ├── NotationCanvas.tsx
-|  |  ├── KeySignatureSelector.tsx
 |  |  └── SettingsModal.tsx
 |  ├── midi
 |  |  ├── MIDIProvider.tsx
 |  |  ├── MidiPortSelector.tsx
 |  |  └── midiAccess.ts
-|  └── utils
-|     ├── chordSpeller.ts
-|     ├── notationMath.ts
-|     └── binaryLut.ts
+|  ├── utils
+|  |  ├── binaryLut.ts
+|  |  ├── chordSpeller.ts
+|  |  └── notationMath.ts
+|  └── vitest.setup.ts
+├── tsconfig.json
 └── vite.config.ts
 ```
 

@@ -15,18 +15,18 @@ interface MidiMessageReceivedEventDetail {
 
 interface MidiContextType {
   midiAccess: MIDIAccess | null;
-  selectedInputPort: MIDIInput | null;
-  selectedOutputPort: MIDIOutput | null;
+  selectedInputId: string;
   keySignature: string; // e.g., "C Major", "Gb Major"
   loading: boolean;
   error: string | null;
   setInputPort: (portId: string) => void;
-  setOutputPort: (portId: string) => void;
   setKeySignature: (name: string) => void;
   splitPoint: number;
   setSplitPoint: (note: number) => void;
   handleMidiPanic: () => void;
   isSustainActive: boolean;
+  isToggleModeActive: boolean;
+  setIsToggleModeActive: (b: boolean) => void;
   isHoldModeActive: boolean;
   setIsHoldModeActive: (b: boolean) => void;
   dispatchVirtualMidi: (data: Uint8Array) => void;
@@ -38,35 +38,22 @@ const MidiContext = createContext<MidiContextType | undefined>(undefined);
 
 export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [midiAccess, setMidiAccess] = useState<MIDIAccess | null>(null);
-  const [selectedInputPort, setSelectedInputPort] = useState<MIDIInput | null>(null);
-  const [selectedOutputPort, setSelectedOutputPort] = useState<MIDIOutput | null>(null);
+  const [selectedInputId, setSelectedInputId] = useState<string>(localStorage.getItem('midi_input_id') || "omni");
   const [keySignature, setKeySignature] = useState<string>("C Major"); 
   const [splitPoint, setSplitPoint] = useState<number>(60); // Default: Middle C (60)
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isSustainActive, setIsSustainActive] = useState<boolean>(false);
-  const [isHoldModeActive, setIsHoldModeActive] = useState<boolean>(false);
+  const [isToggleModeActive, setIsToggleModeActive] = useState<boolean>(true);
+  const [isHoldModeActive, setIsHoldModeActive] = useState<boolean>(true);
   const [lut, setLut] = useState<(PCS_Entry | null)[]>([]);
 
-  const selectedOutputPortRef = React.useRef<MIDIOutput | null>(null);
-
-  useEffect(() => {
-    selectedOutputPortRef.current = selectedOutputPort;
-  }, [selectedOutputPort]);
 
   const physicallyHeldNotes = React.useRef<Set<number>>(new Set());
   const pendingNoteOffs = React.useRef<Set<number>>(new Set());
   const heldModePendingNoteOffs = React.useRef<Set<number>>(new Set());
 
   const dispatchMidiEvent = useCallback((data: Uint8Array) => {
-    // Output hardware sync: Sends to synth in sync with UI
-    if (selectedOutputPortRef.current) {
-      try {
-        selectedOutputPortRef.current.send(data);
-      } catch (e) {
-        console.warn("Failed to send MIDI data to output port:", e);
-      }
-    }
 
     const midiEventDetail = {
       data,
@@ -143,22 +130,11 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [handleIncomingMidi]);
 
   const handleMidiPanic = useCallback(() => {
-    if (selectedOutputPort) {
-      for (let channel = 0; channel < 16; channel++) {
-        // Note Off for all notes
-        for (let note = 0; note < 128; note++) {
-          selectedOutputPort.send([0x80 + channel, note, 0]);
-        }
-        // All Notes Off CC 123
-        selectedOutputPort.send([0xB0 + channel, 123, 0]);
-        // Sustain 0 CC 64
-        selectedOutputPort.send([0xB0 + channel, 64, 0]);
-      }
-    }
 
     // Reset sustain state
     setIsSustainActive(false);
-    setIsHoldModeActive(false);
+    setIsToggleModeActive(true);
+    setIsHoldModeActive(true);
     pendingNoteOffs.current.clear();
     heldModePendingNoteOffs.current.clear();
 
@@ -171,7 +147,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     });
     window.dispatchEvent(panicEvent);
-  }, [selectedOutputPort]);
+  }, []);
 
   useEffect(() => {
     if (!isHoldModeActive) {
@@ -194,18 +170,24 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [midiAccess]);
 
   useEffect(() => {
-    if (!selectedInputPort) return;
-    
-    selectedInputPort.onmidimessage = (event: MIDIMessageEvent) => {
-      if (event.data) {
-        handleIncomingMidi(event.data as Uint8Array, false);
-      }
-    };
+    if (!midiAccess) return;
+
+    const inputsToListen = selectedInputId === 'omni'
+      ? Array.from(midiAccess.inputs.values())
+      : [midiAccess.inputs.get(selectedInputId)].filter(Boolean) as MIDIInput[];
+
+    inputsToListen.forEach(input => {
+      input.onmidimessage = (event: MIDIMessageEvent) => {
+        if (event.data) handleIncomingMidi(event.data as Uint8Array, false);
+      };
+    });
 
     return () => {
-      selectedInputPort.onmidimessage = null;
+      inputsToListen.forEach(input => {
+        input.onmidimessage = null;
+      });
     };
-  }, [selectedInputPort, handleIncomingMidi]);
+  }, [midiAccess, selectedInputId, handleIncomingMidi]);
 
   useEffect(() => {
     let isMounted = true;
@@ -214,8 +196,6 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setLoading(true);
       setError(null);
       setMidiAccess(null);
-      setSelectedInputPort(null);
-      setSelectedOutputPort(null);
 
       try {
         const access = await requestMidiAccess();
@@ -233,23 +213,6 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         const savedInputId = localStorage.getItem('midi_input_id');
-        const savedOutputId = localStorage.getItem('midi_output_id');
-
-        if (access.inputs.size > 0) {
-          let inputToSelect = access.inputs.values().next().value as MIDIInput | undefined;
-          if (savedInputId && access.inputs.has(savedInputId)) {
-            inputToSelect = access.inputs.get(savedInputId);
-          }
-          if (inputToSelect) setSelectedInputPort(inputToSelect);
-        }
-
-        if (access.outputs.size > 0) {
-          let outputToSelect = access.outputs.values().next().value as MIDIOutput | undefined;
-          if (savedOutputId && access.outputs.has(savedOutputId)) {
-            outputToSelect = access.outputs.get(savedOutputId);
-          }
-          if (outputToSelect) setSelectedOutputPort(outputToSelect);
-        }
 
         const handleStateChange = (event: MIDIConnectionEvent) => {
           console.log(`MIDI device state changed: ${event.port?.name} (${event.port?.state})`);
@@ -278,43 +241,20 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           input.close().catch(err => console.error('Error closing MIDI input:', err));
           input.onmidimessage = null;
         });
-        access.outputs.forEach(output => {
-          output.close().catch(err => console.error('Error closing MIDI output:', err));
-        });
       }
       window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
     };
   }, [handleMidiMessage, handleIncomingMidi]);
 
   const setInputPort = (portId: string) => {
-    if (!portId || portId === "") {
-      setSelectedInputPort(null);
+    setSelectedInputId(portId);
+    if (portId === 'omni' || portId === '') {
       localStorage.removeItem('midi_input_id');
-      return;
-    }
-    if (midiAccess && midiAccess.inputs.has(portId)) {
-      const port = midiAccess.inputs.get(portId)!;
-      setSelectedInputPort(port);
-      localStorage.setItem('midi_input_id', portId);
     } else {
-      console.warn(`Input port with ID "${portId}" not found.`);
+      localStorage.setItem('midi_input_id', portId);
     }
   };
 
-  const setOutputPort = (portId: string) => {
-    if (!portId || portId === "") {
-      setSelectedOutputPort(null);
-      localStorage.removeItem('midi_output_id');
-      return;
-    }
-    if (midiAccess && midiAccess.outputs.has(portId)) {
-      const port = midiAccess.outputs.get(portId)!;
-      setSelectedOutputPort(port);
-      localStorage.setItem('midi_output_id', portId);
-    } else {
-      console.warn(`Output port with ID "${portId}" not found.`);
-    }
-  };
 
   const updateActiveNotes = useCallback((notes: any[]) => {
     const refreshEvent = new CustomEvent('MIDI_MESSAGE_RECEIVED', {
@@ -330,18 +270,18 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     <MidiContext.Provider
       value={{
         midiAccess,
-        selectedInputPort,
-        selectedOutputPort,
+        selectedInputId,
         keySignature,
         loading,
         error,
         setInputPort,
-        setOutputPort,
         setKeySignature,
         splitPoint,
         setSplitPoint,
         handleMidiPanic,
         isSustainActive,
+        isToggleModeActive,
+        setIsToggleModeActive,
         isHoldModeActive,
         setIsHoldModeActive,
         dispatchVirtualMidi,
