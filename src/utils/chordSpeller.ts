@@ -84,9 +84,9 @@ export function convertIntervalToPitchSpelling(interval: string, keySigPC: numbe
     const targetSemitones = (baseSemitones + offset) % 12;
     const targetPC = (keyRootPC + targetSemitones + 12) % 12;
     
-    const rootLetter = keyRootName[0];
-    const rootLetterIndex = DIATONIC_NAMES.indexOf(rootLetter);
-    const targetLetterIndex = (rootLetterIndex + simpleDegree - 1) % 7;
+    const keyRootLetter = keyRootName[0];
+    const keyRootLetterIndex = DIATONIC_NAMES.indexOf(keyRootLetter);
+    const targetLetterIndex = (keyRootLetterIndex + simpleDegree - 1) % 7;
     const targetLetter = DIATONIC_NAMES[targetLetterIndex];
     const targetLetterPC = DIATONIC_PC[targetLetterIndex];
     
@@ -163,9 +163,8 @@ export function getRootSpellingFromKey(ps: number[], keySigPC: number, lut: (PCS
     const decimal = psToDecimal(sortedPS);
     const entry = lut[decimal];
     
-    if (!entry) return "C";
-
-    const rootPC = (entry.root_pc + sortedPS[0]) % 12;
+    const lowPitch = sortedPS[0];
+    const rootPC = (entry.root_pc + lowPitch) % 12;
     const keyPC = PITCH_TO_PC[KEY_NAME_MAP[keySigPC]?.substring(0, 2) || "C"] ?? 0;
     
     let effectiveKeyPC = keyPC;
@@ -264,8 +263,9 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
             return letter + acc;
         });
     } else {
+        const lowPitch = sortedPitches[0];
         let psRootName = getRootSpellingFromKey(sortedPitches, keySigPC, lut);
-        const absoluteRootPC = (entry.root_pc + sortedPitches[0]) % 12;
+        const absoluteRootPC = (entry.root_pc + lowPitch) % 12;
         const rootPitch = sortedPitches.find(p => p % 12 === absoluteRootPC);
 
         // 1. Force the Root Spelling if overridden
@@ -306,17 +306,17 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
     return result;
 }
 
-function getIntervalBetweenPitches(rootName: string, targetName: string): string {
-    const rootLetter = rootName[0];
+function getIntervalBetweenPitches(referenceName: string, targetName: string): string {
+    const referenceLetter = referenceName[0];
     const targetLetter = targetName[0];
-    const rootLetterIndex = DIATONIC_NAMES.indexOf(rootLetter);
+    const referenceLetterIndex = DIATONIC_NAMES.indexOf(referenceLetter);
     const targetLetterIndex = DIATONIC_NAMES.indexOf(targetLetter);
     
-    const degree = ((targetLetterIndex - rootLetterIndex + 7) % 7) + 1;
-    const rootPC = PITCH_TO_PC[rootName] ?? PITCH_TO_PC[rootName.substring(0, 2)] ?? PITCH_TO_PC[rootName[0]];
+    const degree = ((targetLetterIndex - referenceLetterIndex + 7) % 7) + 1;
+    const referencePC = PITCH_TO_PC[referenceName] ?? PITCH_TO_PC[referenceName.substring(0, 2)] ?? PITCH_TO_PC[referenceName[0]];
     const targetPC = PITCH_TO_PC[targetName] ?? PITCH_TO_PC[targetName.substring(0, 2)] ?? PITCH_TO_PC[targetName[0]];
     
-    const semitones = (targetPC - rootPC + 12) % 12;
+    const semitones = (targetPC - referencePC + 12) % 12;
     const majorSteps = [0, 2, 4, 5, 7, 9, 11];
     const diff = (semitones - majorSteps[degree - 1] + 12) % 12;
     
@@ -371,9 +371,10 @@ export function getChordSymbol(ps: number[], keySignature: string = "C Major", l
 
     const keyName = keySignature.split(' ')[0];
     const keySigPC = KEY_SIG_MAP[keyName] ?? 0;
+    const lowPitch = sortedPS[0];
     let rootName = getRootSpellingFromKey(sortedPS, keySigPC, lut);
     
-    const absoluteRootPC = (entry.root_pc + sortedPS[0]) % 12;
+    const absoluteRootPC = (entry.root_pc + lowPitch) % 12;
     const rootPitch = sortedPS.find(p => p % 12 === absoluteRootPC);
 
     // Force the Root Spelling if overridden
