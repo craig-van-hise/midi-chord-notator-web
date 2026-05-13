@@ -152,13 +152,13 @@ export function RomplerFooter({ isOpen, onToggle }: RomplerFooterProps) {
     <motion.div 
       className="fixed bottom-0 left-0 w-full z-50 flex flex-col items-center"
       initial={false}
-      animate={{ y: isOpen ? 0 : "calc(100% - 32px)" }}
+      animate={{ y: isOpen ? 0 : "100%" }}
       transition={{ type: "spring", damping: 20, stiffness: 100 }}
     >
       {/* Toggle Tab */}
       <div 
         onClick={onToggle}
-        className="absolute -top-8 left-0 h-8 px-6 bg-[#121213] text-white rounded-tr-lg rounded-tl-none cursor-pointer border-t border-r border-[#1e1e20] shadow-[0_-10px_20px_rgba(0,0,0,0.4)] flex items-center gap-2 hover:bg-[#1a1a1c] transition-colors"
+        className="absolute bottom-full left-0 h-8 px-6 bg-[#121213] text-white rounded-tr-lg rounded-tl-none cursor-pointer border-t border-r border-[#1e1e20] shadow-[0_-10px_20px_rgba(0,0,0,0.4)] flex items-center gap-2 hover:bg-[#1a1a1c] transition-colors"
       >
         <div className={cn("w-2 h-2 rounded-full", power ? "bg-[#00ff88] shadow-[0_0_8px_#00ff88]" : "bg-[#184a30]")} />
         <span className="text-[10px] font-black italic tracking-wider">ROMPLER</span>

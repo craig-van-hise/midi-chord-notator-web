@@ -3,6 +3,8 @@ import { SMuFL, assignXLevels, transposeDiatonically, calculateWriteModePitch, t
 import { useMidi } from '../midi/MIDIProvider';
 import KeySignatureSelector from './KeySignatureSelector';
 import { getChordSpelling, getSpellingData, getChordSymbol } from '../utils/chordSpeller';
+import { audioEngine } from '../audio/engine';
+import * as Tone from 'tone';
 
 // Define the expected staff space from CSS variables
 const STAFF_SPACE_CSS_VAR = '--staff-space';
@@ -28,13 +30,13 @@ const generateId = () => {
 };
 
 const NotationCanvas: React.FC = () => {
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   const forceUpdate = () => setTick(t => t + 1);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [staffSpace, setStaffSpace] = useState<number>(12); // Default value
   const activeNotes = useRef<ActiveNoteData[]>([]);
   const [chordSymbol, setChordSymbol] = useState<string>("");
-  const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes, isToggleModeActive, isHoldModeActive } = useMidi();
+  const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes, isToggleModeActive, isHoldModeActive, setSelectedNotes } = useMidi();
   const keySignatureRef = useRef(keySignature);
   const splitPointRef = useRef(splitPoint);
   const lutRef = useRef(lut);
@@ -61,6 +63,7 @@ const NotationCanvas: React.FC = () => {
   const redoStack = useRef<ActiveNoteData[][]>([]);
   const isWriteMode = useRef<boolean>(false);
   const lastPointerY = useRef<number>(0);
+  const activePreviews = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   
   const [accidentalOverride, setAccidentalOverride] = useState<AccidentalOverride>(null);
   const accidentalOverrideRef = useRef<AccidentalOverride>(null);
@@ -77,6 +80,26 @@ const NotationCanvas: React.FC = () => {
     undoStack.current.push(activeNotes.current.map(n => ({ ...n })));
     redoStack.current = []; // Clear redo stack on new action
     if (undoStack.current.length > 50) undoStack.current.shift(); // Max 50 states
+  };
+  
+  const playPreviewNotes = (noteStrings: string[], interrupt: boolean = true) => {
+    if (interrupt) {
+        // Force note-offs for anything currently previewing
+        activePreviews.current.forEach((timeoutId, noteStr) => {
+            clearTimeout(timeoutId);
+            audioEngine.releaseNote(noteStr);
+        });
+        activePreviews.current.clear();
+    }
+
+    noteStrings.forEach(noteStr => {
+        audioEngine.noteOn(noteStr, 0.67);
+        const timeoutId = setTimeout(() => {
+            audioEngine.releaseNote(noteStr);
+            activePreviews.current.delete(noteStr);
+        }, 500);
+        activePreviews.current.set(noteStr, timeoutId);
+    });
   };
 
   
@@ -433,19 +456,23 @@ const NotationCanvas: React.FC = () => {
            const existingIndex = activeNotes.current.findIndex(n => n.note === note);
            if (existingIndex !== -1) {
                activeNotes.current.splice(existingIndex, 1);
+               audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote());
            } else {
                activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: (status & 0x0F) || 0, status: status || 0x90, sourceMidi: note });
+               audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127);
            }
            updateSpellings();
         } else {
             if (isHoldModeActive && isWaitingForNewChord.current) {
               commitState();
               activeNotes.current = [];
+              audioEngine.releaseAll();
               isWaitingForNewChord.current = false;
             }
             if (!activeNotes.current.some(n => n.note === note)) {
               commitState();
               activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: (status & 0x0F) || 0, status: status || 0x90, sourceMidi: note });
+              audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127);
               updateSpellings();
             }
         }
@@ -459,6 +486,7 @@ const NotationCanvas: React.FC = () => {
           if (index !== -1) {
             commitState();
             activeNotes.current.splice(index, 1);
+            audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote());
             updateSpellings();
           }
         }
@@ -475,6 +503,7 @@ const NotationCanvas: React.FC = () => {
   }, []);
 
   // Selection Garbage Collector: Prune selected IDs that no longer exist in activeNotes
+  // AND Sync global selection state
   useEffect(() => {
     const validIds = new Set(activeNotes.current.map(n => n.id));
     let changed = false;
@@ -484,8 +513,15 @@ const NotationCanvas: React.FC = () => {
         changed = true;
       }
     });
+
+    const selectedPitches = Array.from(selectedNoteIds.current)
+      .map(id => activeNotes.current.find(n => n.id === id)?.note)
+      .filter((n): n is number => typeof n === 'number');
+    
+    setSelectedNotes(selectedPitches);
+
     if (changed) forceUpdate();
-  }, [renderedNotes]); // renderedNotes updates whenever activeNotes is processed
+  }, [renderedNotes, tick]); // tick ensures sync on forceUpdate calls
 
   const handlePointerDown = (e: React.PointerEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -523,6 +559,7 @@ const NotationCanvas: React.FC = () => {
         });
         updateSpellings();
         updateActiveNotes?.([...activeNotes.current]);
+        playPreviewNotes([Tone.Frequency(targetMidiNote, "midi").toNote()], false);
         return; // Early return to prevent selection logic
       }
     }
@@ -575,18 +612,28 @@ const NotationCanvas: React.FC = () => {
         selectedNoteIds.current.add(id);
         lastSelectedNoteId.current = id;
       }
-      
-      forceUpdate(); 
     } else {
       // Click-away deselection
       if (!e.shiftKey && !e.metaKey && !e.ctrlKey) {
         if (selectedNoteIds.current.size > 0) {
           selectedNoteIds.current.clear();
           lastSelectedNoteId.current = null;
-          forceUpdate();
         }
       }
     }
+
+    if (clickedNote) {
+      const selectedStrings = Array.from(selectedNoteIds.current)
+        .map(id => renderedNotes.find(n => n.id === id)?.note)
+        .filter((n): n is number => typeof n === 'number')
+        .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+      
+      if (selectedStrings.length > 0) {
+        playPreviewNotes(selectedStrings, true);
+      }
+    }
+    
+    forceUpdate(); 
 
     // Initialize Marquee
     dragTracker.current = {
@@ -751,6 +798,16 @@ const NotationCanvas: React.FC = () => {
             updateSpellings();
             updateActiveNotes?.([...activeNotes.current]);
           }
+
+          // Audio Preview for Transposition
+          const transposedStrings = Array.from(selectedNoteIds.current)
+            .map(id => activeNotes.current.find(n => n.id === id)?.note)
+            .filter((n): n is number => typeof n === 'number')
+            .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+          
+          if (transposedStrings.length > 0) {
+            playPreviewNotes(transposedStrings, true);
+          }
         } else {
           // SELECTION TRAVERSAL
           if (selectedEntries.length === 1) {
@@ -771,6 +828,7 @@ const NotationCanvas: React.FC = () => {
               selectedNoteIds.current.add(nextNote.id);
               lastSelectedNoteId.current = nextNote.id;
               forceUpdate();
+              playPreviewNotes([Tone.Frequency(nextPitch, "midi").toNote()], true);
             }
           }
         }
@@ -849,6 +907,15 @@ const NotationCanvas: React.FC = () => {
       });
       
       forceUpdate();
+
+      const selectedStrings = Array.from(selectedNoteIds.current)
+        .map(id => renderedNotes.find(n => n.id === id)?.note)
+        .filter((n): n is number => typeof n === 'number')
+        .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+      
+      if (selectedStrings.length > 0) {
+        playPreviewNotes(selectedStrings, true);
+      }
     }
   };
 

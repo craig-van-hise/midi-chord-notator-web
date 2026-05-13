@@ -83,7 +83,7 @@ const AppContent: React.FC = () => {
           className="font-bold tracking-tight whitespace-nowrap m-0 text-[#1a1a1a] dark:text-white self-center"
           style={{ fontSize: '1.125rem', lineHeight: '1' }}
         >
-          MIDI Chord <span className="text-[#aa3bff]">Notator</span>
+          VV | MIDI Chord <span className="text-[#aa3bff]">Notator</span>
         </div>
         <div className="flex items-center gap-4">
           <MidiPortSelector />

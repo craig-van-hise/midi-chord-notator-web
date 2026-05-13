@@ -34,6 +34,8 @@ interface MidiContextType {
   dispatchVirtualMidi: (data: Uint8Array) => void;
   updateActiveNotes: (notes: any[]) => void;
   lut: (PCS_Entry | null)[];
+  selectedNotes: number[];
+  setSelectedNotes: (notes: number[]) => void;
 }
 
 const MidiContext = createContext<MidiContextType | undefined>(undefined);
@@ -49,6 +51,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isToggleModeActive, setIsToggleModeActive] = useState<boolean>(true);
   const [isHoldModeActive, setIsHoldModeActive] = useState<boolean>(true);
   const [lut, setLut] = useState<(PCS_Entry | null)[]>([]);
+  const [selectedNotes, setSelectedNotes] = useState<number[]>([]);
 
 
   const physicallyHeldNotes = React.useRef<Set<number>>(new Set());
@@ -104,12 +107,6 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       pendingNoteOffs.current.delete(note);
       heldModePendingNoteOffs.current.delete(note);
       
-      // ROMPler Integration
-      const noteString = Tone.Frequency(note, "midi").toNote();
-      if (Tone.context.state === 'running') {
-        audioEngine.noteOn(noteString, velocity / 127);
-      }
-
       dispatchMidiEvent(data);
       return;
     }
@@ -127,10 +124,6 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else {
         dispatchMidiEvent(data);
       }
-
-      // ROMPler Integration
-      const noteString = Tone.Frequency(note, "midi").toNote();
-      audioEngine.releaseNote(noteString);
 
       return;
     }
@@ -304,6 +297,8 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         dispatchVirtualMidi,
         updateActiveNotes,
         lut,
+        selectedNotes,
+        setSelectedNotes,
       }}
     >
       {children}

@@ -15,7 +15,7 @@ const BLACK_KEY_WIDTH = 11;
 const BLACK_KEY_HEIGHT = 56;
 
 export const Piano88: React.FC = () => {
-    const { dispatchVirtualMidi, lut, keySignature } = useMidi();
+    const { dispatchVirtualMidi, lut, keySignature, selectedNotes } = useMidi();
     const displayedPitches = React.useRef<Set<number>>(new Set());
     const pianoKeys = [];
 
@@ -63,7 +63,12 @@ export const Piano88: React.FC = () => {
                 
                 // Update the physical key highlights
                 for (let n = 21; n <= 108; n++) {
-                    updateKeyVisuals88(n, displayedPitches.current.has(n) ? '#aa3bff' : '');
+                    const isActive = displayedPitches.current.has(n);
+                    const isSelected = selectedNotes.includes(n);
+                    let color = '';
+                    if (isSelected) color = '#ef4444';
+                    else if (isActive) color = '#aa3bff';
+                    updateKeyVisuals88(n, color);
                 }
             }
         };
@@ -72,7 +77,19 @@ export const Piano88: React.FC = () => {
         return () => {
             window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidi);
         };
-    }, [lut, keySignature]);
+    }, [lut, keySignature, selectedNotes]);
+
+    // Ensure keyboard updates when selection changes, even without a MIDI event
+    React.useEffect(() => {
+        for (let n = 21; n <= 108; n++) {
+            const isActive = displayedPitches.current.has(n);
+            const isSelected = selectedNotes.includes(n);
+            let color = '';
+            if (isSelected) color = '#ef4444';
+            else if (isActive) color = '#aa3bff';
+            updateKeyVisuals88(n, color);
+        }
+    }, [selectedNotes]);
 
     const handleKeyInteraction = (note: number, isDown: boolean, velocity: number = 100) => {
         if (isDown) {
