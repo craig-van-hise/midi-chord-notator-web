@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { requestMidiAccess } from './midiAccess';
 import { fetchBinaryLUT } from '../utils/binaryLut';
 import type { PCS_Entry } from '../utils/chordSpeller';
+import { audioEngine } from '../audio/engine';
+import * as Tone from 'tone';
 
 // Define the structure for the custom event data
 /*
@@ -101,6 +103,13 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       pendingNoteOffs.current.delete(note);
       heldModePendingNoteOffs.current.delete(note);
+      
+      // ROMPler Integration
+      const noteString = Tone.Frequency(note, "midi").toNote();
+      if (Tone.context.state === 'running') {
+        audioEngine.noteOn(noteString, velocity / 127);
+      }
+
       dispatchMidiEvent(data);
       return;
     }
@@ -118,6 +127,11 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else {
         dispatchMidiEvent(data);
       }
+
+      // ROMPler Integration
+      const noteString = Tone.Frequency(note, "midi").toNote();
+      audioEngine.releaseNote(noteString);
+
       return;
     }
 
@@ -137,6 +151,9 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsHoldModeActive(true);
     pendingNoteOffs.current.clear();
     heldModePendingNoteOffs.current.clear();
+
+    // ROMPler Integration
+    audioEngine.releaseAll();
 
     // Dispatch proprietary PANIC flag
     const panicEvent = new CustomEvent('MIDI_MESSAGE_RECEIVED', {

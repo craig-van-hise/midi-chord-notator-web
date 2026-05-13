@@ -13,9 +13,15 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.14.0",
+    "motion": "^12.38.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "tailwindcss": "^4.2.4"
+    "smplr": "^0.20.0",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.2.4",
+    "tone": "^15.1.22"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

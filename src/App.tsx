@@ -5,6 +5,7 @@ import Keyboard, { updateKeyVisuals88 } from './components/Keyboard'; // Import 
 import NotationCanvas from './components/NotationCanvas';
 import SettingsModal from './components/SettingsModal';
 import InfoModal from './components/InfoModal';
+import { RomplerFooter } from './components/RomplerFooter';
 
 // Component to handle MIDI message listening and keyboard updates
 const MidiKeyboardUpdater: React.FC = () => {
@@ -72,6 +73,7 @@ const AppContent: React.FC = () => {
   const { handleMidiPanic } = useMidi();
   const [isInfoModalOpen, setIsInfoModalOpen] = React.useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
+  const [isRomplerOpen, setIsRomplerOpen] = React.useState(false);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#f8f7f2] dark:bg-[#0a0a0a]">
@@ -112,23 +114,23 @@ const AppContent: React.FC = () => {
         </div>
       </header>
 
-      {/* Focused Notation Workspace */}
-      <main className="flex-1 relative flex flex-col items-center pt-8">
+      {/* Focused Notation Workspace & Keyboard */}
+      <main className="flex-1 overflow-y-auto pb-[400px] w-full flex flex-col items-center justify-start gap-[15px] pt-8">
         <div className="w-full max-w-[800px] flex justify-center">
           <NotationCanvas />
         </div>
-      </main>
-
-      {/* Scaled Keyboard at the bottom */}
-      <footer className="w-full pb-6 flex justify-center z-10">
+        
         <div className="bg-white dark:bg-[#111] p-3 rounded-lg shadow-xl border border-gray-200 dark:border-gray-800">
           <Keyboard />
         </div>
-      </footer>
+      </main>
 
       {/* Hoisted Modals */}
       <InfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
+
+      {/* ROMPler Footer */}
+      <RomplerFooter isOpen={isRomplerOpen} onToggle={() => setIsRomplerOpen(!isRomplerOpen)} />
     </div>
   );
 };
