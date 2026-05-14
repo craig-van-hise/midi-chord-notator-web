@@ -1,5 +1,5 @@
 import React from 'react';
-import { ButtonId, ButtonConfigMap } from '../types';
+import type { ButtonId, ButtonConfigMap } from './navTypes';
 
 interface NavControllerProps {
   pressedButtons: Record<ButtonId, boolean>;

@@ -344,7 +344,7 @@ export function getNoteNameFromPosition(stepOffset: number, accidental: string |
     else {
         // Fallback to diatonic accidental if null
         const diatonicMap = getDiatonicMap(keySignature);
-        for (const [pc, data] of diatonicMap.entries()) {
+        for (const [_pc, data] of diatonicMap.entries()) {
             if (data.step === scaleStep) {
                 if (data.acc === SMuFL.accidentalSharp) accStr = '#';
                 if (data.acc === SMuFL.accidentalFlat) accStr = 'b';

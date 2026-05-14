@@ -1,8 +1,8 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NotationCanvas from './NotationCanvas';
 import { useMidi } from '../midi/MIDIProvider';
-import * as Tone from 'tone';
+
 
 // Mock useMidi
 vi.mock('../midi/MIDIProvider', () => ({
@@ -60,7 +60,7 @@ describe('NotationCanvas Event Bridge', () => {
     // 2. Select the note (C4)
     // We need to find the note in the rendered output. 
     // NotationCanvas renders an <svg>.
-    const svg = screen.getByTestId('notation-canvas-container');
+    screen.getByTestId('notation-canvas-container');
     
     // Simulate selection of MIDI 60. 
     // In our simplified test, we can't easily hit-test the SVG.

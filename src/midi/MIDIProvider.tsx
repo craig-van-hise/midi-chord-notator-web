@@ -4,7 +4,7 @@ import { requestMidiAccess } from './midiAccess';
 import { fetchBinaryLUT } from '../utils/binaryLut';
 import type { PCS_Entry } from '../utils/chordSpeller';
 import { audioEngine } from '../audio/engine';
-import type { ButtonId, ButtonConfigMap } from '../components/toolbar/TransformationsTypes';
+import type { ButtonConfigMap } from '../components/toolbar/TransformationsTypes';
 
 // Define the structure for the custom event data
 /*
@@ -55,7 +55,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
   const pendingNoteOffs = React.useRef<Set<number>>(new Set());
-  const heldHardwareNotes = React.useRef<Map<number, ButtonId>>(new Map());
+
   const configsRef = React.useRef<ButtonConfigMap>({} as any);
 
   useEffect(() => {

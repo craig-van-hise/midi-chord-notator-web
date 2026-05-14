@@ -655,6 +655,17 @@ const NotationCanvas: React.FC = () => {
         case 'OCT_UP': applyChromaticShift(12, stepSize); break;
         case 'OCT_DOWN': applyChromaticShift(-12, stepSize); break;
       }
+
+      if ((e as CustomEvent).detail.isUiClick) {
+        const transposedStrings = Array.from(selectedNoteIds.current)
+          .map(id => activeNotes.current.find(n => n.id === id)?.note)
+          .filter((n): n is number => typeof n === 'number')
+          .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+
+        if (transposedStrings.length > 0) {
+          playPreviewNotes(transposedStrings, true);
+        }
+      }
     };
 
     const handleHistory = (e: any) => {

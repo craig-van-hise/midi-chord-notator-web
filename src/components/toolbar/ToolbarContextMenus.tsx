@@ -1,6 +1,6 @@
 import React from 'react';
 import { GraduationCap, Volume2, X } from 'lucide-react';
-import { ButtonConfig, ButtonId } from './ToolbarTypes';
+import type { ButtonConfig, ButtonId } from './ToolbarTypes';
 
 // --- Arrow Button Context Menu ---
 

@@ -12,7 +12,7 @@ const SMPLR_MAP: Record<string, string> = {
 };
 
 class LoopedSampler {
-  buffers: Tone.ToneAudioBuffers;
+  buffers!: Tone.ToneAudioBuffers;
   output: Tone.Volume;
   activeVoices: Map<string | number, { player: Tone.Player, env: Tone.AmplitudeEnvelope }>;
   envelope: { attack: number, decay: number, sustain: number, release: number };
@@ -321,18 +321,14 @@ class AudioEngine {
 
   setDecay(decay: number) {
     if (!this.sampler) return;
-    if (this.sampler instanceof Tone.Sampler) {
-      this.sampler.decay = decay;
-    } else if (this.sampler instanceof LoopedSampler) {
+    if (this.sampler instanceof LoopedSampler) {
       this.sampler.set({ envelope: { decay } });
     }
   }
 
   setSustain(sustain: number) {
     if (!this.sampler) return;
-    if (this.sampler instanceof Tone.Sampler) {
-      this.sampler.sustain = sustain;
-    } else if (this.sampler instanceof LoopedSampler) {
+    if (this.sampler instanceof LoopedSampler) {
       this.sampler.set({ envelope: { sustain } });
     }
   }

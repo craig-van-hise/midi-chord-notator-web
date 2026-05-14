@@ -76,7 +76,11 @@ export const TransformationsDrawer = () => {
       // Transform Actions
       else {
         window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
-          detail: { type: id as any, stepSize }
+          detail: { 
+            type: id as any, 
+            stepSize,
+            isUiClick: !!e
+          }
         }));
       }
     }

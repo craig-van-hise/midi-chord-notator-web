@@ -64,7 +64,7 @@ export const Piano88: React.FC = () => {
                 // Update the physical key highlights
                 for (let n = 21; n <= 108; n++) {
                     const isActive = displayedPitches.current.has(n);
-                    const isSelected = selectedNotes.includes(n);
+                    const isSelected = selectedNotes?.includes(n);
                     let color = '';
                     if (isSelected) color = '#ef4444';
                     else if (isActive) color = '#aa3bff';
@@ -83,7 +83,7 @@ export const Piano88: React.FC = () => {
     React.useEffect(() => {
         for (let n = 21; n <= 108; n++) {
             const isActive = displayedPitches.current.has(n);
-            const isSelected = selectedNotes.includes(n);
+            const isSelected = selectedNotes?.includes(n);
             let color = '';
             if (isSelected) color = '#ef4444';
             else if (isActive) color = '#aa3bff';

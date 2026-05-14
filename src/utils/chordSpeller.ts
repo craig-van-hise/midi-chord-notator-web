@@ -163,6 +163,11 @@ export function getRootSpellingFromKey(ps: number[], keySigPC: number, lut: (PCS
     const decimal = psToDecimal(sortedPS);
     const entry = lut[decimal];
     
+    if (!entry) {
+        console.warn("PCS entry not found for decimal:", decimal);
+        return "C";
+    }
+    
     const lowPitch = sortedPS[0];
     const rootPC = (entry.root_pc + lowPitch) % 12;
     const keyPC = PITCH_TO_PC[KEY_NAME_MAP[keySigPC]?.substring(0, 2) || "C"] ?? 0;
