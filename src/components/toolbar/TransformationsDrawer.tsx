@@ -9,7 +9,7 @@ const DEFAULT_CONFIG: ButtonConfig = {
   midiNote: 60, // Middle C default
 };
 
-const INITIAL_BUTTONS: ButtonId[] = ['SEMI_UP', 'SEMI_DOWN', 'KEY_UP', 'KEY_DOWN', 'ROT_UP', 'ROT_DOWN', 'OCT_UP', 'OCT_DOWN', 'UNDO', 'REDO', 'PLAY', 'HOME'];
+const INITIAL_BUTTONS: ButtonId[] = ['SEMI_DOWN', 'SEMI_UP', 'KEY_DOWN', 'KEY_UP', 'ROT_DOWN', 'ROT_UP', 'OCT_DOWN', 'OCT_UP', 'UNDO', 'REDO', 'PLAY', 'HOME'];
 
 export const TransformationsDrawer = () => {
   // --- STATE ---
@@ -33,6 +33,8 @@ export const TransformationsDrawer = () => {
     currentButtonIndex: 0,
     sequence: [],
   });
+
+  const activeMappedNoteRef = React.useRef<number>(-1);
 
 
   // --- HANDLERS: Buttons ---
@@ -191,31 +193,50 @@ export const TransformationsDrawer = () => {
     (window as any).__MIDI_INTERCEPTOR = (data: Uint8Array) => {
       const [status, note, velocity] = data;
       const isNoteOn = (status & 0xF0) === 0x90 && velocity > 0;
+      const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && velocity === 0);
       
       // 1. LEARN MODE ACTIVE
       if (learnState.isActive) {
         if (isNoteOn) {
           const currentId = learnState.sequence[learnState.currentButtonIndex];
           updateButtonConfig(currentId, { midiNote: note });
-          // Advance to the next button in the sequence
           if (learnState.currentButtonIndex >= learnState.sequence.length - 1) {
             setLearnState(prev => ({ ...prev, isActive: false }));
           } else {
             setLearnState(prev => ({ ...prev, currentButtonIndex: prev.currentButtonIndex + 1 }));
           }
         }
-        return true; // SILENTLY CONSUME ALL HARDWARE MIDI DURING LEARN
+        return true; // Unconditionally block both ON and OFF during learn
       }
 
-      // 2. PLAY MODE (Action Mapping)
-      if (isNoteOn) {
-        const match = Object.keys(configs).find(id => configs[id as ButtonId].midiNote === note && note !== -1);
-        if (match) {
+      // 2. PLAY MODE (Action Mapping & Choke Group)
+      const match = Object.keys(configs).find(id => configs[id as ButtonId].midiNote === note && note !== -1);
+      
+      if (match) {
+        if (isNoteOn) {
+          // CHOKE GROUP LOGIC: If a previous mapped note is ringing, kill it instantly.
+          if (activeMappedNoteRef.current !== -1 && activeMappedNoteRef.current !== note) {
+            const oldMatch = Object.keys(configs).find(id => configs[id as ButtonId].midiNote === activeMappedNoteRef.current);
+            if (oldMatch) {
+              handleButtonUp(oldMatch as ButtonId);
+              window.dispatchEvent(new CustomEvent('APP_HARDWARE_PREVIEW_OFF'));
+            }
+          }
+          
+          // Track the new note and fire it
+          activeMappedNoteRef.current = note;
           handleButtonDown(match as ButtonId);
-          // Fire a subsequent button up to release visual pressed state
-          setTimeout(() => handleButtonUp(match as ButtonId), 150);
-          return true; // CONSUME NOTE, FIRE UI ACTION
+          window.dispatchEvent(new CustomEvent('APP_HARDWARE_PREVIEW_ON', { detail: { velocity } }));
+          
+        } else if (isNoteOff) {
+          // IGNORE ghost NoteOffs from choked keys. Only process if it matches the active note.
+          if (activeMappedNoteRef.current === note) {
+            handleButtonUp(match as ButtonId);
+            window.dispatchEvent(new CustomEvent('APP_HARDWARE_PREVIEW_OFF'));
+            activeMappedNoteRef.current = -1;
+          }
         }
+        return true; // Unconditionally consume all mapped notes (even ghost NoteOffs)
       }
       return false; // Let note pass to Canvas
     };

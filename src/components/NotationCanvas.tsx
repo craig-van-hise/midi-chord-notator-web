@@ -87,7 +87,7 @@ const NotationCanvas: React.FC = () => {
         // Force note-offs for anything currently previewing
         activePreviews.current.forEach((timeoutId, noteStr) => {
             clearTimeout(timeoutId);
-            audioEngine.releaseNote(noteStr);
+            try { audioEngine.releaseNote(noteStr); } catch(e) {}
         });
         activePreviews.current.clear();
     }
@@ -95,9 +95,9 @@ const NotationCanvas: React.FC = () => {
     const normalizedVelocity = velocity / 127;
 
     noteStrings.forEach(noteStr => {
-        audioEngine.noteOn(noteStr, normalizedVelocity);
+        try { audioEngine.noteOn(noteStr, normalizedVelocity); } catch(e) {}
         const timeoutId = setTimeout(() => {
-            audioEngine.releaseNote(noteStr);
+            try { audioEngine.releaseNote(noteStr); } catch(e) {}
             activePreviews.current.delete(noteStr);
         }, 500);
         activePreviews.current.set(noteStr, timeoutId);
@@ -168,13 +168,6 @@ const NotationCanvas: React.FC = () => {
     updateSpellings();
     updateActiveNotes?.([...activeNotes.current]);
     recalculateLayout();
-
-    // Audio Preview
-    const transposedStrings = Array.from(selectedNoteIds.current)
-      .map(id => activeNotes.current.find(n => n.id === id)?.note)
-      .filter((n): n is number => typeof n === 'number')
-      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
-    if (transposedStrings.length > 0) playPreviewNotes(transposedStrings, true);
   };
 
   const applyDiatonicShift = (delta: number, stepSize: number = 1) => {
@@ -195,13 +188,6 @@ const NotationCanvas: React.FC = () => {
     updateSpellings();
     updateActiveNotes?.([...activeNotes.current]);
     recalculateLayout();
-
-    // Audio Preview
-    const transposedStrings = Array.from(selectedNoteIds.current)
-      .map(id => activeNotes.current.find(n => n.id === id)?.note)
-      .filter((n): n is number => typeof n === 'number')
-      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
-    if (transposedStrings.length > 0) playPreviewNotes(transposedStrings, true);
   };
 
   const applyPcsRotation = (delta: number, stepSize: number = 1) => {
@@ -254,13 +240,6 @@ const NotationCanvas: React.FC = () => {
     updateSpellings();
     updateActiveNotes?.([...activeNotes.current]);
     recalculateLayout();
-
-    // Audio Preview
-    const transposedStrings = Array.from(selectedNoteIds.current)
-      .map(id => activeNotes.current.find(n => n.id === id)?.note)
-      .filter((n): n is number => typeof n === 'number')
-      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
-    if (transposedStrings.length > 0) playPreviewNotes(transposedStrings, true);
   };
 
   const undo = () => {
@@ -601,52 +580,49 @@ const NotationCanvas: React.FC = () => {
       const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && velocity === 0);
 
       if (isNoteOn) {
-        if (isVirtual && isToggleModeActive) {
-          // VIRTUAL TOGGLE MODE
-          commitState();
-          const existingIndex = activeNotes.current.findIndex(n => n.note === note);
-          if (existingIndex !== -1) {
-            activeNotes.current.splice(existingIndex, 1);
-            audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote());
+          let shouldAdd = true;
+          
+          if (isVirtual) {
+              if (isToggleModeActive) {
+                  const idx = activeNotes.current.findIndex(n => n.note === note);
+                  if (idx !== -1) {
+                      activeNotes.current.splice(idx, 1); // Toggle Off
+                      shouldAdd = false;
+                  }
+              }
           } else {
-            activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: 0, status: 0x90, sourceMidi: note });
-            audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127);
+              // Physical Hardware
+              if (isHoldModeActive && physicalKeysDown.current.size === 0) {
+                  activeNotes.current = []; // Wipe board for new chord
+              }
+              physicalKeysDown.current.add(note);
           }
-          updateSpellings();
-        } else {
-          // PHYSICAL OR MOMENTARY MODE
-          if (isHoldModeActive && physicalKeysDown.current.size === 0) {
-            commitState();
-            activeNotes.current = []; // Wipe board on first note of a NEW chord strike
-          }
-          
-          physicalKeysDown.current.add(note);
-          
-          if (!activeNotes.current.some(n => n.note === note)) {
-            activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: 0, status: 0x90, sourceMidi: note });
-            updateSpellings();
-          }
-          audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127);
-        }
-        updateActiveNotes?.([...activeNotes.current]);
-      } else if (isNoteOff) {
-        physicalKeysDown.current.delete(note);
-        audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote());
 
-        if (isVirtual && isToggleModeActive) {
-          // Virtual Toggle ON: Do nothing. Note remains latched visually.
-        } else if (!isHoldModeActive) {
-          // Momentary Mode: Key up = visually clear note
-          activeNotes.current = activeNotes.current.filter(n => n.note !== note);
+          if (shouldAdd && !activeNotes.current.some(n => n.note === note)) {
+              activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: 0, status: 0x90, sourceMidi: note });
+          }
+
+          try { audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127); } catch(e) { console.warn("Audio buffer missing for noteOn:", note); }
           updateSpellings();
-        }
-        // If Hold Mode is active, physical key up does nothing visually (they remain latched until next chord).
-        
-        if (isHoldModeActive && physicalKeysDown.current.size === 0) {
-          isWaitingForNewChord.current = true;
-        }
-        
-        updateActiveNotes?.([...activeNotes.current]);
+          updateActiveNotes?.([...activeNotes.current]);
+      } else if (isNoteOff) {
+          if (!isVirtual) physicalKeysDown.current.delete(note);
+          
+          try { audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote()); } catch(e) { console.warn("Audio buffer missing for noteOff:", note); }
+
+          let shouldRemove = false;
+          if (isVirtual && !isToggleModeActive) {
+              shouldRemove = true; // Virtual Momentary
+          } else if (!isVirtual && !isHoldModeActive) {
+              shouldRemove = true; // Physical Momentary
+          }
+
+          if (shouldRemove) {
+              activeNotes.current = activeNotes.current.filter(n => n.note !== note);
+          }
+
+          updateSpellings();
+          updateActiveNotes?.([...activeNotes.current]);
       }
       recalculateLayout();
     };
@@ -692,23 +668,64 @@ const NotationCanvas: React.FC = () => {
 
     const handlePlay = (e: any) => {
       const { velocity } = e.detail;
+
+      if (selectedNoteIds.current.size === 0 && activeNotes.current.length > 0) {
+          activeNotes.current.forEach(note => selectedNoteIds.current.add(note.id));
+          forceUpdate(); // Update UI to show selection
+      }
+      if (selectedNoteIds.current.size === 0) return; // Exit if nothing to play
+
       const selectedStrings = Array.from(selectedNoteIds.current)
         .map(id => activeNotes.current.find(n => n.id === id)?.note)
         .filter((n): n is number => typeof n === 'number')
         .map(pitch => Tone.Frequency(pitch, "midi").toNote());
       
       if (selectedStrings.length > 0) {
-        playPreviewNotes(selectedStrings, true, velocity);
+        try { playPreviewNotes(selectedStrings, true, velocity); } catch(e) {}
       }
+    };
+
+    const handlePreviewOn = (e: Event) => {
+        const vel = (e as CustomEvent).detail.velocity / 127;
+
+        if (selectedNoteIds.current.size === 0 && activeNotes.current.length > 0) {
+            activeNotes.current.forEach(note => selectedNoteIds.current.add(note.id));
+            forceUpdate(); // Update UI to show selection
+        }
+        if (selectedNoteIds.current.size === 0) return; // Exit if nothing to play
+
+        const strings = Array.from(selectedNoteIds.current)
+          .map(id => activeNotes.current.find(n => n.id === id)?.note)
+          .filter((n): n is number => typeof n === 'number')
+          .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+        
+        strings.forEach(s => {
+            try { audioEngine.noteOn(s, vel); } catch(e) {}
+        });
+    };
+
+    const handlePreviewOff = () => {
+        const strings = Array.from(selectedNoteIds.current)
+          .map(id => activeNotes.current.find(n => n.id === id)?.note)
+          .filter((n): n is number => typeof n === 'number')
+          .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+        strings.forEach(s => {
+            try { audioEngine.releaseNote(s); } catch(e) {}
+        });
     };
 
     window.addEventListener('APP_TRANSFORM', handleTransform as any);
     window.addEventListener('APP_HISTORY', handleHistory as any);
     window.addEventListener('APP_PLAY', handlePlay as any);
+    window.addEventListener('APP_HARDWARE_PREVIEW_ON', handlePreviewOn);
+    window.addEventListener('APP_HARDWARE_PREVIEW_OFF', handlePreviewOff);
+
     return () => {
       window.removeEventListener('APP_TRANSFORM', handleTransform as any);
       window.removeEventListener('APP_HISTORY', handleHistory as any);
       window.removeEventListener('APP_PLAY', handlePlay as any);
+      window.removeEventListener('APP_HARDWARE_PREVIEW_ON', handlePreviewOn);
+      window.removeEventListener('APP_HARDWARE_PREVIEW_OFF', handlePreviewOff);
     };
   }, []);
 
