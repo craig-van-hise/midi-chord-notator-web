@@ -261,7 +261,7 @@ export const TransformationsDrawer = () => {
     <div className="relative w-full max-w-2xl mx-auto flex flex-col items-center pointer-events-none">
       <div className="pointer-events-auto w-full flex flex-col items-center">
       <div 
-        className={`w-full transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-10 flex flex-col items-center ${isDrawerOpen ? '-mt-10 translate-y-0' : '-mt-10 -translate-y-[170px]'}`}
+        className={`w-full transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-10 flex flex-col items-center ${isDrawerOpen ? '-mt-10 translate-y-0' : '-mt-10 -translate-y-[155px]'}`}
       >
         <TransformationsToolbar 
           isOpen={isDrawerOpen}
