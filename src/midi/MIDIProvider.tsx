@@ -54,9 +54,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [selectedNotes, setSelectedNotes] = useState<number[]>([]);
 
 
-  const physicallyHeldNotes = React.useRef<Set<number>>(new Set());
   const pendingNoteOffs = React.useRef<Set<number>>(new Set());
-  const heldModePendingNoteOffs = React.useRef<Set<number>>(new Set());
   const heldHardwareNotes = React.useRef<Map<number, ButtonId>>(new Map());
   const configsRef = React.useRef<ButtonConfigMap>({} as any);
 
@@ -101,38 +99,18 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Note On
     if (command === 0x90 && velocity > 0) {
-      if (!isVirtual && isHoldModeActive && physicallyHeldNotes.current.size === 0) {
-        // Flush old held notes before starting new chord
-        heldModePendingNoteOffs.current.forEach(noteNum => {
-          dispatchMidiEvent(new Uint8Array([0x80 + channel, noteNum, 0]), isVirtual);
-        });
-        heldModePendingNoteOffs.current.clear();
-      }
-      
-      if (!isVirtual) {
-        physicallyHeldNotes.current.add(note);
-      }
       pendingNoteOffs.current.delete(note);
-      heldModePendingNoteOffs.current.delete(note);
-      
       dispatchMidiEvent(data, isVirtual);
       return;
     }
 
     // Note Off
     if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-      if (!isVirtual) {
-        physicallyHeldNotes.current.delete(note);
-      }
-      
       if (isSustainActive) {
         pendingNoteOffs.current.add(note);
-      } else if (isHoldModeActive && !isVirtual) {
-        heldModePendingNoteOffs.current.add(note);
       } else {
         dispatchMidiEvent(data, isVirtual);
       }
-
       return;
     }
 
@@ -151,7 +129,6 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsToggleModeActive(true);
     setIsHoldModeActive(true);
     pendingNoteOffs.current.clear();
-    heldModePendingNoteOffs.current.clear();
 
     // ROMPler Integration
     audioEngine.releaseAll();
@@ -167,15 +144,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     window.dispatchEvent(panicEvent);
   }, []);
 
-  useEffect(() => {
-    if (!isHoldModeActive) {
-      // Flush held notes when mode is deactivated
-      heldModePendingNoteOffs.current.forEach(noteNum => {
-        dispatchMidiEvent(new Uint8Array([0x80, noteNum, 0])); // Use channel 0 for virtual flush
-      });
-      heldModePendingNoteOffs.current.clear();
-    }
-  }, [isHoldModeActive, dispatchMidiEvent]);
+
 
   const handleMidiMessage = useCallback((_event: Event) => {
     // const customEvent = _event as CustomEvent<MidiMessageReceivedEventDetail>;

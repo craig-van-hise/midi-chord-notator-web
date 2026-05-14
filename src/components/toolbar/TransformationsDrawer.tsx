@@ -17,10 +17,17 @@ export const TransformationsDrawer = () => {
   
   // Initialize configs for all potential buttons
   const [configs, setConfigs] = useState<ButtonConfigMap>(() => {
+    const saved = localStorage.getItem('midiToolbarConfigs');
+    if (saved) return JSON.parse(saved);
+    
     const map: any = {};
     INITIAL_BUTTONS.forEach(id => map[id] = { ...DEFAULT_CONFIG, midiNote: -1 });
     return map;
   });
+
+  useEffect(() => {
+    localStorage.setItem('midiToolbarConfigs', JSON.stringify(configs));
+  }, [configs]);
 
   const [settings, setSettings] = useState<GlobalSettings>({
     listenMode: true,
@@ -39,7 +46,7 @@ export const TransformationsDrawer = () => {
 
   // --- HANDLERS: Buttons ---
 
-  const handleButtonDown = (id: ButtonId, e?: React.PointerEvent) => {
+  const handleButtonDown = (id: ButtonId, e?: React.PointerEvent, hardwareVelocity?: number) => {
     if (settings.listenMode && !learnState.isActive) {
       const config = configs[id];
       const stepSize = config?.stepSize || 1;
@@ -52,19 +59,17 @@ export const TransformationsDrawer = () => {
       } 
       // Play Action
       else if (id === 'PLAY') {
-        let velocity = 100;
+        let velocity = hardwareVelocity || 100;
         if (e) {
           const target = e.currentTarget as HTMLElement;
-          if (target.releasePointerCapture) {
-            target.releasePointerCapture(e.pointerId);
-          }
+          target.releasePointerCapture(e.pointerId);
           const rect = target.getBoundingClientRect();
           const offsetY = e.clientY - rect.top;
           // Bottom = 1, Top = 127
           velocity = Math.max(1, Math.min(127, Math.floor(((rect.height - offsetY) / rect.height) * 127)));
         }
 
-        window.dispatchEvent(new CustomEvent('APP_PLAY', {
+        window.dispatchEvent(new CustomEvent('APP_PLAY_ON', {
           detail: { velocity }
         }));
       }
@@ -79,6 +84,7 @@ export const TransformationsDrawer = () => {
   };
 
   const handleButtonUp = (id: ButtonId) => {
+    if (id === 'PLAY') window.dispatchEvent(new CustomEvent('APP_PLAY_OFF'));
     setPressed(prev => ({ ...prev, [id]: false }));
   };
 
@@ -219,20 +225,20 @@ export const TransformationsDrawer = () => {
             const oldMatch = Object.keys(configs).find(id => configs[id as ButtonId].midiNote === activeMappedNoteRef.current);
             if (oldMatch) {
               handleButtonUp(oldMatch as ButtonId);
-              window.dispatchEvent(new CustomEvent('APP_HARDWARE_PREVIEW_OFF'));
+              if (oldMatch !== 'PLAY') window.dispatchEvent(new CustomEvent('APP_HARDWARE_PREVIEW_OFF'));
             }
           }
           
           // Track the new note and fire it
           activeMappedNoteRef.current = note;
-          handleButtonDown(match as ButtonId);
-          window.dispatchEvent(new CustomEvent('APP_HARDWARE_PREVIEW_ON', { detail: { velocity } }));
+          handleButtonDown(match as ButtonId, undefined, velocity);
+          if (match !== 'PLAY') window.dispatchEvent(new CustomEvent('APP_HARDWARE_PREVIEW_ON', { detail: { velocity } }));
           
         } else if (isNoteOff) {
           // IGNORE ghost NoteOffs from choked keys. Only process if it matches the active note.
           if (activeMappedNoteRef.current === note) {
             handleButtonUp(match as ButtonId);
-            window.dispatchEvent(new CustomEvent('APP_HARDWARE_PREVIEW_OFF'));
+            if (match !== 'PLAY') window.dispatchEvent(new CustomEvent('APP_HARDWARE_PREVIEW_OFF'));
             activeMappedNoteRef.current = -1;
           }
         }

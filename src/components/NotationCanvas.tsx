@@ -666,23 +666,27 @@ const NotationCanvas: React.FC = () => {
       }
     };
 
-    const handlePlay = (e: any) => {
-      const { velocity } = e.detail;
-
-      if (selectedNoteIds.current.size === 0 && activeNotes.current.length > 0) {
-          activeNotes.current.forEach(note => selectedNoteIds.current.add(note.id));
-          forceUpdate(); // Update UI to show selection
-      }
-      if (selectedNoteIds.current.size === 0) return; // Exit if nothing to play
-
-      const selectedStrings = Array.from(selectedNoteIds.current)
-        .map(id => activeNotes.current.find(n => n.id === id)?.note)
-        .filter((n): n is number => typeof n === 'number')
-        .map(pitch => Tone.Frequency(pitch, "midi").toNote());
-      
-      if (selectedStrings.length > 0) {
-        try { playPreviewNotes(selectedStrings, true, velocity); } catch(e) {}
-      }
+    const handlePlayOn = (e: Event) => {
+        const vel = (e as CustomEvent).detail.velocity / 127;
+        if (selectedNoteIds.current.size === 0 && activeNotes.current.length > 0) {
+            activeNotes.current.forEach(note => selectedNoteIds.current.add(note.id));
+            forceUpdate();
+        }
+        if (selectedNoteIds.current.size === 0) return;
+        
+        const strings = Array.from(selectedNoteIds.current)
+            .map(id => activeNotes.current.find(n => n.id === id)?.note)
+            .filter((n): n is number => typeof n === 'number')
+            .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+        strings.forEach(s => { try { audioEngine.noteOn(s, vel); } catch(err){} });
+    };
+    
+    const handlePlayOff = () => {
+        const strings = Array.from(selectedNoteIds.current)
+            .map(id => activeNotes.current.find(n => n.id === id)?.note)
+            .filter((n): n is number => typeof n === 'number')
+            .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+        strings.forEach(s => { try { audioEngine.releaseNote(s); } catch(err){} });
     };
 
     const handlePreviewOn = (e: Event) => {
@@ -716,14 +720,16 @@ const NotationCanvas: React.FC = () => {
 
     window.addEventListener('APP_TRANSFORM', handleTransform as any);
     window.addEventListener('APP_HISTORY', handleHistory as any);
-    window.addEventListener('APP_PLAY', handlePlay as any);
+    window.addEventListener('APP_PLAY_ON', handlePlayOn);
+    window.addEventListener('APP_PLAY_OFF', handlePlayOff);
     window.addEventListener('APP_HARDWARE_PREVIEW_ON', handlePreviewOn);
     window.addEventListener('APP_HARDWARE_PREVIEW_OFF', handlePreviewOff);
 
     return () => {
       window.removeEventListener('APP_TRANSFORM', handleTransform as any);
       window.removeEventListener('APP_HISTORY', handleHistory as any);
-      window.removeEventListener('APP_PLAY', handlePlay as any);
+      window.removeEventListener('APP_PLAY_ON', handlePlayOn);
+      window.removeEventListener('APP_PLAY_OFF', handlePlayOff);
       window.removeEventListener('APP_HARDWARE_PREVIEW_ON', handlePreviewOn);
       window.removeEventListener('APP_HARDWARE_PREVIEW_OFF', handlePreviewOff);
     };
