@@ -62,7 +62,10 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
     return (
       <button
         className={`relative ${btnSize} flex items-center justify-center outline-none select-none touch-none group bg-transparent border-none p-0 focus:outline-none`}
-        onPointerDown={(e) => onButtonDown(id, e)}
+        onPointerDown={(e) => {
+          if (e.button !== 0 || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+          onButtonDown(id, e);
+        }}
         onPointerUp={() => onButtonUp(id)}
         onPointerLeave={() => onButtonUp(id)}
         onContextMenu={(e) => onButtonContextMenu(e, id)}
@@ -128,7 +131,10 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
     return (
       <button
         className={baseClasses}
-        onPointerDown={(e) => onButtonDown(id, e)}
+        onPointerDown={(e) => {
+          if (e.button !== 0 || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+          onButtonDown(id, e);
+        }}
         onPointerUp={() => onButtonUp(id)}
         onPointerLeave={() => onButtonUp(id)}
         onContextMenu={(e) => onButtonContextMenu(e, id)}

@@ -66,18 +66,18 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => window.removeEventListener('APP_CONFIG_UPDATE', handleSync as any);
   }, []);
 
-  const dispatchMidiEvent = useCallback((data: Uint8Array) => {
-
-    const midiEventDetail = {
-      data,
-      timestamp: performance.now(),
-      input: null, // Virtual input
-    };
-    const customEvent = new CustomEvent('MIDI_MESSAGE_RECEIVED', { detail: midiEventDetail });
+  const dispatchMidiEvent = useCallback((data: Uint8Array, isVirtual: boolean = false) => {
+    const customEvent = new CustomEvent('MIDI_MESSAGE_RECEIVED', { 
+      detail: { data, timestamp: performance.now(), isVirtual } 
+    });
     window.dispatchEvent(customEvent);
   }, []);
 
   const handleIncomingMidi = useCallback((data: Uint8Array, isVirtual: boolean = false) => {
+    // Global Interceptor: Only intercept PHYSICAL hardware events
+    if (!isVirtual && typeof (window as any).__MIDI_INTERCEPTOR === 'function') {
+      if ((window as any).__MIDI_INTERCEPTOR(data)) return; // Silently consume the note
+    }
 
     const [status, note, velocity] = data;
     const command = status & 0xF0;
@@ -90,37 +90,21 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!active) {
         // Sustain turned OFF: Dispatch all pending note offs
         pendingNoteOffs.current.forEach(noteNum => {
-          dispatchMidiEvent(new Uint8Array([0x80 + channel, noteNum, 0]));
+          dispatchMidiEvent(new Uint8Array([0x80 + channel, noteNum, 0]), isVirtual);
         });
         pendingNoteOffs.current.clear();
       }
       // Still dispatch the CC message for others to hear
-      dispatchMidiEvent(data);
+      dispatchMidiEvent(data, isVirtual);
       return;
     }
 
     // Note On
     if (command === 0x90 && velocity > 0) {
-      // PRE-FLIGHT INTERCEPTOR
-      const matchedButton = Object.entries(configsRef.current).find(([_, cfg]) => cfg.midiNote === note);
-      if (matchedButton && !isVirtual) {
-          const [id, cfg] = matchedButton;
-          if (['UNDO', 'REDO', 'HOME'].includes(id)) {
-            window.dispatchEvent(new CustomEvent('APP_HISTORY', { detail: { action: id as any } }));
-          } else if (id === 'PLAY') {
-             const v = Math.min(127, 40 + (cfg.stepSize * 15));
-             window.dispatchEvent(new CustomEvent('APP_PLAY', { detail: { velocity: v } }));
-          } else {
-            window.dispatchEvent(new CustomEvent('APP_TRANSFORM', { detail: { type: id as any, stepSize: cfg.stepSize } }));
-          }
-          heldHardwareNotes.current.set(note, id as ButtonId);
-          return; // Intercepted
-      }
-
       if (!isVirtual && isHoldModeActive && physicallyHeldNotes.current.size === 0) {
         // Flush old held notes before starting new chord
         heldModePendingNoteOffs.current.forEach(noteNum => {
-          dispatchMidiEvent(new Uint8Array([0x80 + channel, noteNum, 0]));
+          dispatchMidiEvent(new Uint8Array([0x80 + channel, noteNum, 0]), isVirtual);
         });
         heldModePendingNoteOffs.current.clear();
       }
@@ -131,17 +115,12 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       pendingNoteOffs.current.delete(note);
       heldModePendingNoteOffs.current.delete(note);
       
-      dispatchMidiEvent(data);
+      dispatchMidiEvent(data, isVirtual);
       return;
     }
 
     // Note Off
     if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-      if (heldHardwareNotes.current.has(note)) {
-          heldHardwareNotes.current.delete(note);
-          return; // Consume
-      }
-
       if (!isVirtual) {
         physicallyHeldNotes.current.delete(note);
       }
@@ -151,14 +130,14 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else if (isHoldModeActive && !isVirtual) {
         heldModePendingNoteOffs.current.add(note);
       } else {
-        dispatchMidiEvent(data);
+        dispatchMidiEvent(data, isVirtual);
       }
 
       return;
     }
 
     // Default: Dispatch other messages
-    dispatchMidiEvent(data);
+    dispatchMidiEvent(data, isVirtual);
   }, [isSustainActive, isHoldModeActive, dispatchMidiEvent]);
 
   const dispatchVirtualMidi = useCallback((data: Uint8Array) => {

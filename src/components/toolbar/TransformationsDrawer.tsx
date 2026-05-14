@@ -18,7 +18,7 @@ export const TransformationsDrawer = () => {
   // Initialize configs for all potential buttons
   const [configs, setConfigs] = useState<ButtonConfigMap>(() => {
     const map: any = {};
-    INITIAL_BUTTONS.forEach(id => map[id] = { ...DEFAULT_CONFIG, midiNote: 60 + INITIAL_BUTTONS.indexOf(id) });
+    INITIAL_BUTTONS.forEach(id => map[id] = { ...DEFAULT_CONFIG, midiNote: -1 });
     return map;
   });
 
@@ -89,10 +89,17 @@ export const TransformationsDrawer = () => {
     
     if (learnState.isActive) return;
 
+    const MENU_HEIGHT = 320;
+    const MENU_WIDTH = 260;
+    let y = e.clientY;
+    let x = e.clientX;
+    if (y + MENU_HEIGHT > window.innerHeight) y = window.innerHeight - MENU_HEIGHT - 20;
+    if (x + MENU_WIDTH > window.innerWidth) x = window.innerWidth - MENU_WIDTH - 20;
+
     setContextMenu({
       type: 'BUTTON',
-      x: e.clientX,
-      y: e.clientY,
+      x,
+      y,
       buttonId: id
     });
   };
@@ -101,10 +108,17 @@ export const TransformationsDrawer = () => {
     e.preventDefault();
     if (learnState.isActive) return;
 
+    const MENU_HEIGHT = 320;
+    const MENU_WIDTH = 260;
+    let y = e.clientY;
+    let x = e.clientX;
+    if (y + MENU_HEIGHT > window.innerHeight) y = window.innerHeight - MENU_HEIGHT - 20;
+    if (x + MENU_WIDTH > window.innerWidth) x = window.innerWidth - MENU_WIDTH - 20;
+
     setContextMenu({
       type: 'GLOBAL',
-      x: e.clientX,
-      y: e.clientY
+      x,
+      y
     });
   };
 
@@ -144,29 +158,7 @@ export const TransformationsDrawer = () => {
   }, [learnState.isActive]);
 
 
-  // Simulate receiving a MIDI note from external hardware
-  const simulateMidiInput = useCallback(() => {
-    if (!learnState.isActive) return;
 
-    const currentId = learnState.sequence[learnState.currentButtonIndex];
-    if (!currentId) return; // Finished?
-
-    // Mock assigning a random note
-    const randomNote = Math.floor(Math.random() * 127);
-    console.log(`[Learn Mode] Assigned MIDI Note ${randomNote} to ${currentId}`);
-    
-    updateButtonConfig(currentId, { midiNote: randomNote });
-
-    // Advance
-    if (learnState.currentButtonIndex >= learnState.sequence.length - 1) {
-      stopLearnMode();
-    } else {
-      setLearnState(prev => ({
-        ...prev,
-        currentButtonIndex: prev.currentButtonIndex + 1
-      }));
-    }
-  }, [learnState, stopLearnMode]);
 
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false); // Start closed
@@ -183,10 +175,7 @@ export const TransformationsDrawer = () => {
         if (contextMenu) setContextMenu(null);
         if (learnState.isActive) stopLearnMode();
       }
-      // Pressing 'Space' or 'Enter' simulates a MIDI note input during Learn Mode
-      if (learnState.isActive && (e.key === ' ' || e.key === 'Enter')) {
-        simulateMidiInput();
-      }
+
     };
 
     window.addEventListener('click', handleClick);
@@ -196,7 +185,43 @@ export const TransformationsDrawer = () => {
       window.removeEventListener('click', handleClick);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [contextMenu, learnState.isActive, stopLearnMode, simulateMidiInput]);
+  }, [contextMenu, learnState.isActive, stopLearnMode]);
+
+  useEffect(() => {
+    (window as any).__MIDI_INTERCEPTOR = (data: Uint8Array) => {
+      const [status, note, velocity] = data;
+      const isNoteOn = (status & 0xF0) === 0x90 && velocity > 0;
+      
+      // 1. LEARN MODE ACTIVE
+      if (learnState.isActive) {
+        if (isNoteOn) {
+          const currentId = learnState.sequence[learnState.currentButtonIndex];
+          updateButtonConfig(currentId, { midiNote: note });
+          // Advance to the next button in the sequence
+          if (learnState.currentButtonIndex >= learnState.sequence.length - 1) {
+            setLearnState(prev => ({ ...prev, isActive: false }));
+          } else {
+            setLearnState(prev => ({ ...prev, currentButtonIndex: prev.currentButtonIndex + 1 }));
+          }
+        }
+        return true; // SILENTLY CONSUME ALL HARDWARE MIDI DURING LEARN
+      }
+
+      // 2. PLAY MODE (Action Mapping)
+      if (isNoteOn) {
+        const match = Object.keys(configs).find(id => configs[id as ButtonId].midiNote === note && note !== -1);
+        if (match) {
+          handleButtonDown(match as ButtonId);
+          // Fire a subsequent button up to release visual pressed state
+          setTimeout(() => handleButtonUp(match as ButtonId), 150);
+          return true; // CONSUME NOTE, FIRE UI ACTION
+        }
+      }
+      return false; // Let note pass to Canvas
+    };
+
+    return () => { (window as any).__MIDI_INTERCEPTOR = undefined; };
+  }, [learnState, configs]);
 
   // --- LOGIC: Sync Configs to Interceptor ---
   useEffect(() => {
@@ -249,7 +274,7 @@ export const TransformationsDrawer = () => {
       {learnState.isActive && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-black text-white px-6 py-3 border-2 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)] z-50">
           <p className="font-bold text-center">LEARN MODE ACTIVE</p>
-          <p className="text-xs text-center mt-1 text-gray-300">Play a MIDI note (or press SPACE) to map: <span className="text-yellow-400 font-bold text-lg">{learnState.sequence[learnState.currentButtonIndex]}</span></p>
+          <p className="text-xs text-center mt-1 text-gray-300">Play a MIDI note to map: <span className="text-yellow-400 font-bold text-lg">{learnState.sequence[learnState.currentButtonIndex]}</span></p>
           <button onClick={stopLearnMode} className="block w-full text-xs underline mt-2 hover:text-yellow-400">Cancel</button>
         </div>
       )}

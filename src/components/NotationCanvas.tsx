@@ -563,7 +563,7 @@ const NotationCanvas: React.FC = () => {
   useEffect(() => {
     const handleMidiMessage = (event: Event) => {
       const customEvent = event as CustomEvent;
-      const { data, panic, refresh, notes } = customEvent.detail || {};
+      const { data, panic, refresh, notes, isVirtual } = customEvent.detail || {};
 
       if (panic) {
         activeNotes.current = [];
@@ -601,52 +601,51 @@ const NotationCanvas: React.FC = () => {
       const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && velocity === 0);
 
       if (isNoteOn) {
-        physicalKeysDown.current.add(note);
-        
-        if (isToggleModeActive) {
-           commitState();
-           // Toggle Mode overrides Hold Mode's new chord flush
-           const existingIndex = activeNotes.current.findIndex(n => n.note === note);
-           if (existingIndex !== -1) {
-               activeNotes.current.splice(existingIndex, 1);
-               audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote());
-           } else {
-               activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: (status & 0x0F) || 0, status: status || 0x90, sourceMidi: note });
-               audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127);
-           }
-           updateSpellings();
+        if (isVirtual && isToggleModeActive) {
+          // VIRTUAL TOGGLE MODE
+          commitState();
+          const existingIndex = activeNotes.current.findIndex(n => n.note === note);
+          if (existingIndex !== -1) {
+            activeNotes.current.splice(existingIndex, 1);
+            audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote());
+          } else {
+            activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: 0, status: 0x90, sourceMidi: note });
+            audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127);
+          }
+          updateSpellings();
         } else {
-            if (isHoldModeActive && isWaitingForNewChord.current) {
-              commitState();
-              activeNotes.current = [];
-              audioEngine.releaseAll();
-              isWaitingForNewChord.current = false;
-            }
-            if (!activeNotes.current.some(n => n.note === note)) {
-              commitState();
-              activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: (status & 0x0F) || 0, status: status || 0x90, sourceMidi: note });
-              audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127);
-              updateSpellings();
-            }
+          // PHYSICAL OR MOMENTARY MODE
+          if (isHoldModeActive && physicalKeysDown.current.size === 0) {
+            commitState();
+            activeNotes.current = []; // Wipe board on first note of a NEW chord strike
+          }
+          
+          physicalKeysDown.current.add(note);
+          
+          if (!activeNotes.current.some(n => n.note === note)) {
+            activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: 0, status: 0x90, sourceMidi: note });
+            updateSpellings();
+          }
+          audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127);
         }
         updateActiveNotes?.([...activeNotes.current]);
       } else if (isNoteOff) {
         physicalKeysDown.current.delete(note);
-        
-        // Only delete the note on key release if BOTH modes are OFF
-        if (!isHoldModeActive && !isToggleModeActive) {
-          const index = activeNotes.current.findIndex(n => n.note === note);
-          if (index !== -1) {
-            commitState();
-            activeNotes.current.splice(index, 1);
-            audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote());
-            updateSpellings();
-          }
+        audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote());
+
+        if (isVirtual && isToggleModeActive) {
+          // Virtual Toggle ON: Do nothing. Note remains latched visually.
+        } else if (!isHoldModeActive) {
+          // Momentary Mode: Key up = visually clear note
+          activeNotes.current = activeNotes.current.filter(n => n.note !== note);
+          updateSpellings();
         }
+        // If Hold Mode is active, physical key up does nothing visually (they remain latched until next chord).
         
         if (isHoldModeActive && physicalKeysDown.current.size === 0) {
           isWaitingForNewChord.current = true;
         }
+        
         updateActiveNotes?.([...activeNotes.current]);
       }
       recalculateLayout();
