@@ -2,21 +2,38 @@
 
 
 /Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-chord-notator-web
-├── # Post-Mortem- Selection Engine Failure Report.md
 ├── # Prompts
-|  ├── # 89.md
-|  ├── # 90.md
-|  ├── # 91.md
-|  ├── # 92.md
-|  ├── # 93.md
-|  ├── # 94.md
-|  ├── # 95.md
-|  ├── # 96.md
+|  ├── # 112.md
+|  ├── # 113.md
+|  ├── # 114.md
+|  ├── # 115.md
+|  ├── # 116.md
+|  ├── # 117.md
+|  ├── # 118.md
+|  ├── # 119.md
+|  ├── # 120.md
+|  ├── # 121.md
+|  ├── # 122.md
+|  ├── # 123.md
+|  ├── # 124.md
+|  ├── # 125.md
+|  ├── # 126.md
 |  ├── # PDD.md
 |  └── x Older
 |     ├── # 1.md
 |     ├── # 10.md
+|     ├── # 100.md
+|     ├── # 101.md
+|     ├── # 102.md
+|     ├── # 103.md
+|     ├── # 104.md
+|     ├── # 105.md
+|     ├── # 106.md
+|     ├── # 107.md
+|     ├── # 108.md
+|     ├── # 109.md
 |     ├── # 11.md
+|     ├── # 110.md
 |     ├── # 12.md
 |     ├── # 13.md
 |     ├── # 14.md
@@ -101,14 +118,24 @@
 |     ├── # 86.md
 |     ├── # 87.md
 |     ├── # 88.md
-|     └── # 9.md
-├── Chord Spelling
-|  ├── README.md
-|  └── chord_speller.ts
-├── FAILURE_REPORT.md
+|     ├── # 89.md
+|     ├── # 9.md
+|     ├── # 90.md
+|     ├── # 91.md
+|     ├── # 92.md
+|     ├── # 93.md
+|     ├── # 94.md
+|     ├── # 95.md
+|     ├── # 96.md
+|     ├── # 97.md
+|     ├── # 98.md
+|     └── # 99.md
+├── 2026-05-11_REPO_REPORT.md
+├── CHORD_SPELLING_REGRESSION_REPORT.md
 ├── PROJECT_CONTEXT_BUNDLE.md
 ├── PROJECT_STATE.md
 ├── README.md
+├── ROOT_SPELLING_ALGORITHM.md
 ├── WOs
 |  └── grand-staff-app
 |     ├── Phase_1
@@ -139,6 +166,7 @@
 ├── llms.txt
 ├── package-lock.json
 ├── package.json
+├── project_context_bundle.txt
 ├── project_tree.txt
 ├── public
 |  ├── PCS_LUT.dat
@@ -146,6 +174,7 @@
 |  ├── fonts
 |  |  └── Bravura.woff2
 |  └── icons.svg
+├── scratch
 ├── scripts
 |  └── pack_lut.js
 ├── src
@@ -158,22 +187,41 @@
 |  |  ├── hero.png
 |  |  ├── react.svg
 |  |  └── vite.svg
+|  ├── audio
+|  |  └── engine.ts
 |  ├── components
 |  |  ├── ErrorBoundary.tsx
 |  |  ├── InfoModal.tsx
 |  |  ├── KeySignatureSelector.tsx
 |  |  ├── Keyboard.test.tsx
 |  |  ├── Keyboard.tsx
+|  |  ├── Knob.tsx
+|  |  ├── NavController.tsx
 |  |  ├── NotationCanvas.bugs.test.tsx
+|  |  ├── NotationCanvas.events.test.tsx
 |  |  ├── NotationCanvas.headless.test.tsx
 |  |  ├── NotationCanvas.history.test.tsx
 |  |  ├── NotationCanvas.selection.test.tsx
 |  |  ├── NotationCanvas.test.tsx
 |  |  ├── NotationCanvas.tsx
-|  |  ├── NotationCanvasV2.tsx
+|  |  ├── RomplerFooter.tsx
 |  |  ├── SettingsModal.test.tsx
-|  |  └── SettingsModal.tsx
+|  |  ├── SettingsModal.tsx
+|  |  ├── VUMeter.tsx
+|  |  ├── navTypes.ts
+|  |  └── toolbar
+|  |     ├── ToolbarContextMenus.tsx
+|  |     ├── ToolbarTypes.ts
+|  |     ├── TransformationsContextMenus.tsx
+|  |     ├── TransformationsDrawer.test.tsx
+|  |     ├── TransformationsDrawer.tsx
+|  |     ├── TransformationsToolbar.test.tsx
+|  |     ├── TransformationsToolbar.tsx
+|  |     └── TransformationsTypes.ts
 |  ├── index.css
+|  ├── lib
+|  |  ├── usePersistentState.ts
+|  |  └── utils.ts
 |  ├── main.tsx
 |  ├── midi
 |  |  ├── MIDIProvider.test.tsx
@@ -191,17 +239,14 @@
 |  |  ├── padding.test.ts
 |  |  └── pipeline.test.ts
 |  └── vitest.setup.ts
-├── temp_downloaded.dat
-├── test_output.txt
-├── test_output_main.txt
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
 └── vite.config.ts
 
-directory: 734 file: 5447
+directory: 861 file: 6698
 
-ignored: directory (106)
+ignored: directory (117)
 
 
 [2K[1G
@@ -210,8 +255,8 @@ ignored: directory (106)
 
 # PROJECT_STATE: Grand Staff MIDI Notator
 
-**Current System Status:** ✅ Stable - OMNI Architecture & Multi-Mode Engine Hardened
-**Last Updated:** 2026-05-09
+**Current System Status:** ✅ Stable - Transformations Suite & MIDI Learn Hardened
+**Last Updated:** 2026-05-14
 
 ## 1. Project Architecture (Level 3)
 ```text
@@ -230,8 +275,17 @@ ignored: directory (106)
 |  |  ├── InfoModal.tsx
 |  |  ├── KeySignatureSelector.tsx
 |  |  ├── Keyboard.tsx
+|  |  ├── NavControllerOriginal.tsx (MIDI Navigation)
 |  |  ├── NotationCanvas.tsx
-|  |  └── SettingsModal.tsx
+|  |  ├── ROMPler (MIDI Playback)
+|  |  |  ├── AudioProvider.tsx
+|  |  |  └── SimpleSampler.ts
+|  |  ├── SettingsModal.tsx
+|  |  └── toolbar
+|  |     ├── TransformationsContextMenus.tsx
+|  |     ├── TransformationsDrawer.tsx
+|  |     ├── TransformationsToolbar.tsx
+|  |     └── TransformationsTypes.ts
 |  ├── midi
 |  |  ├── MIDIProvider.tsx
 |  |  ├── MidiPortSelector.tsx
@@ -247,18 +301,24 @@ ignored: directory (106)
 
 ## 2. Tech Stack
 * **Core:** React 19, TypeScript, Vite 8
-* **Styling:** Tailwind CSS 4, CSS Variables for music spacing, Jost/Quicksand Fonts
+* **Audio:** Tone.js, Web Audio API (SimpleSampler)
+* **Styling:** Tailwind CSS 4, Framer Motion (Drawer animations)
 * **Testing:** Vitest, React Testing Library, JSDOM
 * **Notation:** SMuFL (Standard Music Font Layout) via Bravura font
 * **MIDI:** Native Web MIDI API
 
 ## 3. System Capabilities
 
-### 🎹 MIDI & UX Engine
-* **OMNI Input Engine:** Defaults to "All Ports" listening, dynamically binding `onmidimessage` listeners to every active hardware and virtual input.
-* **Consolidated Multi-Mode Logic:** Implements simultaneous **Toggle** (persistent latching) and **Hold** (chord-based flushing) modes.
-* **History Engine (Undo/Redo):** Comprehensive state tracking that captures all MIDI-driven and pointer-driven mutations.
-* **Panic System:** Global "All Notes Off" trigger that clears both internal state and physical key trackers.
+### 🎹 MIDI & Audio Engine
+* **"Dumb Pipe" Provider:** Streamlined MIDI input thread that routes hardware and virtual events instantly to the canvas, bypassing legacy caching to prevent sustain hangs.
+* **Integrated ROMPler:** Tabbed footer Sampler with ADSR envelope, sample-based playback, and `activePreviews` reference tracking to prevent orphaned sustain.
+* **Dynamic PLAY Envelopes:** The Toolbar `PLAY` button behaves like a physical key, respecting hardware velocity and sustaining exactly as long as the key (or pointer) is held.
+* **Choke Group (Monophony):** Enforces strict monophony for mapped hardware keys to prevent transformation stacking and ensure clean audio transitions.
+
+### 🛠 Transformations Toolbar
+* **Interactive Drawer:** An animated, calibrated drawer providing quick access to Chromatic/Diatonic shifts, PCS Rotations, and History controls.
+* **MIDI Learn Mode:** Intuitive mapping system for binding hardware MIDI notes to UI transformation actions, with `localStorage` persistence.
+* **Context-Aware Menus:** Per-button configuration for step sizes and MIDI channel/note filtering.
 
 ### 🎼 Notation Engine (Imperative)
 * **Headless Mathematical Hit-Testing:** Calculates intersections in memory based on staff-space coordinates, bypassing the DOM for 100% selection accuracy.
@@ -266,19 +326,15 @@ ignored: directory (106)
 * **Dual-Column Layout (Cohemitonia):** Automatically zippers dense chromatic unisons into a legible two-column stack.
 * **Intelligent Ottava Engine:** Dynamically evaluates staff density to apply 8va/15ma/8vb/15mb shifts.
 
-### 🖱 Selection & Editing Engine
+### 🧠 Selection & Editing Engine
 * **Anchor-Persistent Range Selection:** Supports shift-click selection with a stable origin, allowing users to expand or contract selections fluidly.
 * **Diatonic Transposition:** `Alt + ArrowUp/Down` performs key-signature-aware pitch shifts.
 * **Voicing-Aware PCS Rotation:** `Cmd + Alt + ArrowUp/Down` rotates the active pitch class set while maintaining voicing structure.
 
-### 🧠 Chord Identification & Spelling Engine
-* **PCS LUT Integration:** 2MB binary database for instant lookup of 56,000+ pitch class sets.
-* **Enforced Sort-Order:** Pitch-ordered analysis pipeline guarantees consistent enharmonic spelling and stave assignment.
-* **Compound Interval Support:** Advanced spelling for 9ths, 11ths, and 13ths with automated inversion detection.
-
 ## 4. Recent Evolution
-* **2026-05-09:** Streamlined the MIDI architecture by **eradicating all MIDI Output logic** and implementing a default **OMNI Input Engine**. Consolidated Toggle and Hold modes into the global state and hardened the state-synchronization between the canvas and virtual keyboard to eliminate "flickering" and "Maximum call stack" errors.
-* **2026-05-08:** Transitioned to **Immutable Note Identities (UUIDs)** and **Headless Mathematical Hit-Testing**. Resolved persistent React "ghosting" artifacts and achieved perfect selection accuracy.
+* **2026-05-14:** Integrated the **Transformations Suite** with an animated drawer. Implemented **MIDI Learn Mode** with persistence, a strict **Choke Group** for hardware monophony, and **Dynamic PLAY Envelopes**. Refactored `MIDIProvider` into a "Dumb Pipe" to fix legacy sustain bugs.
+* **2026-05-13:** Integrated the **MIDI ROMPler** into a tabbed footer, implementing a robust Preview Voice Manager to eliminate orphaned sustain during rapid canvas interactions.
+* **2026-05-12:** Ported the **MIDI Navigation Controller** suite, establishing `NavControllerOriginal` as the primary interaction hub for state traversal.
 
 ## 5. Future Roadmap
 * **Performance:** Optimizing accidental compaction for extremely dense (> 8 note) clusters.
@@ -293,20 +349,19 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 
 ## ✨ Core Features
 * **Real-Time Notation:** Low-latency rendering of musical notation on a grand staff using a custom "Clear and Redraw" imperative engine.
-* **Pipeline Integrity:** Uses immutable note objects and UUID-based identity to ensure perfectly synchronized state across the notation canvas, selection engine, and virtual piano.
-* **OMNI Input Engine:** Default "All Ports" listening mode ensures notes from multiple hardware devices and virtual keyboards are captured simultaneously without manual configuration.
-* **Toggle & Hold Modes:** Centralized global state for persistent note latching (Toggle) and chord-based flushing (Hold), allowing for advanced polyphonic exploration.
-* **Headless Hit-Testing:** Advanced mathematical selection engine that calculates interaction coordinates in memory for pinpoint accuracy.
-* **Selection Scaling:** Supports anchor-persistent range selection (Shift-Click), marquee selection, and multi-select (Cmd/Ctrl).
+* **Transformations Drawer:** Animated, MIDI-mappable toolbar for real-time transposition, rotation, and playback control.
+* **Integrated ROMPler:** High-fidelity audio engine (Tone.js) with ADSR envelope support and sample-based playback for immediate auditory feedback.
+* **OMNI Input Engine:** "Dumb Pipe" architecture ensures notes from hardware devices and virtual keyboards are captured and routed instantly.
+* **Theoretical Spelling:** Key-aware enharmonic spelling logic powered by a 56,000+ entry Pitch Class Set Look-Up Table (PCS LUT).
+* **Headless Hit-Testing:** Advanced mathematical selection engine for pinpoint coordinate accuracy.
 * **Dual-Column Layout:** Intelligent "zipper" architecture for handling dense chromatic unisons (cohemitonia).
-* **Chord Identification:** Real-time analysis of pitch sets using a 56,000+ entry Pitch Class Set Look-Up Table.
-* **Theoretical Spelling:** Key-aware enharmonic spelling logic including compound intervals (9ths, 11ths, 13ths).
-* **Selection & Mutations:** Supports diatonic transposition, PCS rotation, and selection traversal.
+* **Selection Mutations:** Supports diatonic transposition, PCS rotation, and tactile MIDI navigation via dedicated controllers.
 
 ## 🛠 Tech Stack
 * **Framework:** React 19 + TypeScript
+* **Audio:** Tone.js, Web Audio API
 * **Build Tool:** Vite 8
-* **Styling:** Tailwind CSS 4
+* **Styling:** Tailwind CSS 4, Framer Motion
 * **Music Font:** Bravura (SMuFL)
 * **API:** Native Web MIDI
 
@@ -334,18 +389,17 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 ├── src
 |  ├── App.tsx
 |  ├── components
-|  |  ├── ErrorBoundary.tsx
-|  |  ├── InfoModal.tsx
-|  |  ├── KeySignatureSelector.tsx
-|  |  ├── Keyboard.tsx
 |  |  ├── NotationCanvas.tsx
-|  |  └── SettingsModal.tsx
+|  |  ├── ROMPler
+|  |  |  ├── AudioProvider.tsx
+|  |  |  └── SimpleSampler.ts
+|  |  └── toolbar
+|  |     ├── TransformationsDrawer.tsx
+|  |     └── ...
 |  ├── midi
 |  |  ├── MIDIProvider.tsx
-|  |  ├── MidiPortSelector.tsx
 |  |  └── midiAccess.ts
 |  ├── utils
-|  |  ├── binaryLut.ts
 |  |  ├── chordSpeller.ts
 |  |  └── notationMath.ts
 |  └── vitest.setup.ts

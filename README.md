@@ -4,19 +4,19 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 
 ## ✨ Core Features
 * **Real-Time Notation:** Low-latency rendering of musical notation on a grand staff using a custom "Clear and Redraw" imperative engine.
-* **Integrated ROMPler:** High-fidelity audio engine with ADSR envelope support and sample-based playback for immediate auditory feedback.
-* **OMNI Input Engine:** Default "All Ports" listening mode ensures notes from multiple hardware devices and virtual keyboards are captured simultaneously.
+* **Transformations Drawer:** Animated, MIDI-mappable toolbar for real-time transposition, rotation, and playback control.
+* **Integrated ROMPler:** High-fidelity audio engine (Tone.js) with ADSR envelope support and sample-based playback for immediate auditory feedback.
+* **OMNI Input Engine:** "Dumb Pipe" architecture ensures notes from hardware devices and virtual keyboards are captured and routed instantly.
 * **Theoretical Spelling:** Key-aware enharmonic spelling logic powered by a 56,000+ entry Pitch Class Set Look-Up Table (PCS LUT).
 * **Headless Hit-Testing:** Advanced mathematical selection engine for pinpoint coordinate accuracy.
-* **Selection Scaling:** Supports anchor-persistent range selection (Shift-Click), marquee selection, and multi-select (Cmd/Ctrl).
 * **Dual-Column Layout:** Intelligent "zipper" architecture for handling dense chromatic unisons (cohemitonia).
-* **Selection & Mutations:** Supports diatonic transposition, PCS rotation, and tactile MIDI navigation via dedicated controllers.
+* **Selection Mutations:** Supports diatonic transposition, PCS rotation, and tactile MIDI navigation via dedicated controllers.
 
 ## 🛠 Tech Stack
 * **Framework:** React 19 + TypeScript
-* **Audio:** Web Audio API (SimpleSampler)
+* **Audio:** Tone.js, Web Audio API
 * **Build Tool:** Vite 8
-* **Styling:** Tailwind CSS 4
+* **Styling:** Tailwind CSS 4, Framer Motion
 * **Music Font:** Bravura (SMuFL)
 * **API:** Native Web MIDI
 
@@ -44,12 +44,13 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 ├── src
 |  ├── App.tsx
 |  ├── components
-|  |  ├── NavControllerOriginal.tsx
 |  |  ├── NotationCanvas.tsx
 |  |  ├── ROMPler
 |  |  |  ├── AudioProvider.tsx
 |  |  |  └── SimpleSampler.ts
-|  |  └── ...
+|  |  └── toolbar
+|  |     ├── TransformationsDrawer.tsx
+|  |     └── ...
 |  ├── midi
 |  |  ├── MIDIProvider.tsx
 |  |  └── midiAccess.ts

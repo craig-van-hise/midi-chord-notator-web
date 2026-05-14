@@ -1,23 +1,37 @@
 
 /Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-chord-notator-web
 ├── # Prompts
-|  ├── # 101.md
-|  ├── # 102.md
-|  ├── # 103.md
-|  ├── # 104.md
-|  ├── # 105.md
-|  ├── # 106.md
-|  ├── # 107.md
-|  ├── # 108.md
-|  ├── # 109.md
-|  ├── # 110.md
 |  ├── # 112.md
+|  ├── # 113.md
+|  ├── # 114.md
+|  ├── # 115.md
+|  ├── # 116.md
+|  ├── # 117.md
+|  ├── # 118.md
+|  ├── # 119.md
+|  ├── # 120.md
+|  ├── # 121.md
+|  ├── # 122.md
+|  ├── # 123.md
+|  ├── # 124.md
+|  ├── # 125.md
+|  ├── # 126.md
 |  ├── # PDD.md
 |  └── x Older
 |     ├── # 1.md
 |     ├── # 10.md
 |     ├── # 100.md
+|     ├── # 101.md
+|     ├── # 102.md
+|     ├── # 103.md
+|     ├── # 104.md
+|     ├── # 105.md
+|     ├── # 106.md
+|     ├── # 107.md
+|     ├── # 108.md
+|     ├── # 109.md
 |     ├── # 11.md
+|     ├── # 110.md
 |     ├── # 12.md
 |     ├── # 13.md
 |     ├── # 14.md
@@ -150,6 +164,7 @@
 ├── llms.txt
 ├── package-lock.json
 ├── package.json
+├── project_context_bundle.txt
 ├── project_tree.txt
 ├── public
 |  ├── PCS_LUT.dat
@@ -181,6 +196,7 @@
 |  |  ├── Knob.tsx
 |  |  ├── NavController.tsx
 |  |  ├── NotationCanvas.bugs.test.tsx
+|  |  ├── NotationCanvas.events.test.tsx
 |  |  ├── NotationCanvas.headless.test.tsx
 |  |  ├── NotationCanvas.history.test.tsx
 |  |  ├── NotationCanvas.selection.test.tsx
@@ -190,7 +206,16 @@
 |  |  ├── SettingsModal.test.tsx
 |  |  ├── SettingsModal.tsx
 |  |  ├── VUMeter.tsx
-|  |  └── navTypes.ts
+|  |  ├── navTypes.ts
+|  |  └── toolbar
+|  |     ├── ToolbarContextMenus.tsx
+|  |     ├── ToolbarTypes.ts
+|  |     ├── TransformationsContextMenus.tsx
+|  |     ├── TransformationsDrawer.test.tsx
+|  |     ├── TransformationsDrawer.tsx
+|  |     ├── TransformationsToolbar.test.tsx
+|  |     ├── TransformationsToolbar.tsx
+|  |     └── TransformationsTypes.ts
 |  ├── index.css
 |  ├── lib
 |  |  ├── usePersistentState.ts
@@ -215,27 +240,11 @@
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
-├── vite.config.ts
-└── xCleanup
-   ├── # Post-Mortem- Selection Engine Failure Report.md
-   ├── Chord Spelling
-   |  ├── README.md
-   |  └── chord_speller.ts
-   ├── FAILURE_REPORT.md
-   ├── project_tree.txt
-   ├── scratch
-   |  ├── phase1_test.ts
-   |  └── verify_dat.js
-   ├── src
-   |  └── components
-   |     └── NotationCanvasV2.tsx
-   ├── temp_downloaded.dat
-   ├── test_output.txt
-   └── test_output_main.txt
+└── vite.config.ts
 
-directory: 861 file: 6674
+directory: 861 file: 6698
 
-ignored: directory (116)
+ignored: directory (117)
 
 
 [2K[1G
