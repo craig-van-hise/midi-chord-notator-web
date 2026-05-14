@@ -1,7 +1,7 @@
 # PROJECT_STATE: Grand Staff MIDI Notator
 
 **Current System Status:** ✅ Stable - OMNI Architecture & Multi-Mode Engine Hardened
-**Last Updated:** 2026-05-09
+**Last Updated:** 2026-05-14
 
 ## 1. Project Architecture (Level 3)
 ```text
@@ -20,7 +20,11 @@
 |  |  ├── InfoModal.tsx
 |  |  ├── KeySignatureSelector.tsx
 |  |  ├── Keyboard.tsx
+|  |  ├── NavControllerOriginal.tsx (MIDI Navigation)
 |  |  ├── NotationCanvas.tsx
+|  |  ├── ROMPler (MIDI Playback)
+|  |  |  ├── AudioProvider.tsx
+|  |  |  └── SimpleSampler.ts
 |  |  └── SettingsModal.tsx
 |  ├── midi
 |  |  ├── MIDIProvider.tsx
@@ -37,6 +41,7 @@
 
 ## 2. Tech Stack
 * **Core:** React 19, TypeScript, Vite 8
+* **Audio:** Web Audio API (SimpleSampler)
 * **Styling:** Tailwind CSS 4, CSS Variables for music spacing, Jost/Quicksand Fonts
 * **Testing:** Vitest, React Testing Library, JSDOM
 * **Notation:** SMuFL (Standard Music Font Layout) via Bravura font
@@ -44,11 +49,11 @@
 
 ## 3. System Capabilities
 
-### 🎹 MIDI & UX Engine
+### 🎹 MIDI & Audio Engine
 * **OMNI Input Engine:** Defaults to "All Ports" listening, dynamically binding `onmidimessage` listeners to every active hardware and virtual input.
+* **Integrated ROMPler:** Tabbed footer Sampler with ADSR envelope, sample-based playback, and `activePreviews` reference tracking to prevent orphaned sustain.
 * **Consolidated Multi-Mode Logic:** Implements simultaneous **Toggle** (persistent latching) and **Hold** (chord-based flushing) modes.
 * **History Engine (Undo/Redo):** Comprehensive state tracking that captures all MIDI-driven and pointer-driven mutations.
-* **Panic System:** Global "All Notes Off" trigger that clears both internal state and physical key trackers.
 
 ### 🎼 Notation Engine (Imperative)
 * **Headless Mathematical Hit-Testing:** Calculates intersections in memory based on staff-space coordinates, bypassing the DOM for 100% selection accuracy.
@@ -60,15 +65,17 @@
 * **Anchor-Persistent Range Selection:** Supports shift-click selection with a stable origin, allowing users to expand or contract selections fluidly.
 * **Diatonic Transposition:** `Alt + ArrowUp/Down` performs key-signature-aware pitch shifts.
 * **Voicing-Aware PCS Rotation:** `Cmd + Alt + ArrowUp/Down` rotates the active pitch class set while maintaining voicing structure.
+* **MIDI Navigation Controller:** Dedicated component (`NavControllerOriginal`) for tactile interaction and state traversal.
 
 ### 🧠 Chord Identification & Spelling Engine
 * **PCS LUT Integration:** 2MB binary database for instant lookup of 56,000+ pitch class sets.
-* **Enforced Sort-Order:** Pitch-ordered analysis pipeline guarantees consistent enharmonic spelling and stave assignment.
-* **Compound Interval Support:** Advanced spelling for 9ths, 11ths, and 13ths with automated inversion detection.
+* **Hardened Inversion Spelling:** Verified root-position vs. inversion interval logic ensures correct enharmonic mapping (e.g. "G Bb D E" vs "G E E E").
+* **Safety Fallbacks:** Engine defaults to key-aware individual spelling if chord interval matches fail, preventing visual glitches.
 
 ## 4. Recent Evolution
-* **2026-05-09:** Streamlined the MIDI architecture by **eradicating all MIDI Output logic** and implementing a default **OMNI Input Engine**. Consolidated Toggle and Hold modes into the global state and hardened the state-synchronization between the canvas and virtual keyboard to eliminate "flickering" and "Maximum call stack" errors.
-* **2026-05-08:** Transitioned to **Immutable Note Identities (UUIDs)** and **Headless Mathematical Hit-Testing**. Resolved persistent React "ghosting" artifacts and achieved perfect selection accuracy.
+* **2026-05-14:** Resolved a critical **Chord Spelling Regression** caused by a LUT generator bug in Phase 4.5. Hardened the `chordSpeller.ts` utility with safety fallbacks and repacked the binary database with correct inversion mappings.
+* **2026-05-13:** Integrated the **MIDI ROMPler** into a tabbed footer, implementing a robust Preview Voice Manager to eliminate orphaned sustain during rapid canvas interactions.
+* **2026-05-12:** Ported the **MIDI Navigation Controller** suite, establishing `NavControllerOriginal` as the primary interaction hub for state traversal.
 
 ## 5. Future Roadmap
 * **Performance:** Optimizing accidental compaction for extremely dense (> 8 note) clusters.

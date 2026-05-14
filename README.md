@@ -4,18 +4,17 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 
 ## ✨ Core Features
 * **Real-Time Notation:** Low-latency rendering of musical notation on a grand staff using a custom "Clear and Redraw" imperative engine.
-* **Pipeline Integrity:** Uses immutable note objects and UUID-based identity to ensure perfectly synchronized state across the notation canvas, selection engine, and virtual piano.
-* **OMNI Input Engine:** Default "All Ports" listening mode ensures notes from multiple hardware devices and virtual keyboards are captured simultaneously without manual configuration.
-* **Toggle & Hold Modes:** Centralized global state for persistent note latching (Toggle) and chord-based flushing (Hold), allowing for advanced polyphonic exploration.
-* **Headless Hit-Testing:** Advanced mathematical selection engine that calculates interaction coordinates in memory for pinpoint accuracy.
+* **Integrated ROMPler:** High-fidelity audio engine with ADSR envelope support and sample-based playback for immediate auditory feedback.
+* **OMNI Input Engine:** Default "All Ports" listening mode ensures notes from multiple hardware devices and virtual keyboards are captured simultaneously.
+* **Theoretical Spelling:** Key-aware enharmonic spelling logic powered by a 56,000+ entry Pitch Class Set Look-Up Table (PCS LUT).
+* **Headless Hit-Testing:** Advanced mathematical selection engine for pinpoint coordinate accuracy.
 * **Selection Scaling:** Supports anchor-persistent range selection (Shift-Click), marquee selection, and multi-select (Cmd/Ctrl).
 * **Dual-Column Layout:** Intelligent "zipper" architecture for handling dense chromatic unisons (cohemitonia).
-* **Chord Identification:** Real-time analysis of pitch sets using a 56,000+ entry Pitch Class Set Look-Up Table.
-* **Theoretical Spelling:** Key-aware enharmonic spelling logic including compound intervals (9ths, 11ths, 13ths).
-* **Selection & Mutations:** Supports diatonic transposition, PCS rotation, and selection traversal.
+* **Selection & Mutations:** Supports diatonic transposition, PCS rotation, and tactile MIDI navigation via dedicated controllers.
 
 ## 🛠 Tech Stack
 * **Framework:** React 19 + TypeScript
+* **Audio:** Web Audio API (SimpleSampler)
 * **Build Tool:** Vite 8
 * **Styling:** Tailwind CSS 4
 * **Music Font:** Bravura (SMuFL)
@@ -45,18 +44,16 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 ├── src
 |  ├── App.tsx
 |  ├── components
-|  |  ├── ErrorBoundary.tsx
-|  |  ├── InfoModal.tsx
-|  |  ├── KeySignatureSelector.tsx
-|  |  ├── Keyboard.tsx
+|  |  ├── NavControllerOriginal.tsx
 |  |  ├── NotationCanvas.tsx
-|  |  └── SettingsModal.tsx
+|  |  ├── ROMPler
+|  |  |  ├── AudioProvider.tsx
+|  |  |  └── SimpleSampler.ts
+|  |  └── ...
 |  ├── midi
 |  |  ├── MIDIProvider.tsx
-|  |  ├── MidiPortSelector.tsx
 |  |  └── midiAccess.ts
 |  ├── utils
-|  |  ├── binaryLut.ts
 |  |  ├── chordSpeller.ts
 |  |  └── notationMath.ts
 |  └── vitest.setup.ts

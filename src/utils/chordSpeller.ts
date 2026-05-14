@@ -279,7 +279,7 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
             const pc = pitch % 12;
             const semitones = (pc - absoluteRootPC + 12) % 12;
             
-            let toneInterval = "1";
+            let toneInterval: string | null = null;
             const majorSteps = [0, 2, 4, 5, 7, 9, 11];
             
             for (const interval of entry.chord_intervals) {
@@ -289,6 +289,18 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
                      toneInterval = interval;
                      break;
                  }
+            }
+            
+            if (toneInterval === null) {
+                // Safety Fallback: If no match found in LUT intervals, use key-aware individual spelling
+                const { stepOffset, accidental } = getEnharmonicSpelling(pitch, keySignature);
+                const letter = DIATONIC_NAMES[((stepOffset % 7) + 7) % 7];
+                let acc = "";
+                if (accidental === SMuFL.accidentalSharp) acc = "#";
+                else if (accidental === SMuFL.accidentalDoubleSharp) acc = "x";
+                else if (accidental === SMuFL.accidentalFlat) acc = "b";
+                else if (accidental === SMuFL.accidentalDoubleFlat) acc = "bb";
+                return letter + acc;
             }
             
             const absoluteInterval = sumIntervalStrings(toneInterval, rootRelKeyInterval);
