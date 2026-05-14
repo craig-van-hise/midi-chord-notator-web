@@ -82,7 +82,7 @@ const NotationCanvas: React.FC = () => {
     if (undoStack.current.length > 50) undoStack.current.shift(); // Max 50 states
   };
   
-  const playPreviewNotes = (noteStrings: string[], interrupt: boolean = true) => {
+  const playPreviewNotes = (noteStrings: string[], interrupt: boolean = true, velocity: number = 100) => {
     if (interrupt) {
         // Force note-offs for anything currently previewing
         activePreviews.current.forEach((timeoutId, noteStr) => {
@@ -92,8 +92,10 @@ const NotationCanvas: React.FC = () => {
         activePreviews.current.clear();
     }
 
+    const normalizedVelocity = velocity / 127;
+
     noteStrings.forEach(noteStr => {
-        audioEngine.noteOn(noteStr, 0.67);
+        audioEngine.noteOn(noteStr, normalizedVelocity);
         const timeoutId = setTimeout(() => {
             audioEngine.releaseNote(noteStr);
             activePreviews.current.delete(noteStr);
@@ -143,6 +145,157 @@ const NotationCanvas: React.FC = () => {
         
         const accElement = document.getElementById('ghost-accidental');
         if (accElement) accElement.textContent = accidental || '';
+    }
+  };
+
+  // --- TRANSFORMATION HELPERS ---
+
+  const applyChromaticShift = (delta: number, stepSize: number = 1) => {
+    if (selectedNoteIds.current.size === 0) return;
+    commitState();
+    const shift = delta * stepSize;
+    const newSelection = new Set<string>();
+
+    activeNotes.current = activeNotes.current.map((noteData) => {
+      const isSelected = selectedNoteIds.current.has(noteData.id);
+      if (!isSelected) return noteData;
+      const newPitch = Math.max(0, Math.min(127, noteData.note + shift));
+      newSelection.add(noteData.id);
+      return { ...noteData, note: newPitch, spellingOverride: undefined };
+    });
+
+    selectedNoteIds.current = newSelection;
+    updateSpellings();
+    updateActiveNotes?.([...activeNotes.current]);
+    recalculateLayout();
+
+    // Audio Preview
+    const transposedStrings = Array.from(selectedNoteIds.current)
+      .map(id => activeNotes.current.find(n => n.id === id)?.note)
+      .filter((n): n is number => typeof n === 'number')
+      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+    if (transposedStrings.length > 0) playPreviewNotes(transposedStrings, true);
+  };
+
+  const applyDiatonicShift = (delta: number, stepSize: number = 1) => {
+    if (selectedNoteIds.current.size === 0) return;
+    commitState();
+    const keyName = keySignatureRef.current;
+    const newSelection = new Set<string>();
+
+    activeNotes.current = activeNotes.current.map((noteData) => {
+      const isSelected = selectedNoteIds.current.has(noteData.id);
+      if (!isSelected) return noteData;
+      const newMidiNote = transposeDiatonically(noteData.stepOffset, delta * stepSize, keyName);
+      newSelection.add(noteData.id);
+      return { ...noteData, note: newMidiNote, spellingOverride: undefined };
+    });
+
+    selectedNoteIds.current = newSelection;
+    updateSpellings();
+    updateActiveNotes?.([...activeNotes.current]);
+    recalculateLayout();
+
+    // Audio Preview
+    const transposedStrings = Array.from(selectedNoteIds.current)
+      .map(id => activeNotes.current.find(n => n.id === id)?.note)
+      .filter((n): n is number => typeof n === 'number')
+      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+    if (transposedStrings.length > 0) playPreviewNotes(transposedStrings, true);
+  };
+
+  const applyPcsRotation = (delta: number, stepSize: number = 1) => {
+    if (selectedNoteIds.current.size === 0) return;
+    commitState();
+    
+    // Voicing-Aware PCS Rotation
+    const selectedEntries = Array.from(selectedNoteIds.current).map(id => {
+      const noteData = activeNotes.current.find(n => n.id === id);
+      return { id, pitch: noteData ? noteData.note : 0 };
+    }).filter(en => en.pitch !== 0).sort((a, b) => a.pitch - b.pitch);
+
+    const pcs = Array.from(new Set(selectedEntries.map(se => se.pitch % 12))).sort((a,b)=>a-b);
+    if (pcs.length === 0) return;
+
+    const pcOverrides: Record<number, string> = {};
+    activeNotes.current.forEach(n => {
+        if (n.spellingOverride) pcOverrides[n.note % 12] = n.spellingOverride;
+    });
+
+    const newSelection = new Set<string>();
+    const totalDelta = delta * stepSize;
+
+    activeNotes.current = activeNotes.current.map((noteData) => {
+      const isSelected = selectedNoteIds.current.has(noteData.id);
+      if (!isSelected) return noteData;
+
+      const note = noteData.note;
+      const currentPC = note % 12;
+      const currentPcsIndex = pcs.indexOf(currentPC);
+      
+      // Calculate rotation index with wrap-around
+      const nextPcsIndex = (currentPcsIndex + totalDelta + (pcs.length * Math.abs(totalDelta))) % pcs.length;
+      const targetPC = pcs[nextPcsIndex];
+      
+      let newNote = note;
+      if (totalDelta > 0) {
+        newNote++;
+        while(newNote % 12 !== targetPC) { newNote++; }
+      } else if (totalDelta < 0) {
+        newNote--;
+        while(newNote % 12 !== targetPC) { newNote--; }
+      }
+      
+      newSelection.add(noteData.id);
+      return { ...noteData, note: newNote, spellingOverride: pcOverrides[targetPC] };
+    });
+
+    selectedNoteIds.current = newSelection;
+    updateSpellings();
+    updateActiveNotes?.([...activeNotes.current]);
+    recalculateLayout();
+
+    // Audio Preview
+    const transposedStrings = Array.from(selectedNoteIds.current)
+      .map(id => activeNotes.current.find(n => n.id === id)?.note)
+      .filter((n): n is number => typeof n === 'number')
+      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+    if (transposedStrings.length > 0) playPreviewNotes(transposedStrings, true);
+  };
+
+  const undo = () => {
+    if (undoStack.current.length > 0) {
+      redoStack.current.push(activeNotes.current.map(n => ({ ...n })));
+      activeNotes.current = undoStack.current.pop() || [];
+      selectedNoteIds.current.clear();
+      updateSpellings();
+      updateActiveNotes?.([...activeNotes.current]);
+      recalculateLayout();
+    }
+  };
+
+  const redo = () => {
+    if (redoStack.current.length > 0) {
+      undoStack.current.push(activeNotes.current.map(n => ({ ...n })));
+      activeNotes.current = redoStack.current.pop() || [];
+      selectedNoteIds.current.clear();
+      updateSpellings();
+      updateActiveNotes?.([...activeNotes.current]);
+      recalculateLayout();
+    }
+  };
+
+  const applyHome = () => {
+    if (undoStack.current.length > 0) {
+      // Revert to first state in history
+      const homeState = undoStack.current[0];
+      activeNotes.current = homeState ? homeState.map(n => ({ ...n })) : [];
+      undoStack.current = homeState ? [[...homeState]] : [];
+      redoStack.current = [];
+      selectedNoteIds.current.clear();
+      updateSpellings();
+      updateActiveNotes?.([...activeNotes.current]);
+      recalculateLayout();
     }
   };
 
@@ -502,6 +655,64 @@ const NotationCanvas: React.FC = () => {
     return () => window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
   }, []);
 
+  // APP EVENT BRIDGE
+  useEffect(() => {
+    const handleTransform = (e: any) => {
+      const { type, stepSize } = e.detail;
+
+      // PRE-FLIGHT AUTO-SELECT: If no selection, select all active notes
+      if (selectedNoteIds.current.size === 0 && activeNotes.current.length > 0) {
+        activeNotes.current.forEach(note => selectedNoteIds.current.add(note.id));
+        const allIds = Array.from(selectedNoteIds.current);
+        setSelectedNotes?.(allIds.map(id => activeNotes.current.find(n => n.id === id)?.note).filter((n): n is number => n !== undefined));
+        forceUpdate(); // Ensure UI highlights the newly selected notes
+      }
+
+      if (selectedNoteIds.current.size === 0) return;
+
+      switch (type) {
+        case 'SEMI_UP': applyChromaticShift(1, stepSize); break;
+        case 'SEMI_DOWN': applyChromaticShift(-1, stepSize); break;
+        case 'KEY_UP': applyDiatonicShift(1, stepSize); break;
+        case 'KEY_DOWN': applyDiatonicShift(-1, stepSize); break;
+        case 'ROT_UP': applyPcsRotation(1, stepSize); break;
+        case 'ROT_DOWN': applyPcsRotation(-1, stepSize); break;
+        case 'OCT_UP': applyChromaticShift(12, stepSize); break;
+        case 'OCT_DOWN': applyChromaticShift(-12, stepSize); break;
+      }
+    };
+
+    const handleHistory = (e: any) => {
+      const { action } = e.detail;
+      switch (action) {
+        case 'UNDO': undo(); break;
+        case 'REDO': redo(); break;
+        case 'HOME': applyHome(); break;
+      }
+    };
+
+    const handlePlay = (e: any) => {
+      const { velocity } = e.detail;
+      const selectedStrings = Array.from(selectedNoteIds.current)
+        .map(id => activeNotes.current.find(n => n.id === id)?.note)
+        .filter((n): n is number => typeof n === 'number')
+        .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+      
+      if (selectedStrings.length > 0) {
+        playPreviewNotes(selectedStrings, true, velocity);
+      }
+    };
+
+    window.addEventListener('APP_TRANSFORM', handleTransform as any);
+    window.addEventListener('APP_HISTORY', handleHistory as any);
+    window.addEventListener('APP_PLAY', handlePlay as any);
+    return () => {
+      window.removeEventListener('APP_TRANSFORM', handleTransform as any);
+      window.removeEventListener('APP_HISTORY', handleHistory as any);
+      window.removeEventListener('APP_PLAY', handlePlay as any);
+    };
+  }, []);
+
   // Selection Garbage Collector: Prune selected IDs that no longer exist in activeNotes
   // AND Sync global selection state
   useEffect(() => {
@@ -678,26 +889,14 @@ const NotationCanvas: React.FC = () => {
       // Cmd/Ctrl + Z: Undo
       if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
         e.preventDefault();
-        if (undoStack.current.length > 0) {
-           redoStack.current.push(activeNotes.current.map(n => ({ ...n })));
-           activeNotes.current = undoStack.current.pop() || [];
-           selectedNoteIds.current.clear();
-           updateSpellings();
-           updateActiveNotes?.([...activeNotes.current]);
-        }
+        undo();
         return;
       }
 
       // Cmd/Ctrl + Shift + Z (or Cmd+Y): Redo
       if (((e.key === 'Z' || e.key === 'z') && e.shiftKey && (e.metaKey || e.ctrlKey)) || (e.key === 'y' && (e.metaKey || e.ctrlKey))) {
         e.preventDefault();
-        if (redoStack.current.length > 0) {
-           undoStack.current.push(activeNotes.current.map(n => ({ ...n })));
-           activeNotes.current = redoStack.current.pop() || [];
-           selectedNoteIds.current.clear();
-           updateSpellings();
-           updateActiveNotes?.([...activeNotes.current]);
-        }
+        redo();
         return;
       }
 
@@ -718,95 +917,14 @@ const NotationCanvas: React.FC = () => {
 
         if (e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) {
           e.preventDefault();
-          commitState();
-
           
           if (e.altKey && (e.metaKey || e.ctrlKey)) {
-            // Voicing-Aware PCS Rotation
-            const pcs = Array.from(new Set(selectedEntries.map(se => se.pitch % 12))).sort((a,b)=>a-b);
-            
-            const pcOverrides: Record<number, string> = {};
-            activeNotes.current.forEach(n => {
-                if (n.spellingOverride) pcOverrides[n.note % 12] = n.spellingOverride;
-            });
-
-            const newSelection = new Set<string>();
-
-            activeNotes.current = activeNotes.current.map((noteData) => {
-              const isSelected = selectedNoteIds.current.has(noteData.id);
-              if (!isSelected) return noteData;
-
-              const note = noteData.note;
-              const currentPC = note % 12;
-              const currentPcsIndex = pcs.indexOf(currentPC);
-              const nextPcsIndex = delta === 1 
-                ? (currentPcsIndex + 1) % pcs.length
-                : (currentPcsIndex - 1 + pcs.length) % pcs.length;
-              const targetPC = pcs[nextPcsIndex];
-              
-              let newNote = note;
-              if (delta === 1) {
-                newNote++;
-                while(newNote % 12 !== targetPC) { newNote++; }
-              } else {
-                newNote--;
-                while(newNote % 12 !== targetPC) { newNote--; }
-              }
-              newSelection.add(noteData.id);
-              return { ...noteData, note: newNote, spellingOverride: pcOverrides[targetPC] };
-            });
-
-            selectedNoteIds.current = newSelection;
-            updateSpellings();
-            updateActiveNotes?.([...activeNotes.current]);
+            applyPcsRotation(delta, 1);
           } else if (e.altKey) {
-            // Diatonic Transposition
-            const keyName = keySignatureRef.current;
-            const newSelection = new Set<string>();
-
-            activeNotes.current = activeNotes.current.map((noteData) => {
-              const isSelected = selectedNoteIds.current.has(noteData.id);
-              if (!isSelected) return noteData;
-
-              // Use the new mathematical transposition engine
-              const newMidiNote = transposeDiatonically(noteData.stepOffset, delta, keyName);
-
-              newSelection.add(noteData.id);
-              return { ...noteData, note: newMidiNote, spellingOverride: undefined };
-            });
-
-            selectedNoteIds.current = newSelection;
-            updateSpellings();
-            updateActiveNotes?.([...activeNotes.current]);
+            applyDiatonicShift(delta, 1);
           } else {
-            // Chromatic Transposition
             const multiplier = (e.metaKey || e.ctrlKey) ? 12 : 1;
-            const shift = delta * multiplier;
-            
-            const newSelection = new Set<string>();
-
-            activeNotes.current = activeNotes.current.map((noteData) => {
-              const isSelected = selectedNoteIds.current.has(noteData.id);
-              if (!isSelected) return noteData;
-
-              const newPitch = noteData.note + shift;
-              newSelection.add(noteData.id);
-              return { ...noteData, note: newPitch, spellingOverride: undefined };
-            });
-
-            selectedNoteIds.current = newSelection;
-            updateSpellings();
-            updateActiveNotes?.([...activeNotes.current]);
-          }
-
-          // Audio Preview for Transposition
-          const transposedStrings = Array.from(selectedNoteIds.current)
-            .map(id => activeNotes.current.find(n => n.id === id)?.note)
-            .filter((n): n is number => typeof n === 'number')
-            .map(pitch => Tone.Frequency(pitch, "midi").toNote());
-          
-          if (transposedStrings.length > 0) {
-            playPreviewNotes(transposedStrings, true);
+            applyChromaticShift(delta, multiplier);
           }
         } else {
           // SELECTION TRAVERSAL

@@ -206,7 +206,7 @@ export const Piano88: React.FC = () => {
                 {/* Spelled notes will be injected here as absolute elements */}
             </div>
 
-            <div className="piano-container flex justify-center bg-transparent">
+            <div className="piano-container flex justify-center bg-transparent z-[40]">
                 <div
                     style={{
                         display: 'flex',

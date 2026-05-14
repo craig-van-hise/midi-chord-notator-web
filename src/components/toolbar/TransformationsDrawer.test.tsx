@@ -1,0 +1,93 @@
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import Piano88 from '../Keyboard';
+import { TransformationsDrawer } from './TransformationsDrawer';
+
+// Mock useMidi
+vi.mock('../../midi/MIDIProvider', () => ({
+  useMidi: () => ({
+    dispatchVirtualMidi: vi.fn(),
+    lut: [],
+    keySignature: 'C Major',
+    selectedNotes: []
+  }),
+}));
+
+describe('TransformationsDrawer Integration', () => {
+  it('renders the TransformationsToolbar alongside the Keyboard component', () => {
+    render(
+      <div>
+        <Piano88 />
+        <TransformationsDrawer />
+      </div>
+    );
+    
+    // Check for some labels in the toolbar
+    expect(screen.getByText('semi')).toBeInTheDocument();
+    expect(screen.getByText('key')).toBeInTheDocument();
+    expect(screen.getByText('rot')).toBeInTheDocument();
+    expect(screen.getByText('oct')).toBeInTheDocument();
+  });
+
+  it('toggles the drawer visibility when the tab button is clicked', () => {
+    render(
+      <div>
+        <Piano88 />
+        <TransformationsDrawer />
+      </div>
+    );
+    
+    const toggleButton = screen.getByRole('button', { name: /toggle drawer/i });
+    
+    // Check initial state (closed)
+    // The drawer container has the sliding classes
+    const drawerContainer = screen.getByText('semi').closest('.transition-all');
+    expect(drawerContainer).toHaveClass('-translate-y-[170px]');
+
+    // Click to open
+    fireEvent.click(toggleButton);
+    
+    // Check open state
+    expect(drawerContainer).toHaveClass('translate-y-0');
+    expect(drawerContainer).not.toHaveClass('-translate-y-[170px]');
+
+    // Click to close
+    fireEvent.click(toggleButton);
+    expect(drawerContainer).toHaveClass('-translate-y-[170px]');
+  });
+
+  it('calculates vertical velocity for the PLAY button', () => {
+    // Mock dispatchEvent
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    
+    render(<TransformationsDrawer />);
+    
+    const playButton = screen.getByLabelText(/PLAY transformation/i);
+    
+    // Mock getBoundingClientRect
+    playButton.getBoundingClientRect = vi.fn().mockReturnValue({
+      top: 100,
+      height: 100,
+      left: 0,
+      width: 100
+    });
+
+    // Simulate pointer down at TOP (clientY = 100) -> Velocity should be 127
+    fireEvent.pointerDown(playButton, { clientY: 100, pointerId: 1 });
+    
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'APP_PLAY',
+      detail: expect.objectContaining({ velocity: 127 })
+    }));
+
+    // Simulate pointer down at BOTTOM (clientY = 200) -> Velocity should be 1
+    fireEvent.pointerDown(playButton, { clientY: 200, pointerId: 1 });
+    
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'APP_PLAY',
+      detail: expect.objectContaining({ velocity: 1 })
+    }));
+    
+    dispatchSpy.mockRestore();
+  });
+});

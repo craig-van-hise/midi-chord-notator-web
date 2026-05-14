@@ -6,6 +6,7 @@ import NotationCanvas from './components/NotationCanvas';
 import SettingsModal from './components/SettingsModal';
 import InfoModal from './components/InfoModal';
 import { RomplerFooter } from './components/RomplerFooter';
+import { TransformationsDrawer } from './components/toolbar/TransformationsDrawer';
 
 // Component to handle MIDI message listening and keyboard updates
 const MidiKeyboardUpdater: React.FC = () => {
@@ -120,9 +121,10 @@ const AppContent: React.FC = () => {
           <NotationCanvas />
         </div>
         
-        <div className="bg-white dark:bg-[#111] p-3 rounded-lg shadow-xl border border-gray-200 dark:border-gray-800">
+        <div className="relative z-30 bg-white dark:bg-[#111] p-3 rounded-lg shadow-xl border border-gray-200 dark:border-gray-800">
           <Keyboard />
         </div>
+        <TransformationsDrawer />
       </main>
 
       {/* Hoisted Modals */}

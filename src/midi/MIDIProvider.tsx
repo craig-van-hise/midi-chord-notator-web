@@ -4,7 +4,7 @@ import { requestMidiAccess } from './midiAccess';
 import { fetchBinaryLUT } from '../utils/binaryLut';
 import type { PCS_Entry } from '../utils/chordSpeller';
 import { audioEngine } from '../audio/engine';
-import * as Tone from 'tone';
+import type { ButtonId, ButtonConfigMap } from '../components/toolbar/TransformationsTypes';
 
 // Define the structure for the custom event data
 /*
@@ -57,6 +57,14 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const physicallyHeldNotes = React.useRef<Set<number>>(new Set());
   const pendingNoteOffs = React.useRef<Set<number>>(new Set());
   const heldModePendingNoteOffs = React.useRef<Set<number>>(new Set());
+  const heldHardwareNotes = React.useRef<Map<number, ButtonId>>(new Map());
+  const configsRef = React.useRef<ButtonConfigMap>({} as any);
+
+  useEffect(() => {
+    const handleSync = (e: any) => { configsRef.current = e.detail.configs; };
+    window.addEventListener('APP_CONFIG_UPDATE', handleSync as any);
+    return () => window.removeEventListener('APP_CONFIG_UPDATE', handleSync as any);
+  }, []);
 
   const dispatchMidiEvent = useCallback((data: Uint8Array) => {
 
@@ -93,6 +101,22 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Note On
     if (command === 0x90 && velocity > 0) {
+      // PRE-FLIGHT INTERCEPTOR
+      const matchedButton = Object.entries(configsRef.current).find(([_, cfg]) => cfg.midiNote === note);
+      if (matchedButton && !isVirtual) {
+          const [id, cfg] = matchedButton;
+          if (['UNDO', 'REDO', 'HOME'].includes(id)) {
+            window.dispatchEvent(new CustomEvent('APP_HISTORY', { detail: { action: id as any } }));
+          } else if (id === 'PLAY') {
+             const v = Math.min(127, 40 + (cfg.stepSize * 15));
+             window.dispatchEvent(new CustomEvent('APP_PLAY', { detail: { velocity: v } }));
+          } else {
+            window.dispatchEvent(new CustomEvent('APP_TRANSFORM', { detail: { type: id as any, stepSize: cfg.stepSize } }));
+          }
+          heldHardwareNotes.current.set(note, id as ButtonId);
+          return; // Intercepted
+      }
+
       if (!isVirtual && isHoldModeActive && physicallyHeldNotes.current.size === 0) {
         // Flush old held notes before starting new chord
         heldModePendingNoteOffs.current.forEach(noteNum => {
@@ -113,6 +137,11 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Note Off
     if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+      if (heldHardwareNotes.current.has(note)) {
+          heldHardwareNotes.current.delete(note);
+          return; // Consume
+      }
+
       if (!isVirtual) {
         physicallyHeldNotes.current.delete(note);
       }
@@ -221,8 +250,6 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } catch (e) {
           console.error('Failed to load Binary LUT data in MIDIProvider:', e);
         }
-
-        const savedInputId = localStorage.getItem('midi_input_id');
 
         const handleStateChange = (event: MIDIConnectionEvent) => {
           console.log(`MIDI device state changed: ${event.port?.name} (${event.port?.state})`);
