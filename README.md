@@ -14,9 +14,9 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 
 ## 🛠 Tech Stack
 * **Framework:** React 19 + TypeScript
-* **Audio:** Tone.js, Web Audio API
+* **Audio:** Tone.js, Web Audio API, smplr
 * **Build Tool:** Vite 8
-* **Styling:** Tailwind CSS 4, Framer Motion
+* **Styling:** Tailwind CSS 4, Framer Motion (motion), lucide-react
 * **Music Font:** Bravura (SMuFL)
 * **API:** Native Web MIDI
 
@@ -36,28 +36,46 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 .
 ├── # Prompts
 ├── public
-|  ├── PCS_LUT.dat
-|  ├── fonts
-|  |  ├── Bravura.woff2
-|  |  └── Bravura_metadata.json
-|  └── icons.svg
+│   ├── PCS_LUT.dat
+│   ├── favicon.svg
+│   ├── fonts
+│   │   └── Bravura.woff2
+│   └── icons.svg
 ├── src
-|  ├── App.tsx
-|  ├── components
-|  |  ├── NotationCanvas.tsx
-|  |  ├── ROMPler
-|  |  |  ├── AudioProvider.tsx
-|  |  |  └── SimpleSampler.ts
-|  |  └── toolbar
-|  |     ├── TransformationsDrawer.tsx
-|  |     └── ...
-|  ├── midi
-|  |  ├── MIDIProvider.tsx
-|  |  └── midiAccess.ts
-|  ├── utils
-|  |  ├── chordSpeller.ts
-|  |  └── notationMath.ts
-|  └── vitest.setup.ts
+│   ├── App.tsx
+│   ├── audio
+│   │   └── engine.ts
+│   ├── components
+│   │   ├── ErrorBoundary.tsx
+│   │   ├── InfoModal.tsx
+│   │   ├── KeySignatureSelector.tsx
+│   │   ├── Keyboard.tsx
+│   │   ├── Knob.tsx
+│   │   ├── NavController.tsx
+│   │   ├── NotationCanvas.tsx
+│   │   ├── RomplerFooter.tsx
+│   │   ├── SettingsModal.tsx
+│   │   ├── VUMeter.tsx
+│   │   ├── navTypes.ts
+│   │   └── toolbar
+│   │       ├── ToolbarContextMenus.tsx
+│   │       ├── ToolbarTypes.ts
+│   │       ├── TransformationsContextMenus.tsx
+│   │       ├── TransformationsDrawer.tsx
+│   │       ├── TransformationsToolbar.tsx
+│   │       └── TransformationsTypes.ts
+│   ├── lib
+│   │   ├── usePersistentState.ts
+│   │   └── utils.ts
+│   ├── midi
+│   │   ├── MIDIProvider.tsx
+│   │   ├── MidiPortSelector.tsx
+│   │   └── midiAccess.ts
+│   ├── utils
+│   │   ├── binaryLut.ts
+│   │   ├── chordSpeller.ts
+│   │   └── notationMath.ts
+│   └── vitest.setup.ts
 ├── tsconfig.json
 └── vite.config.ts
 ```
