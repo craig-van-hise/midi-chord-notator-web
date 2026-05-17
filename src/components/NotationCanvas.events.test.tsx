@@ -14,6 +14,9 @@ vi.mock('tone', () => ({
   Frequency: vi.fn().mockReturnValue({
     toNote: vi.fn().mockReturnValue('C4'),
   }),
+  context: {
+    state: 'running',
+  },
 }));
 
 // Mock audioEngine

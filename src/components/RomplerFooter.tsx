@@ -189,9 +189,9 @@ export function RomplerFooter({ isOpen, onToggle }: RomplerFooterProps) {
           <div className="flex items-center justify-between px-5 py-3 border-b border-[#242426]">
             
             <div className="flex items-baseline gap-2">
-              <h1 className="text-white font-black italic tracking-tighter text-xl">
+              <h2 className="text-white font-black italic tracking-tighter text-xl">
                 MIDI ROMPLER
-              </h1>
+              </h2>
               <span className="text-[#6b6b75] text-[10px] font-bold tracking-wider">V1.0</span>
             </div>
 

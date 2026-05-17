@@ -184,20 +184,21 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setError(null);
       setMidiAccess(null);
 
+      // Load LUT independently first so the UI can render regardless of MIDI access
+      try {
+        const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
+        const data = await fetchBinaryLUT(`${baseUrl}/PCS_LUT.dat`);
+        if (isMounted) setLut(data);
+      } catch (e) {
+        console.error('Failed to load Binary LUT data in MIDIProvider:', e);
+      }
+
       try {
         const access = await requestMidiAccess();
         if (!isMounted) return;
 
         setMidiAccess(access);
-
-        // Load LUT
-        try {
-          const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
-          const data = await fetchBinaryLUT(`${baseUrl}/PCS_LUT.dat`);
-          setLut(data);
-        } catch (e) {
-          console.error('Failed to load Binary LUT data in MIDIProvider:', e);
-        }
+        midiAccessRef.current = access;
 
         const handleStateChange = (event: MIDIConnectionEvent) => {
           console.log(`MIDI device state changed: ${event.port?.name} (${event.port?.state})`);
@@ -226,12 +227,21 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           input.close().catch(err => console.error('Error closing MIDI input:', err));
           input.onmidimessage = null;
         });
+        if (access.outputs) {
+          access.outputs.forEach(output => {
+            output.close().catch(err => console.error('Error closing MIDI output:', err));
+          });
+        }
       }
       window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
     };
   }, [handleMidiMessage, handleIncomingMidi]);
 
   const setInputPort = (portId: string) => {
+    if (portId !== 'omni' && portId !== '' && midiAccess && !midiAccess.inputs.has(portId)) {
+      console.warn(`Input port with ID "${portId}" not found.`);
+      return;
+    }
     setSelectedInputId(portId);
     if (portId === 'omni' || portId === '') {
       localStorage.removeItem('midi_input_id');
@@ -240,6 +250,10 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const [selectedOutputId, setSelectedOutputId] = useState<string>("omni");
+  const setOutputPort = (portId: string) => {
+    setSelectedOutputId(portId);
+  };
 
   const updateActiveNotes = useCallback((notes: any[]) => {
     const refreshEvent = new CustomEvent('MIDI_MESSAGE_RECEIVED', {
@@ -256,10 +270,12 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         midiAccess,
         selectedInputId,
+        selectedOutputId,
         keySignature,
         loading,
         error,
         setInputPort,
+        setOutputPort,
         setKeySignature,
         splitPoint,
         setSplitPoint,

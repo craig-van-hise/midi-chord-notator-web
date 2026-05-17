@@ -37,6 +37,9 @@ const NotationCanvas: React.FC = () => {
   const activeNotes = useRef<ActiveNoteData[]>([]);
   const [chordSymbol, setChordSymbol] = useState<string>("");
   const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes, isToggleModeActive, isHoldModeActive, setSelectedNotes } = useMidi();
+  const [localHoldMode, setLocalHoldMode] = useState<boolean>(false);
+  const effectiveHoldModeRef = useRef<boolean>(false);
+  effectiveHoldModeRef.current = isHoldModeActive !== undefined ? isHoldModeActive : localHoldMode;
   const keySignatureRef = useRef(keySignature);
   const splitPointRef = useRef(splitPoint);
   const lutRef = useRef(lut);
@@ -87,7 +90,7 @@ const NotationCanvas: React.FC = () => {
         // Force note-offs for anything currently previewing
         activePreviews.current.forEach((timeoutId, noteStr) => {
             clearTimeout(timeoutId);
-            try { audioEngine.releaseNote(noteStr); } catch(e) {}
+            try { audioEngine.releaseNote(noteStr); } catch(err) { console.error("[AudioEngine] releaseNote failed for pitch:", noteStr, err); }
         });
         activePreviews.current.clear();
     }
@@ -95,9 +98,9 @@ const NotationCanvas: React.FC = () => {
     const normalizedVelocity = velocity / 127;
 
     noteStrings.forEach(noteStr => {
-        try { audioEngine.noteOn(noteStr, normalizedVelocity); } catch(e) {}
+        try { audioEngine.noteOn(noteStr, normalizedVelocity); } catch(err) { console.error("[AudioEngine] noteOn failed for pitch:", noteStr, err); }
         const timeoutId = setTimeout(() => {
-            try { audioEngine.releaseNote(noteStr); } catch(e) {}
+            try { audioEngine.releaseNote(noteStr); } catch(err) { console.error("[AudioEngine] releaseNote failed for pitch:", noteStr, err); }
             activePreviews.current.delete(noteStr);
         }, 500);
         activePreviews.current.set(noteStr, timeoutId);
@@ -168,6 +171,24 @@ const NotationCanvas: React.FC = () => {
     updateSpellings();
     updateActiveNotes?.([...activeNotes.current]);
     recalculateLayout();
+
+    // Force note-offs for active previews to prevent smearing
+    try { audioEngine.releaseAll(); } catch(e) {}
+    
+    // Play the newly mutated pitches directly
+    const transposedStrings = Array.from(selectedNoteIds.current)
+      .map(id => activeNotes.current.find(n => n.id === id)?.note)
+      .filter((n): n is number => typeof n === 'number')
+      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+
+    transposedStrings.forEach(noteStr => {
+        try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+        
+        // Auto-release after 500ms
+        setTimeout(() => {
+            try { audioEngine.releaseNote(noteStr); } catch (e) {}
+        }, 500);
+    });
   };
 
   const applyDiatonicShift = (delta: number, stepSize: number = 1) => {
@@ -188,6 +209,24 @@ const NotationCanvas: React.FC = () => {
     updateSpellings();
     updateActiveNotes?.([...activeNotes.current]);
     recalculateLayout();
+
+    // Force note-offs for active previews to prevent smearing
+    try { audioEngine.releaseAll(); } catch(e) {}
+    
+    // Play the newly mutated pitches directly
+    const transposedStrings = Array.from(selectedNoteIds.current)
+      .map(id => activeNotes.current.find(n => n.id === id)?.note)
+      .filter((n): n is number => typeof n === 'number')
+      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+
+    transposedStrings.forEach(noteStr => {
+        try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+        
+        // Auto-release after 500ms
+        setTimeout(() => {
+            try { audioEngine.releaseNote(noteStr); } catch (e) {}
+        }, 500);
+    });
   };
 
   const applyPcsRotation = (delta: number, stepSize: number = 1) => {
@@ -240,6 +279,24 @@ const NotationCanvas: React.FC = () => {
     updateSpellings();
     updateActiveNotes?.([...activeNotes.current]);
     recalculateLayout();
+
+    // Force note-offs for active previews to prevent smearing
+    try { audioEngine.releaseAll(); } catch(e) {}
+    
+    // Play the newly mutated pitches directly
+    const transposedStrings = Array.from(selectedNoteIds.current)
+      .map(id => activeNotes.current.find(n => n.id === id)?.note)
+      .filter((n): n is number => typeof n === 'number')
+      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+
+    transposedStrings.forEach(noteStr => {
+        try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+        
+        // Auto-release after 500ms
+        setTimeout(() => {
+            try { audioEngine.releaseNote(noteStr); } catch (e) {}
+        }, 500);
+    });
   };
 
   const undo = () => {
@@ -579,6 +636,14 @@ const NotationCanvas: React.FC = () => {
       const isNoteOn = (status & 0xF0) === 0x90 && velocity > 0;
       const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && velocity === 0);
 
+      let stateCommitted = false;
+      const maybeCommit = () => {
+          if (!stateCommitted) {
+              commitState();
+              stateCommitted = true;
+          }
+      };
+
       if (isNoteOn) {
           let shouldAdd = true;
           
@@ -586,39 +651,45 @@ const NotationCanvas: React.FC = () => {
               if (isToggleModeActive) {
                   const idx = activeNotes.current.findIndex(n => n.note === note);
                   if (idx !== -1) {
+                      maybeCommit();
                       activeNotes.current.splice(idx, 1); // Toggle Off
                       shouldAdd = false;
                   }
               }
           } else {
               // Physical Hardware
-              if (isHoldModeActive && physicalKeysDown.current.size === 0) {
+              if (effectiveHoldModeRef.current && physicalKeysDown.current.size === 0) {
+                  if (activeNotes.current.length > 0) maybeCommit();
                   activeNotes.current = []; // Wipe board for new chord
               }
               physicalKeysDown.current.add(note);
           }
 
-          if (shouldAdd && !activeNotes.current.some(n => n.note === note)) {
+          if (shouldAdd && !activeNotes.current.some(n => n.sourceMidi === note || n.note === note)) {
+              maybeCommit();
               activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: 0, status: 0x90, sourceMidi: note });
           }
 
-          try { audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127); } catch(e) { console.warn("Audio buffer missing for noteOn:", note); }
+          try { audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127); } catch(err) { console.error("[AudioEngine] noteOn failed for pitch:", note, err); }
           updateSpellings();
           updateActiveNotes?.([...activeNotes.current]);
       } else if (isNoteOff) {
           if (!isVirtual) physicalKeysDown.current.delete(note);
           
-          try { audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote()); } catch(e) { console.warn("Audio buffer missing for noteOff:", note); }
+          try { audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote()); } catch(err) { console.error("[AudioEngine] releaseNote failed for pitch:", note, err); }
 
           let shouldRemove = false;
           if (isVirtual && !isToggleModeActive) {
               shouldRemove = true; // Virtual Momentary
-          } else if (!isVirtual && !isHoldModeActive) {
+          } else if (!isVirtual && !effectiveHoldModeRef.current) {
               shouldRemove = true; // Physical Momentary
           }
 
           if (shouldRemove) {
-              activeNotes.current = activeNotes.current.filter(n => n.note !== note);
+              if (activeNotes.current.some(n => n.sourceMidi === note || n.note === note)) {
+                  maybeCommit();
+                  activeNotes.current = activeNotes.current.filter(n => n.sourceMidi !== note && n.note !== note);
+              }
           }
 
           updateSpellings();
@@ -628,6 +699,26 @@ const NotationCanvas: React.FC = () => {
     };
     window.addEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
     return () => window.removeEventListener('MIDI_MESSAGE_RECEIVED', handleMidiMessage);
+  }, []);
+
+  useEffect(() => {
+    const handleHoldChange = (e: any) => {
+        const enabled = e.detail?.enabled;
+        if (enabled !== undefined) {
+            setLocalHoldMode(enabled);
+            effectiveHoldModeRef.current = enabled;
+            if (!enabled) {
+                // Toggle Hold Mode OFF: Sync display with physical keys
+                activeNotes.current = activeNotes.current.filter(n => physicalKeysDown.current.has(n.sourceMidi));
+                updateSpellings();
+                updateActiveNotes?.([...activeNotes.current]);
+                recalculateLayout();
+                forceUpdate();
+            }
+        }
+    };
+    window.addEventListener('HOLD_MODE_CHANGED', handleHoldChange);
+    return () => window.removeEventListener('HOLD_MODE_CHANGED', handleHoldChange);
   }, []);
 
   // APP EVENT BRIDGE
@@ -655,17 +746,6 @@ const NotationCanvas: React.FC = () => {
         case 'OCT_UP': applyChromaticShift(12, stepSize); break;
         case 'OCT_DOWN': applyChromaticShift(-12, stepSize); break;
       }
-
-      if ((e as CustomEvent).detail.isUiClick) {
-        const transposedStrings = Array.from(selectedNoteIds.current)
-          .map(id => activeNotes.current.find(n => n.id === id)?.note)
-          .filter((n): n is number => typeof n === 'number')
-          .map(pitch => Tone.Frequency(pitch, "midi").toNote());
-
-        if (transposedStrings.length > 0) {
-          playPreviewNotes(transposedStrings, true);
-        }
-      }
     };
 
     const handleHistory = (e: any) => {
@@ -689,7 +769,7 @@ const NotationCanvas: React.FC = () => {
             .map(id => activeNotes.current.find(n => n.id === id)?.note)
             .filter((n): n is number => typeof n === 'number')
             .map(pitch => Tone.Frequency(pitch, "midi").toNote());
-        strings.forEach(s => { try { audioEngine.noteOn(s, vel); } catch(err){} });
+        strings.forEach(s => { try { audioEngine.noteOn(s, vel); } catch(err){ console.error("[AudioEngine] noteOn failed for pitch:", s, err); } });
     };
     
     const handlePlayOff = () => {
@@ -697,7 +777,7 @@ const NotationCanvas: React.FC = () => {
             .map(id => activeNotes.current.find(n => n.id === id)?.note)
             .filter((n): n is number => typeof n === 'number')
             .map(pitch => Tone.Frequency(pitch, "midi").toNote());
-        strings.forEach(s => { try { audioEngine.releaseNote(s); } catch(err){} });
+        strings.forEach(s => { try { audioEngine.releaseNote(s); } catch(err){ console.error("[AudioEngine] releaseNote failed for pitch:", s, err); } });
     };
 
     const handlePreviewOn = (e: Event) => {
@@ -715,7 +795,7 @@ const NotationCanvas: React.FC = () => {
           .map(pitch => Tone.Frequency(pitch, "midi").toNote());
         
         strings.forEach(s => {
-            try { audioEngine.noteOn(s, vel); } catch(e) {}
+            try { audioEngine.noteOn(s, vel); } catch(err) { console.error("[AudioEngine] noteOn failed for pitch:", s, err); }
         });
     };
 
@@ -725,7 +805,7 @@ const NotationCanvas: React.FC = () => {
           .filter((n): n is number => typeof n === 'number')
           .map(pitch => Tone.Frequency(pitch, "midi").toNote());
         strings.forEach(s => {
-            try { audioEngine.releaseNote(s); } catch(e) {}
+            try { audioEngine.releaseNote(s); } catch(err) { console.error("[AudioEngine] releaseNote failed for pitch:", s, err); }
         });
     };
 
@@ -762,7 +842,7 @@ const NotationCanvas: React.FC = () => {
       .map(id => activeNotes.current.find(n => n.id === id)?.note)
       .filter((n): n is number => typeof n === 'number');
     
-    setSelectedNotes(selectedPitches);
+    setSelectedNotes?.(selectedPitches);
 
     if (changed) forceUpdate();
   }, [renderedNotes, tick]); // tick ensures sync on forceUpdate calls
@@ -808,21 +888,33 @@ const NotationCanvas: React.FC = () => {
       }
     }
     
-    // Mathematical Hit-Test
-    const staffSpacePx = 10; 
-    const horizontalThreshold = staffSpacePx * 1.5;
-    const verticalThreshold = staffSpacePx * 0.8;
-    
-    
-    const clickedNote = renderedNotes.find((note) => {
-      const centerX = rect.width / 2 + (note.xOffset || 0);
-      const centerY = rect.height / 2 - note.y;
-      
-      const dx = Math.abs(pointerX - centerX);
-      const dy = Math.abs(pointerY - centerY);
-      const match = dx < horizontalThreshold && dy < verticalThreshold;
-      return match;
-    });
+    let clickedNote: any = undefined;
+
+    // Check DOM target first (crucial for JSDOM unit tests and direct note clicks)
+    const targetNode = (e.target as HTMLElement)?.closest?.('[data-note-id]');
+    if (targetNode) {
+        const notePitch = parseInt((targetNode as HTMLElement).dataset.noteId || '');
+        if (!isNaN(notePitch)) {
+            clickedNote = renderedNotes.find(n => n.note === notePitch);
+        }
+    }
+
+    // Fallback to Mathematical Hit-Test if clicking canvas directly
+    if (!clickedNote) {
+        const staffSpacePx = 10; 
+        const horizontalThreshold = staffSpacePx * 1.5;
+        const verticalThreshold = staffSpacePx * 0.8;
+        
+        clickedNote = renderedNotes.find((note) => {
+          const centerX = rect.width / 2 + (note.xOffset || 0);
+          const centerY = rect.height / 2 - note.y;
+          
+          const dx = Math.abs(pointerX - centerX);
+          const dy = Math.abs(pointerY - centerY);
+          const match = dx < horizontalThreshold && dy < verticalThreshold;
+          return match;
+        });
+    }
 
     if (clickedNote) {
       const id = clickedNote.id;
@@ -1040,6 +1132,7 @@ const NotationCanvas: React.FC = () => {
     dragTracker.current.isDragging = false;
     
     if (marqueeRef.current && !marqueeRef.current.classList.contains('hidden')) {
+      const marqueeRect = marqueeRef.current.getBoundingClientRect();
       const rect = canvasRef.current!.getBoundingClientRect();
       const left = Math.min(dragTracker.current.startX, dragTracker.current.currentX);
       const right = Math.max(dragTracker.current.startX, dragTracker.current.currentX);
@@ -1049,10 +1142,27 @@ const NotationCanvas: React.FC = () => {
       marqueeRef.current.classList.add('hidden');
       
       renderedNotes.forEach((note) => {
-        const noteX = rect.width / 2 + (note.xOffset || 0);
-        const noteY = rect.height / 2 - note.y;
-        
-        if (noteX >= left && noteX <= right && noteY >= top && noteY <= bottom) {
+        const noteEl = document.querySelector(`[data-testid="note-container-${note.note}"]`);
+        let matched = false;
+        if (noteEl && noteEl.getBoundingClientRect) {
+            const nRect = noteEl.getBoundingClientRect();
+            if (marqueeRect.width > 0 && nRect.width > 0) {
+                if (!(nRect.right < marqueeRect.left || 
+                      nRect.left > marqueeRect.right || 
+                      nRect.bottom < marqueeRect.top || 
+                      nRect.top > marqueeRect.bottom)) {
+                    matched = true;
+                }
+            }
+        }
+        if (!matched) {
+            const noteX = rect.width / 2 + (note.xOffset || 0);
+            const noteY = rect.height / 2 - note.y;
+            if (noteX >= left && noteX <= right && noteY >= top && noteY <= bottom) {
+              matched = true;
+            }
+        }
+        if (matched) {
           selectedNoteIds.current.add(note.id);
         }
       });
@@ -1072,7 +1182,7 @@ const NotationCanvas: React.FC = () => {
 
   if (!lut || lut.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[320px] bg-white dark:bg-[#0a0a0a] rounded-lg border border-gray-100 dark:border-white/5">
+      <div className="flex flex-col items-center justify-center h-[320px] w-full bg-white dark:bg-[#0a0a0a] rounded-lg border border-gray-100 dark:border-white/5 relative overflow-hidden" data-testid="notation-canvas-container">
         <div className="animate-pulse flex flex-col items-center">
           <div className="h-2 w-24 bg-[#aa3bff]/20 rounded-full mb-4"></div>
           <div className="text-neutral-400 text-xs font-medium tracking-widest uppercase">Loading Database</div>
@@ -1277,7 +1387,7 @@ const NotationCanvas: React.FC = () => {
         <div className="absolute w-full h-0 border-t border-transparent" style={{ top: '50%' }} />
 
       </div>
-      <div ref={marqueeRef} className="absolute border border-blue-500 bg-blue-500/20 z-50 pointer-events-none hidden" style={{ left: 0, top: 0, width: 0, height: 0 }} />
+      <div ref={marqueeRef} className="selection-marquee absolute border border-blue-500 bg-blue-500/20 z-50 pointer-events-none hidden" style={{ left: 0, top: 0, width: 0, height: 0 }} />
     </div>
   );
 };

@@ -109,6 +109,7 @@ class AudioEngine {
   
   isInitialized = false;
   isInstrumentLoading = false;
+  isUnlocked = false;
 
   async init() {
     if (this.isInitialized) return;
@@ -228,6 +229,7 @@ class AudioEngine {
   }
 
   noteOn(note: string, velocity: number = 1) {
+    if (!this.isUnlocked) return;
     if (!this.sampler || !this.isInitialized || this.isInstrumentLoading) return;
     
     if (this.sampler instanceof Tone.Sampler) {
@@ -244,6 +246,7 @@ class AudioEngine {
   }
 
   releaseNote(note: string | number) {
+    if (!this.isUnlocked) return;
     if (!this.sampler || !this.isInitialized || this.isInstrumentLoading) return;
     
     // If the instrument is a LoopedSampler
@@ -262,6 +265,7 @@ class AudioEngine {
   }
 
   releaseAll() {
+    if (!this.isUnlocked) return;
     if (!this.sampler || !this.isInitialized) return;
     if (this.sampler instanceof Tone.Sampler) {
       this.sampler.releaseAll();

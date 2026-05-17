@@ -42,18 +42,18 @@ describe('TransformationsDrawer Integration', () => {
     // Check initial state (closed)
     // The drawer container has the sliding classes
     const drawerContainer = screen.getByText('semi').closest('.transition-all');
-    expect(drawerContainer).toHaveClass('-translate-y-[170px]');
+    expect(drawerContainer).toHaveClass('-translate-y-[155px]');
 
     // Click to open
     fireEvent.click(toggleButton);
     
     // Check open state
     expect(drawerContainer).toHaveClass('translate-y-0');
-    expect(drawerContainer).not.toHaveClass('-translate-y-[170px]');
+    expect(drawerContainer).not.toHaveClass('-translate-y-[155px]');
 
     // Click to close
     fireEvent.click(toggleButton);
-    expect(drawerContainer).toHaveClass('-translate-y-[170px]');
+    expect(drawerContainer).toHaveClass('-translate-y-[155px]');
   });
 
   it('calculates vertical velocity for the PLAY button', () => {
@@ -75,18 +75,18 @@ describe('TransformationsDrawer Integration', () => {
     // Simulate pointer down at TOP (clientY = 100) -> Velocity should be 127
     fireEvent.pointerDown(playButton, { clientY: 100, pointerId: 1 });
     
-    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'APP_PLAY',
-      detail: expect.objectContaining({ velocity: 127 })
-    }));
+    const playCalls1 = dispatchSpy.mock.calls.filter(c => c[0].type === 'APP_PLAY_ON');
+    const call1 = playCalls1[playCalls1.length - 1][0] as CustomEvent;
+    expect(call1.type).toBe('APP_PLAY_ON');
+    expect(call1.detail.velocity).toBe(127);
 
     // Simulate pointer down at BOTTOM (clientY = 200) -> Velocity should be 1
     fireEvent.pointerDown(playButton, { clientY: 200, pointerId: 1 });
     
-    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'APP_PLAY',
-      detail: expect.objectContaining({ velocity: 1 })
-    }));
+    const playCalls2 = dispatchSpy.mock.calls.filter(c => c[0].type === 'APP_PLAY_ON');
+    const call2 = playCalls2[playCalls2.length - 1][0] as CustomEvent;
+    expect(call2.type).toBe('APP_PLAY_ON');
+    expect(call2.detail.velocity).toBe(1);
     
     dispatchSpy.mockRestore();
   });

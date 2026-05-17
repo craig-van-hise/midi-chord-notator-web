@@ -18,11 +18,7 @@ describe('App Component - Phase 1', () => {
       render(<App />);
     });
 
-    // Find the element containing the Treble Clef character U+E050
-    // The character needs to be escaped for getByText if it's a special regex character,
-    // but '\uE050' is generally safe or can be represented as the actual character.
-    // Let's try with the direct character representation.
-    const trebleClefElement = screen.getByTestId('treble-clef');
+    const trebleClefElement = await screen.findByTestId('treble-clef');
 
     // Verify the element exists
     expect(trebleClefElement).toBeInTheDocument();

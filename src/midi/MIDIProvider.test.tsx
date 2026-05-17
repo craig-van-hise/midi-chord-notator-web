@@ -62,6 +62,7 @@ beforeEach(() => {
   cleanup();
   vi.clearAllMocks();
   vi.resetModules();
+  localStorage.clear();
 
   // Mock window.addEventListener and window.removeEventListener
   vi.spyOn(window, 'addEventListener');
@@ -144,10 +145,10 @@ const TestConsumer: React.FC<{
         <div data-testid="midi-access-granted">
           MIDI Access Granted
           <div data-testid="selected-input-port">
-            {context.selectedInputPort ? context.selectedInputPort.name : 'No input selected'}
+            {context.selectedInputId !== 'omni' && context.midiAccess?.inputs.get(context.selectedInputId) ? context.midiAccess.inputs.get(context.selectedInputId)?.name : (context.selectedInputId === 'omni' && context.midiAccess?.inputs.size > 0 ? Array.from(context.midiAccess.inputs.values())[0].name : 'No input selected')}
           </div>
           <div data-testid="selected-output-port">
-            {context.selectedOutputPort ? context.selectedOutputPort.name : 'No output selected'}
+            {context.selectedOutputId !== 'omni' && context.midiAccess?.outputs.get(context.selectedOutputId) ? context.midiAccess.outputs.get(context.selectedOutputId)?.name : (context.selectedOutputId === 'omni' && context.midiAccess?.outputs.size > 0 ? Array.from(context.midiAccess.outputs.values())[0].name : 'No output selected')}
           </div>
           {children}
         </div>

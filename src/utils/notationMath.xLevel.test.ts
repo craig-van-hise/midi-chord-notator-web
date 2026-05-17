@@ -27,14 +27,18 @@ describe('Phase 1: Greedy X-Level Assignment Algorithm', () => {
 
     it('Test Case 3 (Cohemitonia / 3-Note Cluster): C, C#, and D (ySteps: 0, 0, 1)', () => {
         const notes: NotePosition[] = [
-            { ySteps: 0 }, // C
-            { ySteps: 0 }, // C# (assuming same yStep for cluster)
-            { ySteps: 1 }  // D
+            { ySteps: 0, note: 60 }, // C
+            { ySteps: 0, note: 61 }, // C#
+            { ySteps: 1, note: 62 }  // D
         ];
         const result = assignXLevels(notes);
-        expect(result[0].xLevel).toBe(0); // C
-        expect(result[1].xLevel).toBe(1); // C#
-        expect(result[2].xLevel).toBe(2); // D
+        const c = result.find(n => n.note === 60)!;
+        const cs = result.find(n => n.note === 61)!;
+        const d = result.find(n => n.note === 62)!;
+        expect(c.xLevel).toBe(0);
+        expect(cs.xLevel).toBe(0);
+        expect(cs.isRightColumn).toBe(true);
+        expect(d.xLevel).toBe(1);
     });
 
     it('Test Case 4 (Gap Recovery): C, D, F, G (ySteps: 0, 1, 3, 4)', () => {

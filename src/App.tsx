@@ -7,6 +7,8 @@ import SettingsModal from './components/SettingsModal';
 import InfoModal from './components/InfoModal';
 import { RomplerFooter } from './components/RomplerFooter';
 import { TransformationsDrawer } from './components/toolbar/TransformationsDrawer';
+import { audioEngine } from './audio/engine';
+import * as Tone from 'tone';
 
 // Component to handle MIDI message listening and keyboard updates
 const MidiKeyboardUpdater: React.FC = () => {
@@ -75,17 +77,45 @@ const AppContent: React.FC = () => {
   const [isInfoModalOpen, setIsInfoModalOpen] = React.useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
   const [isRomplerOpen, setIsRomplerOpen] = React.useState(false);
+  const [audioUnlocked, setAudioUnlocked] = React.useState(false);
+
+  const handleUnlockAudio = async () => {
+    try {
+      await audioEngine.init();
+      audioEngine.isUnlocked = true;
+      await audioEngine.loadInstrument('piano'); // Force load default instrument NOW
+      setAudioUnlocked(true);
+    } catch (e) {
+      console.error("Audio bootup failed:", e);
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#f8f7f2] dark:bg-[#0a0a0a]">
+      {!audioUnlocked && (
+        <div className="fixed inset-0 z-[999999] bg-[#f8f7f2]/90 dark:bg-[#0a0a0a]/90 backdrop-blur-md flex flex-col items-center justify-center pointer-events-auto" data-testid="audio-unlock-overlay">
+          <div className="bg-white dark:bg-[#111] p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-md text-center border border-gray-200 dark:border-gray-800">
+            <h2 className="text-2xl font-bold text-[#aa3bff] mb-4">MIDI Chord Notator</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-8 font-medium">
+              Modern browsers require a click to enable Web Audio playback. Please start the engine to continue.
+            </p>
+            <button 
+              onClick={handleUnlockAudio}
+              className="px-8 py-4 bg-[#aa3bff] hover:bg-[#902be6] text-white text-xl font-bold rounded-xl shadow-[0_0_20px_rgba(170,59,255,0.4)] transition-all transform hover:scale-105 cursor-pointer"
+            >
+              Start Audio Engine
+            </button>
+          </div>
+        </div>
+      )}
       {/* Ultra-Slim Header */}
       <header className="px-4 h-[42px] flex items-center justify-between z-20 border-b border-gray-200/50 dark:border-white/5">
-        <div 
+        <h1 
           className="font-bold tracking-tight whitespace-nowrap m-0 text-[#1a1a1a] dark:text-white self-center"
           style={{ fontSize: '1.125rem', lineHeight: '1' }}
         >
           VV | MIDI Chord <span className="text-[#aa3bff]">Notator</span>
-        </div>
+        </h1>
         <div className="flex items-center gap-4">
           <MidiPortSelector />
           <div className="w-px h-3 bg-gray-200 dark:bg-white/10" />
