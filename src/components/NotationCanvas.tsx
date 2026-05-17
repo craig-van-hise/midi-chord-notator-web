@@ -32,6 +32,7 @@ const generateId = () => {
 const NotationCanvas: React.FC = () => {
   const [tick, setTick] = useState(0);
   const forceUpdate = () => setTick(t => t + 1);
+  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [staffSpace, setStaffSpace] = useState<number>(12); // Default value
   const activeNotes = useRef<ActiveNoteData[]>([]);
@@ -182,12 +183,14 @@ const NotationCanvas: React.FC = () => {
       .map(pitch => Tone.Frequency(pitch, "midi").toNote());
 
     transposedStrings.forEach(noteStr => {
-        try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
-        
-        // Auto-release after 500ms
-        setTimeout(() => {
-            try { audioEngine.releaseNote(noteStr); } catch (e) {}
-        }, 500);
+        if (Tone.context.state === 'running') {
+            try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+            
+            // Auto-release after 500ms
+            setTimeout(() => {
+                try { audioEngine.releaseNote(noteStr); } catch (e) {}
+            }, 500);
+        }
     });
   };
 
@@ -220,12 +223,14 @@ const NotationCanvas: React.FC = () => {
       .map(pitch => Tone.Frequency(pitch, "midi").toNote());
 
     transposedStrings.forEach(noteStr => {
-        try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
-        
-        // Auto-release after 500ms
-        setTimeout(() => {
-            try { audioEngine.releaseNote(noteStr); } catch (e) {}
-        }, 500);
+        if (Tone.context.state === 'running') {
+            try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+            
+            // Auto-release after 500ms
+            setTimeout(() => {
+                try { audioEngine.releaseNote(noteStr); } catch (e) {}
+            }, 500);
+        }
     });
   };
 
@@ -290,12 +295,14 @@ const NotationCanvas: React.FC = () => {
       .map(pitch => Tone.Frequency(pitch, "midi").toNote());
 
     transposedStrings.forEach(noteStr => {
-        try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
-        
-        // Auto-release after 500ms
-        setTimeout(() => {
-            try { audioEngine.releaseNote(noteStr); } catch (e) {}
-        }, 500);
+        if (Tone.context.state === 'running') {
+            try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+            
+            // Auto-release after 500ms
+            setTimeout(() => {
+                try { audioEngine.releaseNote(noteStr); } catch (e) {}
+            }, 500);
+        }
     });
   };
 
@@ -670,13 +677,17 @@ const NotationCanvas: React.FC = () => {
               activeNotes.current.push({ id: generateId(), note, stepOffset: 0, accidental: null, isTreble: note >= splitPointRef.current, velocity: velocity || 100, channel: 0, status: 0x90, sourceMidi: note });
           }
 
-          try { audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127); } catch(err) { console.error("[AudioEngine] noteOn failed for pitch:", note, err); }
+          if (Tone.context.state === 'running') {
+              try { audioEngine.noteOn(Tone.Frequency(note, "midi").toNote(), velocity / 127); } catch(err) { console.error("[AudioEngine] noteOn failed for pitch:", note, err); }
+          }
           updateSpellings();
           updateActiveNotes?.([...activeNotes.current]);
       } else if (isNoteOff) {
           if (!isVirtual) physicalKeysDown.current.delete(note);
           
-          try { audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote()); } catch(err) { console.error("[AudioEngine] releaseNote failed for pitch:", note, err); }
+          if (Tone.context.state === 'running') {
+              try { audioEngine.releaseNote(Tone.Frequency(note, "midi").toNote()); } catch(err) { console.error("[AudioEngine] releaseNote failed for pitch:", note, err); }
+          }
 
           let shouldRemove = false;
           if (isVirtual && !isToggleModeActive) {
@@ -1182,7 +1193,7 @@ const NotationCanvas: React.FC = () => {
 
   if (!lut || lut.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[320px] w-full bg-white dark:bg-[#0a0a0a] rounded-lg border border-gray-100 dark:border-white/5 relative overflow-hidden" data-testid="notation-canvas-container">
+      <div className="flex flex-col items-center justify-center h-[320px] bg-white dark:bg-[#0a0a0a] rounded-lg border border-gray-100 dark:border-white/5">
         <div className="animate-pulse flex flex-col items-center">
           <div className="h-2 w-24 bg-[#aa3bff]/20 rounded-full mb-4"></div>
           <div className="text-neutral-400 text-xs font-medium tracking-widest uppercase">Loading Database</div>
@@ -1212,6 +1223,20 @@ const NotationCanvas: React.FC = () => {
       data-testid="notation-canvas-container"
       className="notation-canvas-container relative w-full h-[320px] bg-white dark:bg-[#0a0a0a] overflow-visible flex items-start justify-center select-none"
     >
+      {!isAudioUnlocked && (
+        <div className="absolute inset-0 z-[100] bg-white/80 dark:bg-black/80 flex items-center justify-center backdrop-blur-sm" data-testid="audio-unlock-overlay">
+          <button
+            className="px-6 py-3 bg-[#aa3bff] hover:bg-[#9933ff] text-white font-bold rounded-lg shadow-lg transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
+            onClick={async (e) => {
+              e.stopPropagation();
+              await Tone.start();
+              setIsAudioUnlocked(true);
+            }}
+          >
+            Click to Start Audio Engine
+          </button>
+        </div>
+      )}
       {/* Compact Grand Staff System */}
       <div className="grand-staff-system relative w-[300px] h-full flex flex-col justify-center items-center">
         {/* Key Signature Selector - Absolute Positioned */}

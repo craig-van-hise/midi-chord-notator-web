@@ -14,7 +14,6 @@ vi.mock('tone', async (importOriginal) => {
   const actual = await importOriginal<typeof import('tone')>();
   return {
     ...actual,
-    start: vi.fn().mockResolvedValue(undefined),
     context: {
       state: 'running',
     },
@@ -24,7 +23,6 @@ vi.mock('tone', async (importOriginal) => {
 vi.mock('../audio/engine', () => ({
   audioEngine: {
     isInitialized: true,
-    isUnlocked: true,
     init: vi.fn(),
     loadInstrument: vi.fn().mockResolvedValue(undefined),
     setVolume: vi.fn(),

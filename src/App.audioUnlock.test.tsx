@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import App from './App';
+import NotationCanvas from './components/NotationCanvas';
 import { audioEngine } from './audio/engine';
 import { useMidi } from './midi/MIDIProvider';
 import * as Tone from 'tone';
@@ -11,7 +11,6 @@ const mockToneStart = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('./midi/MIDIProvider', () => ({
   useMidi: vi.fn(),
-  MIDIProvider: ({ children }: any) => <>{children}</>,
 }));
 
 vi.mock('tone', async (importOriginal) => {
@@ -28,8 +27,7 @@ vi.mock('tone', async (importOriginal) => {
 vi.mock('./audio/engine', () => ({
   audioEngine: {
     isInitialized: false,
-    isUnlocked: false,
-    init: vi.fn().mockResolvedValue(undefined),
+    init: vi.fn(),
     loadInstrument: vi.fn().mockResolvedValue(undefined),
     setVolume: vi.fn(),
     setPan: vi.fn(),
@@ -46,7 +44,7 @@ vi.mock('./audio/engine', () => ({
   }
 }));
 
-describe('App - Start Audio Engine Gatekeeper', () => {
+describe('NotationCanvas - Click to Start Gatekeeper & MIDI Bouncer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockToneStart.mockClear();
@@ -58,23 +56,22 @@ describe('App - Start Audio Engine Gatekeeper', () => {
     });
   });
 
-  test('Given the app mounts, Then the "Start Audio Engine" overlay is visible', async () => {
-    render(<App />);
+  test('Given the app mounts, Then the "Click to Start" overlay is visible', async () => {
+    render(<NotationCanvas />);
     expect(screen.getByTestId('audio-unlock-overlay')).toBeInTheDocument();
-    expect(screen.getByText('Start Audio Engine')).toBeInTheDocument();
+    expect(screen.getByText('Click to Start Audio Engine')).toBeInTheDocument();
   });
 
-  test('Given the overlay is visible, When the user clicks the start button, Then audioEngine.init() and loadInstrument() are called and the overlay unmounts', async () => {
-    render(<App />);
-    const button = screen.getByText('Start Audio Engine');
+  test('Given the overlay is visible, When the user clicks the start button, Then Tone.start() is called and the overlay unmounts', async () => {
+    render(<NotationCanvas />);
+    const button = screen.getByText('Click to Start Audio Engine');
     expect(button).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(button);
     });
 
-    expect(audioEngine.init).toHaveBeenCalled();
-    expect(audioEngine.loadInstrument).toHaveBeenCalledWith('piano');
+    expect(mockToneStart).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('audio-unlock-overlay')).not.toBeInTheDocument();
   });
 });

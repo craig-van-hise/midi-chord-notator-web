@@ -184,21 +184,21 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setError(null);
       setMidiAccess(null);
 
-      // Load LUT independently first so the UI can render regardless of MIDI access
-      try {
-        const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
-        const data = await fetchBinaryLUT(`${baseUrl}/PCS_LUT.dat`);
-        if (isMounted) setLut(data);
-      } catch (e) {
-        console.error('Failed to load Binary LUT data in MIDIProvider:', e);
-      }
-
       try {
         const access = await requestMidiAccess();
         if (!isMounted) return;
 
         setMidiAccess(access);
         midiAccessRef.current = access;
+
+        // Load LUT
+        try {
+          const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
+          const data = await fetchBinaryLUT(`${baseUrl}/PCS_LUT.dat`);
+          setLut(data);
+        } catch (e) {
+          console.error('Failed to load Binary LUT data in MIDIProvider:', e);
+        }
 
         const handleStateChange = (event: MIDIConnectionEvent) => {
           console.log(`MIDI device state changed: ${event.port?.name} (${event.port?.state})`);
