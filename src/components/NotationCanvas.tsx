@@ -37,7 +37,7 @@ const NotationCanvas: React.FC = () => {
   const [staffSpace, setStaffSpace] = useState<number>(12); // Default value
   const activeNotes = useRef<ActiveNoteData[]>([]);
   const [chordSymbol, setChordSymbol] = useState<string>("");
-  const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes, isToggleModeActive, isHoldModeActive, setSelectedNotes, listenMode = true } = useMidi();
+  const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes, isToggleModeActive, isHoldModeActive, setSelectedNotes, listenMode = true, uiVelocity = 80, homeChord = [60], setHomeChord } = useMidi();
   const [localHoldMode, setLocalHoldMode] = useState<boolean>(false);
   const effectiveHoldModeRef = useRef<boolean>(false);
   effectiveHoldModeRef.current = isHoldModeActive !== undefined ? isHoldModeActive : localHoldMode;
@@ -45,7 +45,14 @@ const NotationCanvas: React.FC = () => {
   const splitPointRef = useRef(splitPoint);
   const lutRef = useRef(lut);
   const listenModeRef = useRef(listenMode);
+  const uiVelocityRef = useRef(uiVelocity);
+  const homeChordRef = useRef(homeChord);
+  const setHomeChordRef = useRef(setHomeChord);
+
   useEffect(() => { listenModeRef.current = listenMode; }, [listenMode]);
+  useEffect(() => { uiVelocityRef.current = uiVelocity; }, [uiVelocity]);
+  useEffect(() => { homeChordRef.current = homeChord; }, [homeChord]);
+  useEffect(() => { setHomeChordRef.current = setHomeChord; }, [setHomeChord]);
   
   // Data-binding state for rendering
   const [renderedNotes, setRenderedNotes] = useState<any[]>([]);
@@ -187,7 +194,7 @@ const NotationCanvas: React.FC = () => {
 
       transposedStrings.forEach(noteStr => {
           if (Tone.context.state === 'running') {
-              try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+              try { audioEngine.noteOn(noteStr, uiVelocityRef.current / 127); } catch (e) { console.error(e); }
               
               // Auto-release after 500ms
               setTimeout(() => {
@@ -229,7 +236,7 @@ const NotationCanvas: React.FC = () => {
 
       transposedStrings.forEach(noteStr => {
           if (Tone.context.state === 'running') {
-              try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+              try { audioEngine.noteOn(noteStr, uiVelocityRef.current / 127); } catch (e) { console.error(e); }
               
               // Auto-release after 500ms
               setTimeout(() => {
@@ -303,7 +310,7 @@ const NotationCanvas: React.FC = () => {
 
       transposedStrings.forEach(noteStr => {
           if (Tone.context.state === 'running') {
-              try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+              try { audioEngine.noteOn(noteStr, uiVelocityRef.current / 127); } catch (e) { console.error(e); }
               
               // Auto-release after 500ms
               setTimeout(() => {
@@ -337,17 +344,28 @@ const NotationCanvas: React.FC = () => {
   };
 
   const applyHome = () => {
-    if (undoStack.current.length > 0) {
-      // Revert to first state in history
-      const homeState = undoStack.current[0];
-      activeNotes.current = homeState ? homeState.map(n => ({ ...n })) : [];
-      undoStack.current = homeState ? [[...homeState]] : [];
-      redoStack.current = [];
-      selectedNoteIds.current.clear();
-      updateSpellings();
-      updateActiveNotes?.([...activeNotes.current]);
-      recalculateLayout();
-    }
+    const homePitches = homeChordRef.current && homeChordRef.current.length > 0 ? homeChordRef.current : [60];
+    activeNotes.current = homePitches.map((pitch: number) => ({
+      id: generateId(),
+      note: pitch,
+      stepOffset: 0,
+      accidental: null,
+      isTreble: pitch >= splitPointRef.current,
+      sourceMidi: pitch,
+    }));
+    selectedNoteIds.current.clear();
+    updateSpellings();
+    updateActiveNotes?.([...activeNotes.current]);
+    recalculateLayout();
+
+    try { audioEngine.releaseAll(); } catch(e) {}
+    homePitches.forEach((pitch: number) => {
+      const noteStr = Tone.Frequency(pitch, "midi").toNote();
+      try { audioEngine.noteOn(noteStr, uiVelocityRef.current / 127); } catch(e) { console.error(e); }
+      setTimeout(() => {
+        try { audioEngine.releaseNote(noteStr); } catch(e) {}
+      }, 500);
+    });
   };
 
   const recalculateLayout = () => {
@@ -690,6 +708,9 @@ const NotationCanvas: React.FC = () => {
           }
           updateSpellings();
           updateActiveNotes?.([...activeNotes.current]);
+          if (activeNotes.current.length > 0) {
+              setHomeChordRef.current?.(activeNotes.current.map(n => n.note));
+          }
       } else if (isNoteOff) {
           if (!isVirtual) physicalKeysDown.current.delete(note);
           
@@ -801,6 +822,40 @@ const NotationCanvas: React.FC = () => {
         strings.forEach(s => { try { audioEngine.releaseNote(s); } catch(err){ console.error("[AudioEngine] releaseNote failed for pitch:", s, err); } });
     };
 
+    const handleHomeOn = (e: Event) => {
+        const vel = (e as CustomEvent).detail.velocity / 127;
+        const homePitches = homeChordRef.current && homeChordRef.current.length > 0 ? homeChordRef.current : [60];
+        activeNotes.current = homePitches.map((pitch: number) => ({
+            id: generateId(),
+            note: pitch,
+            stepOffset: 0,
+            accidental: null,
+            isTreble: pitch >= splitPointRef.current,
+            sourceMidi: pitch,
+            velocity: (e as CustomEvent).detail.velocity || 100,
+            channel: 0,
+            status: 0x90
+        }));
+        selectedNoteIds.current.clear();
+        updateSpellings();
+        updateActiveNotes?.([...activeNotes.current]);
+        recalculateLayout();
+
+        try { audioEngine.releaseAll(); } catch(err) {}
+        homePitches.forEach((pitch: number) => {
+            const noteStr = Tone.Frequency(pitch, "midi").toNote();
+            try { audioEngine.noteOn(noteStr, vel); } catch(err) { console.error("[AudioEngine] noteOn failed for pitch:", noteStr, err); }
+        });
+    };
+
+    const handleHomeOff = () => {
+        const homePitches = homeChordRef.current && homeChordRef.current.length > 0 ? homeChordRef.current : [60];
+        homePitches.forEach((pitch: number) => {
+            const noteStr = Tone.Frequency(pitch, "midi").toNote();
+            try { audioEngine.releaseNote(noteStr); } catch(err) { console.error("[AudioEngine] releaseNote failed for pitch:", noteStr, err); }
+        });
+    };
+
     const handlePreviewOn = (e: Event) => {
         const vel = (e as CustomEvent).detail.velocity / 127;
 
@@ -834,6 +889,8 @@ const NotationCanvas: React.FC = () => {
     window.addEventListener('APP_HISTORY', handleHistory as any);
     window.addEventListener('APP_PLAY_ON', handlePlayOn);
     window.addEventListener('APP_PLAY_OFF', handlePlayOff);
+    window.addEventListener('APP_HOME_ON', handleHomeOn);
+    window.addEventListener('APP_HOME_OFF', handleHomeOff);
     window.addEventListener('APP_HARDWARE_PREVIEW_ON', handlePreviewOn);
     window.addEventListener('APP_HARDWARE_PREVIEW_OFF', handlePreviewOff);
 
@@ -842,6 +899,8 @@ const NotationCanvas: React.FC = () => {
       window.removeEventListener('APP_HISTORY', handleHistory as any);
       window.removeEventListener('APP_PLAY_ON', handlePlayOn);
       window.removeEventListener('APP_PLAY_OFF', handlePlayOff);
+      window.removeEventListener('APP_HOME_ON', handleHomeOn);
+      window.removeEventListener('APP_HOME_OFF', handleHomeOff);
       window.removeEventListener('APP_HARDWARE_PREVIEW_ON', handlePreviewOn);
       window.removeEventListener('APP_HARDWARE_PREVIEW_OFF', handlePreviewOff);
     };

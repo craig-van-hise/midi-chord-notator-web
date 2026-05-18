@@ -44,6 +44,10 @@ interface MidiContextType {
   startLearnMode: (targetId?: ButtonId) => void;
   stopLearnMode: () => void;
   activeTransformationNotes: Map<number, number[]>;
+  uiVelocity: number;
+  setUiVelocity: (val: number | ((prev: number) => number)) => void;
+  homeChord: number[];
+  setHomeChord: (val: number[] | ((prev: number[]) => number[])) => void;
 }
 
 const MidiContext = createContext<MidiContextType | undefined>(undefined);
@@ -57,7 +61,7 @@ const DEFAULT_CONFIG: ButtonConfig = {
 const INITIAL_BUTTONS: ButtonId[] = [
   'SEMI_DOWN', 'SEMI_UP', 'KEY_DOWN', 'KEY_UP', 
   'ROT_DOWN', 'ROT_UP', 'OCT_DOWN', 'OCT_UP', 
-  'UNDO', 'REDO', 'PLAY', 'HOME'
+  'PLAY', 'HOME'
 ];
 
 const INITIAL_CONFIGS: ButtonConfigMap = (() => {
@@ -142,6 +146,8 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const [listenMode, setListenMode] = usePersistentState<boolean>('midi_listen_mode', true);
   const [configs, setConfigs] = usePersistentState<ButtonConfigMap>('midiToolbarConfigs', INITIAL_CONFIGS);
+  const [uiVelocity, setUiVelocity] = usePersistentState<number>('midi_ui_velocity', 80);
+  const [homeChord, setHomeChord] = usePersistentState<number[]>('midi_home_chord', [60]);
   const [learnState, setLearnState] = useState<LearnState>({
     isActive: false,
     currentButtonIndex: 0,
@@ -239,12 +245,16 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (isNoteOn) {
           window.dispatchEvent(new CustomEvent('APP_BUTTON_PRESS_ON', { detail: { buttonId } }));
           // History Actions
-          if (['UNDO', 'REDO', 'HOME'].includes(buttonId)) {
+          if (['UNDO', 'REDO'].includes(buttonId)) {
             window.dispatchEvent(new CustomEvent('APP_HISTORY', { detail: { action: buttonId } }));
+          }
+          // Home Action
+          else if (buttonId === 'HOME') {
+            window.dispatchEvent(new CustomEvent('APP_HOME_ON', { detail: { velocity } }));
           }
           // Play Action
           else if (buttonId === 'PLAY') {
-            window.dispatchEvent(new CustomEvent('APP_PLAY', { detail: { velocity } }));
+            window.dispatchEvent(new CustomEvent('APP_PLAY_ON', { detail: { velocity } }));
           }
           // Transform Actions (Playable Transformations)
           else {
@@ -271,6 +281,8 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           window.dispatchEvent(new CustomEvent('APP_BUTTON_PRESS_OFF', { detail: { buttonId } }));
           if (buttonId === 'PLAY') {
             window.dispatchEvent(new CustomEvent('APP_PLAY_OFF'));
+          } else if (buttonId === 'HOME') {
+            window.dispatchEvent(new CustomEvent('APP_HOME_OFF'));
           } else {
             const transformedNotes = activeTransformationNotesRef.current.get(note);
             if (transformedNotes) {
@@ -534,6 +546,10 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         startLearnMode,
         stopLearnMode,
         activeTransformationNotes: activeTransformationNotesRef.current,
+        uiVelocity,
+        setUiVelocity,
+        homeChord,
+        setHomeChord,
       }}
     >
       {children}

@@ -5,7 +5,7 @@ import type { ButtonId, ContextMenuType } from './TransformationsTypes';
 import { useMidi } from '../../midi/MIDIProvider';
 
 export const TransformationsDrawer = () => {
-  const { configs, updateButtonConfig, listenMode, setListenMode, learnState, startLearnMode, stopLearnMode } = useMidi();
+  const { configs, updateButtonConfig, listenMode, setListenMode, learnState, startLearnMode, stopLearnMode, uiVelocity = 80 } = useMidi();
   const [pressed, setPressed] = useState<Record<ButtonId, boolean>>({} as any);
   const [contextMenu, setContextMenu] = useState<ContextMenuType>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false); // Start closed
@@ -17,15 +17,24 @@ export const TransformationsDrawer = () => {
       const config = configs[id];
       const stepSize = config?.stepSize || 1;
 
-      // History Actions
-      if (['UNDO', 'REDO', 'HOME'].includes(id)) {
-        window.dispatchEvent(new CustomEvent('APP_HISTORY', {
-          detail: { action: id as any }
+      // History / Home Action
+      if (id === 'HOME') {
+        let velocity = hardwareVelocity || uiVelocity;
+        if (e) {
+          const target = e.currentTarget as HTMLElement;
+          target.releasePointerCapture(e.pointerId);
+          const rect = target.getBoundingClientRect();
+          const offsetY = e.clientY - rect.top;
+          velocity = Math.max(1, Math.min(127, Math.floor(((rect.height - offsetY) / rect.height) * 127)));
+        }
+
+        window.dispatchEvent(new CustomEvent('APP_HOME_ON', {
+          detail: { velocity }
         }));
       } 
       // Play Action
       else if (id === 'PLAY') {
-        let velocity = hardwareVelocity || 100;
+        let velocity = hardwareVelocity || uiVelocity;
         if (e) {
           const target = e.currentTarget as HTMLElement;
           target.releasePointerCapture(e.pointerId);
@@ -55,6 +64,7 @@ export const TransformationsDrawer = () => {
 
   const handleButtonUp = (id: ButtonId) => {
     if (id === 'PLAY') window.dispatchEvent(new CustomEvent('APP_PLAY_OFF'));
+    if (id === 'HOME') window.dispatchEvent(new CustomEvent('APP_HOME_OFF'));
     setPressed(prev => ({ ...prev, [id]: false }));
   };
 

@@ -21,7 +21,7 @@ export const ArrowContextMenu: React.FC<ArrowMenuProps> = ({
   position,
   onClose 
 }) => {
-  const isActionBtn = buttonId === 'PLAY' || buttonId === 'HOME' || buttonId === 'UNDO' || buttonId === 'REDO';
+  const isActionBtn = buttonId === 'PLAY' || buttonId === 'HOME';
   const { clearMidiMapping, startLearnMode } = useMidi();
 
   return (
@@ -139,7 +139,7 @@ export const GlobalContextMenu: React.FC<GlobalMenuProps> = ({
   position,
   onClose
 }) => {
-  const { clearAllMidiMappings } = useMidi();
+  const { clearAllMidiMappings, uiVelocity = 80, setUiVelocity } = useMidi();
 
   return (
     <div 
@@ -186,6 +186,27 @@ export const GlobalContextMenu: React.FC<GlobalMenuProps> = ({
             <span className="text-[10px] text-gray-700 font-bold">{settings.listenMode ? 'ON' : 'OFF'}</span>
         </div>
       </button>
+
+      {/* Velocity Slider */}
+      <div className="p-4 bg-gray-50 flex flex-col">
+        <div className="flex justify-between mb-2 items-center">
+          <label className="font-bold uppercase text-xs text-black">UI Velocity</label>
+          <span className="bg-black text-white px-2 py-0.5 text-xs font-bold">{uiVelocity}</span>
+        </div>
+        <input 
+          type="range" 
+          min="1" 
+          max="127" 
+          step="1"
+          value={uiVelocity}
+          onChange={(e) => setUiVelocity?.(parseInt(e.target.value, 10))}
+          className="w-full accent-black h-2 bg-gray-200 appearance-none border border-black hover:bg-gray-300 cursor-pointer"
+        />
+        <div className="flex justify-between text-[10px] text-gray-500 mt-1 font-bold">
+          <span>1</span>
+          <span>127</span>
+        </div>
+      </div>
     </div>
   );
 };

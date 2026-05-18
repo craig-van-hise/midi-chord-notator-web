@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ButtonId, ButtonConfigMap } from './TransformationsTypes';
-import { Play, House, Undo, Redo } from 'lucide-react';
+import { Play, House } from 'lucide-react';
 
 export interface TransformationsToolbarProps {
   pressedButtons: Record<ButtonId, boolean>;
@@ -166,9 +166,7 @@ export const TransformationsToolbar: React.FC<TransformationsToolbarProps> = ({
           <div className="w-[2px] h-20 bg-gray-200 rounded-full" />
 
           {/* RIGHT SIDE: ACTIONS */}
-          <div className="grid grid-cols-2 gap-3">
-            {renderActionBtn('UNDO', Undo)}
-            {renderActionBtn('REDO', Redo)}
+          <div className="grid grid-cols-1 gap-3">
             {renderActionBtn('PLAY', Play)}
             {renderActionBtn('HOME', House)}
           </div>

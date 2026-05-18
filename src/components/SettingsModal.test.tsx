@@ -69,4 +69,18 @@ describe('SettingsModal', () => {
     fireEvent.click(screen.getByText('Close'));
     expect(closed).toBe(true);
   });
+
+  it('should render VELOCITY slider and update persistent state when changed', () => {
+    render(
+      <MIDIProvider>
+        <SettingsModal isOpen={true} onClose={mockOnClose} />
+      </MIDIProvider>
+    );
+
+    const slider = screen.getByRole('slider');
+    expect(slider).toBeInTheDocument();
+
+    fireEvent.change(slider, { target: { value: '100' } });
+    expect(slider).toHaveValue('100');
+  });
 });

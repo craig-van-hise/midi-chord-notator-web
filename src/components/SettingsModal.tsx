@@ -14,7 +14,7 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const { splitPoint, setSplitPoint, isToggleModeActive, setIsToggleModeActive, isHoldModeActive, setIsHoldModeActive, clearAllMidiMappings } = useMidi();
+  const { splitPoint, setSplitPoint, isToggleModeActive, setIsToggleModeActive, isHoldModeActive, setIsHoldModeActive, clearAllMidiMappings, uiVelocity, setUiVelocity } = useMidi();
 
   if (!isOpen) return null;
 
@@ -63,6 +63,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           </div>
 
           <div className="space-y-4 pt-2 border-t border-gray-100 dark:border-gray-700">
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-xs uppercase tracking-wider font-bold opacity-50 dark:text-white">
+                  VELOCITY
+                </label>
+                <span className="text-xs font-mono font-bold text-[#aa3bff]">{uiVelocity}</span>
+              </div>
+              <input 
+                type="range" 
+                min="1" 
+                max="127" 
+                value={uiVelocity}
+                onChange={(e) => setUiVelocity(parseInt(e.target.value, 10))}
+                className="w-full accent-[#aa3bff]"
+              />
+            </div>
+
             <div className="flex items-center justify-between">
               <label className="text-xs uppercase tracking-wider font-bold opacity-50 dark:text-white">
                 Toggle Mode

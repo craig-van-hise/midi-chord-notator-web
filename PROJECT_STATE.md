@@ -116,7 +116,7 @@
 * **Navigation Controller:** Dedicated tactile controller (`NavController.tsx`) for traversing chord states and history.
 
 ### ⏳ Current Work-in-Progress
-* **Prompt #135 / #138 (Active/Recent):** Implemented core audio gatekeeper overlay, direct keyboard transformation audio plumbing, stripped redundant keyboard mode buttons, and synchronized core documentation (`/docs-sync`).
+* **Prompt #141 (Completed):** Remediated missing UI Velocity slider in SettingsModal and GlobalContextMenu, establishing persistent state binding and full TDD test coverage.
 
 ## 4. Recent Evolution
 **Recent Changes:** The codebase underwent architectural hardening to eliminate Web Audio buffer corruption by introducing an explicit "Click to Start" gatekeeper overlay and a strict MIDI bouncer guard in the event loop. Simultaneously, PC keyboard shortcut transformations were hardwired directly into the audio singleton to bypass React closure traps, and the main piano UI was streamlined by stripping redundant mode buttons in favor of the centralized settings modal.

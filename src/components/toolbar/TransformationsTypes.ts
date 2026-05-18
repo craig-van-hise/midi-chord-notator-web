@@ -8,8 +8,6 @@ export type ButtonId =
   | 'ROT_DOWN' 
   | 'OCT_UP' 
   | 'OCT_DOWN' 
-  | 'UNDO'
-  | 'REDO'
   | 'PLAY' 
   | 'HOME';
 
@@ -44,7 +42,7 @@ export interface AppTransformEventDetail {
 }
 
 export interface AppHistoryEventDetail {
-  action: 'UNDO' | 'REDO' | 'HOME';
+  action: 'HOME';
 }
 
 export interface AppPlayEventDetail {
@@ -60,6 +58,10 @@ declare global {
     'APP_TRANSFORM': CustomEvent<AppTransformEventDetail>;
     'APP_HISTORY': CustomEvent<AppHistoryEventDetail>;
     'APP_PLAY': CustomEvent<AppPlayEventDetail>;
+    'APP_PLAY_ON': CustomEvent<AppPlayEventDetail>;
+    'APP_PLAY_OFF': CustomEvent<void>;
+    'APP_HOME_ON': CustomEvent<AppPlayEventDetail>;
+    'APP_HOME_OFF': CustomEvent<void>;
     'APP_CONFIG_UPDATE': CustomEvent<AppConfigUpdateEventDetail>;
     'APP_BUTTON_PRESS_ON': CustomEvent<{ buttonId: ButtonId }>;
     'APP_BUTTON_PRESS_OFF': CustomEvent<{ buttonId: ButtonId }>;

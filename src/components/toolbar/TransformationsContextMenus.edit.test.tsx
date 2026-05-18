@@ -14,6 +14,7 @@ describe('TransformationsContextMenus - MIDI Learn UI Enhancements TDD Checkpoin
   const mockStartLearnMode = vi.fn();
   const mockUpdateConfig = vi.fn();
   const mockOnClose = vi.fn();
+  const mockSetUiVelocity = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -21,6 +22,8 @@ describe('TransformationsContextMenus - MIDI Learn UI Enhancements TDD Checkpoin
       clearAllMidiMappings: mockClearAllMidiMappings,
       clearMidiMapping: mockClearMidiMapping,
       startLearnMode: mockStartLearnMode,
+      uiVelocity: 80,
+      setUiVelocity: mockSetUiVelocity,
     });
   });
 
@@ -40,6 +43,26 @@ describe('TransformationsContextMenus - MIDI Learn UI Enhancements TDD Checkpoin
 
     expect(mockClearAllMidiMappings).toHaveBeenCalled();
     expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('Given the GlobalContextMenu, When the Velocity slider is changed to 100, Then setUiVelocity is called with 100', () => {
+    render(
+      <GlobalContextMenu 
+        onLearnStart={mockStartLearnMode}
+        onToggleListen={vi.fn()}
+        settings={{ listenMode: true }}
+        position={{ x: 0, y: 0 }}
+        onClose={mockOnClose}
+      />
+    );
+
+    const slider = screen.getByRole('slider');
+    expect(slider).toBeInTheDocument();
+    expect(slider).toHaveValue('80');
+
+    fireEvent.change(slider, { target: { value: '100' } });
+
+    expect(mockSetUiVelocity).toHaveBeenCalledWith(100);
   });
 
   it('Given the context menu for Diatonic Up (SEMI_UP), When the Note # input is changed from 60 to 62, Then the persistent state updates the mapping for Diatonic Up to 62', () => {

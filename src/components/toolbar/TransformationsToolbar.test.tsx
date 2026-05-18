@@ -14,8 +14,6 @@ const mockConfigs: ButtonConfigMap = {
   ROT_DOWN: { stepSize: 1, midiChannel: 1, midiNote: 67 },
   PLAY: { stepSize: 1, midiChannel: 1, midiNote: 68 },
   HOME: { stepSize: 1, midiChannel: 1, midiNote: 69 },
-  UNDO: { stepSize: 1, midiChannel: 1, midiNote: 70 },
-  REDO: { stepSize: 1, midiChannel: 1, midiNote: 71 },
 };
 
 const mockPressedButtons: Record<ButtonId, boolean> = Object.keys(mockConfigs).reduce((acc, key) => ({ ...acc, [key]: false }), {} as any);
@@ -43,7 +41,7 @@ describe('TransformationsToolbar', () => {
     expect(inner).toBeTruthy();
   });
 
-  it('renders 8 SVG arrows and 4 action buttons', () => {
+  it('renders 8 SVG arrows and 2 action buttons', () => {
     const { container } = render(
       <TransformationsToolbar 
         pressedButtons={mockPressedButtons}
@@ -58,14 +56,13 @@ describe('TransformationsToolbar', () => {
       />
     );
     
-    // There are 8 arrows (SVG paths)
+    // There are 8 arrows (SVG paths) + 2 action icons + 1 tab icon = 11
     const svgs = container.querySelectorAll('svg');
-    expect(svgs.length).toBe(13);
+    expect(svgs.length).toBe(11);
 
-    // There are 4 action buttons in the action zone (which are <button> with lucide icons)
-    // Plus the 8 arrow buttons. Total 12 buttons.
+    // There are 2 action buttons in the action zone + 8 arrow buttons + 1 tab button = 11 buttons
     const buttons = container.querySelectorAll('button');
-    expect(buttons.length).toBe(13);
+    expect(buttons.length).toBe(11);
   });
 
   it('renders correct labels', () => {
