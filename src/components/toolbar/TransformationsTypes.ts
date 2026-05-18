@@ -61,5 +61,7 @@ declare global {
     'APP_HISTORY': CustomEvent<AppHistoryEventDetail>;
     'APP_PLAY': CustomEvent<AppPlayEventDetail>;
     'APP_CONFIG_UPDATE': CustomEvent<AppConfigUpdateEventDetail>;
+    'APP_BUTTON_PRESS_ON': CustomEvent<{ buttonId: ButtonId }>;
+    'APP_BUTTON_PRESS_OFF': CustomEvent<{ buttonId: ButtonId }>;
   }
 }

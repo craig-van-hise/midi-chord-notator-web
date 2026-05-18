@@ -7,8 +7,6 @@ import SettingsModal from './components/SettingsModal';
 import InfoModal from './components/InfoModal';
 import { RomplerFooter } from './components/RomplerFooter';
 import { TransformationsDrawer } from './components/toolbar/TransformationsDrawer';
-import { audioEngine } from './audio/engine';
-import * as Tone from 'tone';
 
 // Component to handle MIDI message listening and keyboard updates
 const MidiKeyboardUpdater: React.FC = () => {

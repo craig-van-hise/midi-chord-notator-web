@@ -9,7 +9,14 @@ vi.mock('../../midi/MIDIProvider', () => ({
     dispatchVirtualMidi: vi.fn(),
     lut: [],
     keySignature: 'C Major',
-    selectedNotes: []
+    selectedNotes: [],
+    configs: {},
+    listenMode: true,
+    setListenMode: vi.fn(),
+    learnState: { isActive: false, currentButtonIndex: 0, sequence: [] },
+    startLearnMode: vi.fn(),
+    stopLearnMode: vi.fn(),
+    updateButtonConfig: vi.fn(),
   }),
 }));
 

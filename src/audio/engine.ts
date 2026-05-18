@@ -261,6 +261,22 @@ class AudioEngine {
     }
   }
 
+  triggerAttack(notes: number[], velocity: number = 1) {
+    if (!this.sampler || !this.isInitialized || this.isInstrumentLoading) return;
+    notes.forEach(noteNum => {
+      const noteStr = Tone.Frequency(noteNum, "midi").toNote();
+      this.noteOn(noteStr, velocity);
+    });
+  }
+
+  triggerRelease(notes: number[]) {
+    if (!this.sampler || !this.isInitialized || this.isInstrumentLoading) return;
+    notes.forEach(noteNum => {
+      const noteStr = Tone.Frequency(noteNum, "midi").toNote();
+      this.releaseNote(noteStr);
+    });
+  }
+
   releaseAll() {
     if (!this.sampler || !this.isInitialized) return;
     if (this.sampler instanceof Tone.Sampler) {

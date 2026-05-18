@@ -15,24 +15,7 @@ const BLACK_KEY_WIDTH = 11;
 const BLACK_KEY_HEIGHT = 56;
 
 export const Piano88: React.FC = () => {
-    const { dispatchVirtualMidi, lut, keySignature, selectedNotes, isToggleModeActive, setIsToggleModeActive, isHoldModeActive, setIsHoldModeActive } = useMidi() as any;
-    const [localToggle, setLocalToggle] = React.useState(false);
-    const [localHold, setLocalHold] = React.useState(false);
-
-    const toggleMode = isToggleModeActive !== undefined ? isToggleModeActive : localToggle;
-    const holdMode = isHoldModeActive !== undefined ? isHoldModeActive : localHold;
-
-    const handleToggleModeClick = () => {
-        if (setIsToggleModeActive) setIsToggleModeActive(!toggleMode);
-        else setLocalToggle(!toggleMode);
-    };
-
-    const handleHoldModeClick = () => {
-        const nextState = !holdMode;
-        if (setIsHoldModeActive) setIsHoldModeActive(nextState);
-        else setLocalHold(nextState);
-        window.dispatchEvent(new CustomEvent('HOLD_MODE_CHANGED', { detail: { enabled: nextState } }));
-    };
+    const { dispatchVirtualMidi, lut, keySignature, selectedNotes } = useMidi() as any;
 
     const displayedPitches = React.useRef<Set<number>>(new Set());
     const pianoKeys = [];
@@ -210,23 +193,6 @@ export const Piano88: React.FC = () => {
 
     return (
         <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center justify-between w-[936px] px-3 py-1.5 bg-white/40 dark:bg-black/40 backdrop-blur-md rounded border border-gray-200/50 dark:border-white/5">
-                <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Keyboard Modes</div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleToggleModeClick}
-                        className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${toggleMode ? 'bg-[#aa3bff] text-white shadow-lg shadow-[#aa3bff]/30' : 'bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-white/20'}`}
-                    >
-                        TOGGLE MODE
-                    </button>
-                    <button
-                        onClick={handleHoldModeClick}
-                        className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${holdMode ? 'bg-[#aa3bff] text-white shadow-lg shadow-[#aa3bff]/30' : 'bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-white/20'}`}
-                    >
-                        HOLD MODE
-                    </button>
-                </div>
-            </div>
 
             {/* Spelled Notes Strip - Tall version with zipper logic support */}
             <div 

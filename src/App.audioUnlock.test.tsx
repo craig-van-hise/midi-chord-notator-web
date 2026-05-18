@@ -1,10 +1,7 @@
-import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import NotationCanvas from './components/NotationCanvas';
-import { audioEngine } from './audio/engine';
 import { useMidi } from './midi/MIDIProvider';
-import * as Tone from 'tone';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 
 const mockToneStart = vi.fn().mockResolvedValue(undefined);

@@ -4,24 +4,19 @@ import { requestMidiAccess } from './midiAccess';
 import { fetchBinaryLUT } from '../utils/binaryLut';
 import type { PCS_Entry } from '../utils/chordSpeller';
 import { audioEngine } from '../audio/engine';
-import type { ButtonConfigMap } from '../components/toolbar/TransformationsTypes';
-
-// Define the structure for the custom event data
-/*
-interface MidiMessageReceivedEventDetail {
-  data: Uint8Array; // The MIDI message data
-  timestamp: number; // The timestamp of the message
-  input: MIDIInput; // The input port from which the message originated
-}
-*/
+import type { ButtonId, ButtonConfig, ButtonConfigMap, LearnState } from '../components/toolbar/TransformationsTypes';
+import { usePersistentState } from '../lib/usePersistentState';
+import { transposeDiatonically } from '../utils/notationMath';
 
 interface MidiContextType {
   midiAccess: MIDIAccess | null;
   selectedInputId: string;
+  selectedOutputId: string;
   keySignature: string; // e.g., "C Major", "Gb Major"
   loading: boolean;
   error: string | null;
   setInputPort: (portId: string) => void;
+  setOutputPort: (portId: string) => void;
   setKeySignature: (name: string) => void;
   splitPoint: number;
   setSplitPoint: (note: number) => void;
@@ -36,13 +31,105 @@ interface MidiContextType {
   lut: (PCS_Entry | null)[];
   selectedNotes: number[];
   setSelectedNotes: (notes: number[]) => void;
+
+  // New fields for Phase 1, Phase 2, Phase 3
+  listenMode: boolean;
+  setListenMode: (b: boolean | ((val: boolean) => boolean)) => void;
+  configs: ButtonConfigMap;
+  setConfigs: (configs: ButtonConfigMap | ((prev: ButtonConfigMap) => ButtonConfigMap)) => void;
+  updateButtonConfig: (id: ButtonId, updates: Partial<ButtonConfig>) => void;
+  clearAllMidiMappings: () => void;
+  clearMidiMapping: (id: ButtonId) => void;
+  learnState: LearnState;
+  startLearnMode: (targetId?: ButtonId) => void;
+  stopLearnMode: () => void;
+  activeTransformationNotes: Map<number, number[]>;
 }
 
 const MidiContext = createContext<MidiContextType | undefined>(undefined);
 
+const DEFAULT_CONFIG: ButtonConfig = {
+  stepSize: 1,
+  midiChannel: 1,
+  midiNote: -1,
+};
+
+const INITIAL_BUTTONS: ButtonId[] = [
+  'SEMI_DOWN', 'SEMI_UP', 'KEY_DOWN', 'KEY_UP', 
+  'ROT_DOWN', 'ROT_UP', 'OCT_DOWN', 'OCT_UP', 
+  'UNDO', 'REDO', 'PLAY', 'HOME'
+];
+
+const INITIAL_CONFIGS: ButtonConfigMap = (() => {
+  const map: any = {};
+  INITIAL_BUTTONS.forEach(id => map[id] = { ...DEFAULT_CONFIG, midiNote: -1 });
+  return map;
+})();
+
+function getTransformedPitches(
+  type: ButtonId,
+  stepSize: number,
+  activeNotes: any[],
+  selectedNotes: number[],
+  keySignature: string
+): number[] {
+  const targets = selectedNotes.length > 0 ? selectedNotes : activeNotes.map(n => n.note);
+  if (targets.length === 0) return [];
+
+  const getNoteObj = (pitch: number) => activeNotes.find(n => n.note === pitch) || { note: pitch, stepOffset: 0 };
+
+  switch (type) {
+    case 'SEMI_UP':
+      return targets.map(p => Math.max(0, Math.min(127, p + stepSize)));
+    case 'SEMI_DOWN':
+      return targets.map(p => Math.max(0, Math.min(127, p - stepSize)));
+    case 'OCT_UP':
+      return targets.map(p => Math.max(0, Math.min(127, p + 12 * stepSize)));
+    case 'OCT_DOWN':
+      return targets.map(p => Math.max(0, Math.min(127, p - 12 * stepSize)));
+    case 'KEY_UP':
+      return targets.map(p => {
+        const obj = getNoteObj(p);
+        return transposeDiatonically(obj.stepOffset, stepSize, keySignature);
+      });
+    case 'KEY_DOWN':
+      return targets.map(p => {
+        const obj = getNoteObj(p);
+        return transposeDiatonically(obj.stepOffset, -stepSize, keySignature);
+      });
+    case 'ROT_UP':
+    case 'ROT_DOWN': {
+      const delta = type === 'ROT_UP' ? stepSize : -stepSize;
+      const sortedEntries = targets.filter(p => p !== 0).sort((a, b) => a - b);
+      const pcs = Array.from(new Set(sortedEntries.map(p => p % 12))).sort((a, b) => a - b);
+      if (pcs.length === 0) return targets;
+
+      return targets.map(note => {
+        const currentPC = note % 12;
+        const currentPcsIndex = pcs.indexOf(currentPC);
+        const nextPcsIndex = (currentPcsIndex + delta + (pcs.length * Math.abs(delta))) % pcs.length;
+        const targetPC = pcs[nextPcsIndex];
+
+        let newNote = note;
+        if (delta > 0) {
+          newNote++;
+          while (newNote % 12 !== targetPC) { newNote++; }
+        } else if (delta < 0) {
+          newNote--;
+          while (newNote % 12 !== targetPC) { newNote--; }
+        }
+        return newNote;
+      });
+    }
+    default:
+      return targets;
+  }
+}
+
 export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [midiAccess, setMidiAccess] = useState<MIDIAccess | null>(null);
   const [selectedInputId, setSelectedInputId] = useState<string>(localStorage.getItem('midi_input_id') || "omni");
+  const [selectedOutputId, setSelectedOutputId] = useState<string>("omni");
   const [keySignature, setKeySignature] = useState<string>("C Major"); 
   const [splitPoint, setSplitPoint] = useState<number>(60); // Default: Middle C (60)
   const [loading, setLoading] = useState<boolean>(true);
@@ -53,16 +140,154 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [lut, setLut] = useState<(PCS_Entry | null)[]>([]);
   const [selectedNotes, setSelectedNotes] = useState<number[]>([]);
 
+  const [listenMode, setListenMode] = usePersistentState<boolean>('midi_listen_mode', true);
+  const [configs, setConfigs] = usePersistentState<ButtonConfigMap>('midiToolbarConfigs', INITIAL_CONFIGS);
+  const [learnState, setLearnState] = useState<LearnState>({
+    isActive: false,
+    currentButtonIndex: 0,
+    sequence: [],
+  });
 
   const pendingNoteOffs = React.useRef<Set<number>>(new Set());
+  const activeTransformationNotesRef = React.useRef<Map<number, number[]>>(new Map());
+  const activeNotesRef = React.useRef<any[]>([]);
+  const selectedNotesRef = React.useRef<number[]>([]);
+  const keySignatureRef = React.useRef<string>(keySignature);
+  const lutRef = React.useRef<any[]>(lut);
+  const listenModeRef = React.useRef<boolean>(listenMode);
+  const configsRef = React.useRef<ButtonConfigMap>(configs);
+  const learnStateRef = React.useRef<LearnState>(learnState);
 
-  const configsRef = React.useRef<ButtonConfigMap>({} as any);
+  useEffect(() => { keySignatureRef.current = keySignature; }, [keySignature]);
+  useEffect(() => { lutRef.current = lut; }, [lut]);
+  useEffect(() => { listenModeRef.current = listenMode; }, [listenMode]);
+  useEffect(() => { configsRef.current = configs; }, [configs]);
+  useEffect(() => { learnStateRef.current = learnState; }, [learnState]);
+  useEffect(() => { selectedNotesRef.current = selectedNotes; }, [selectedNotes]);
+
+  const updateButtonConfig = useCallback((id: ButtonId, updates: Partial<ButtonConfig>) => {
+    setConfigs(prev => ({
+      ...prev,
+      [id]: { ...(prev[id] || DEFAULT_CONFIG), ...updates }
+    }));
+  }, [setConfigs]);
+
+  const clearAllMidiMappings = useCallback(() => {
+    setConfigs(prev => {
+      const map: any = {};
+      Object.keys(prev).forEach(id => {
+        map[id] = { ...(prev[id as ButtonId] || DEFAULT_CONFIG), midiNote: -1 };
+      });
+      return map;
+    });
+  }, [setConfigs]);
+
+  const clearMidiMapping = useCallback((id: ButtonId) => {
+    setConfigs(prev => ({
+      ...prev,
+      [id]: { ...(prev[id] || DEFAULT_CONFIG), midiNote: -1 }
+    }));
+  }, [setConfigs]);
+
+  const startLearnMode = useCallback((targetId?: ButtonId) => {
+    const sequence: ButtonId[] = targetId ? [targetId] : [...INITIAL_BUTTONS];
+    setLearnState({
+      isActive: true,
+      currentButtonIndex: 0,
+      sequence
+    });
+    console.log("[Learn Mode] Started. Waiting for input for:", sequence[0]);
+  }, []);
+
+  const stopLearnMode = useCallback(() => {
+    setLearnState(prev => ({ ...prev, isActive: false }));
+    console.log("[Learn Mode] Cancelled/Finished.");
+  }, []);
 
   useEffect(() => {
-    const handleSync = (e: any) => { configsRef.current = e.detail.configs; };
-    window.addEventListener('APP_CONFIG_UPDATE', handleSync as any);
-    return () => window.removeEventListener('APP_CONFIG_UPDATE', handleSync as any);
-  }, []);
+    (window as any).__MIDI_INTERCEPTOR = (data: Uint8Array) => {
+      if (!data || data.length < 3) return false;
+      const [status, note, velocity] = data;
+      const isNoteOn = (status & 0xF0) === 0x90 && velocity > 0;
+      const isNoteOff = (status & 0xF0) === 0x80 || ((status & 0xF0) === 0x90 && velocity === 0);
+
+      // 1. LEARN MODE ACTIVE
+      if (learnStateRef.current.isActive) {
+        if (isNoteOn) {
+          const currentId = learnStateRef.current.sequence[learnStateRef.current.currentButtonIndex];
+          if (currentId) {
+            updateButtonConfig(currentId, { midiNote: note, midiChannel: (status & 0x0F) + 1 });
+            if (learnStateRef.current.currentButtonIndex >= learnStateRef.current.sequence.length - 1) {
+              setLearnState(prev => ({ ...prev, isActive: false }));
+            } else {
+              setLearnState(prev => ({ ...prev, currentButtonIndex: prev.currentButtonIndex + 1 }));
+            }
+          }
+        }
+        return true; // Unconditionally block both ON and OFF during learn
+      }
+
+      // 2. PLAY MODE (Action Mapping & Playable Transformations)
+      const configs = configsRef.current;
+      const match = Object.keys(configs).find(id => configs[id as ButtonId]?.midiNote === note && note !== -1);
+
+      if (match) {
+        const buttonId = match as ButtonId;
+        const config = configs[buttonId];
+        const stepSize = config?.stepSize || 1;
+
+        if (isNoteOn) {
+          window.dispatchEvent(new CustomEvent('APP_BUTTON_PRESS_ON', { detail: { buttonId } }));
+          // History Actions
+          if (['UNDO', 'REDO', 'HOME'].includes(buttonId)) {
+            window.dispatchEvent(new CustomEvent('APP_HISTORY', { detail: { action: buttonId } }));
+          }
+          // Play Action
+          else if (buttonId === 'PLAY') {
+            window.dispatchEvent(new CustomEvent('APP_PLAY', { detail: { velocity } }));
+          }
+          // Transform Actions (Playable Transformations)
+          else {
+            const transformedChord = getTransformedPitches(
+              buttonId, 
+              stepSize, 
+              activeNotesRef.current, 
+              selectedNotesRef.current, 
+              keySignatureRef.current
+            );
+            
+            const normalizedVelocity = velocity / 127;
+            activeTransformationNotesRef.current.set(note, transformedChord);
+
+            if (listenModeRef.current) {
+              audioEngine.triggerAttack(transformedChord, normalizedVelocity);
+            }
+
+            window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
+              detail: { type: buttonId, stepSize, isUiClick: false }
+            }));
+          }
+        } else if (isNoteOff) {
+          window.dispatchEvent(new CustomEvent('APP_BUTTON_PRESS_OFF', { detail: { buttonId } }));
+          if (buttonId === 'PLAY') {
+            window.dispatchEvent(new CustomEvent('APP_PLAY_OFF'));
+          } else {
+            const transformedNotes = activeTransformationNotesRef.current.get(note);
+            if (transformedNotes) {
+              if (listenModeRef.current) {
+                audioEngine.triggerRelease(transformedNotes);
+              }
+              activeTransformationNotesRef.current.delete(note);
+            }
+          }
+        }
+        return true;
+      }
+      return false;
+    };
+
+    return () => { (window as any).__MIDI_INTERCEPTOR = undefined; };
+  }, [updateButtonConfig]);
 
   const dispatchMidiEvent = useCallback((data: Uint8Array, isVirtual: boolean = false) => {
     const customEvent = new CustomEvent('MIDI_MESSAGE_RECEIVED', { 
@@ -123,7 +348,6 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [handleIncomingMidi]);
 
   const handleMidiPanic = useCallback(() => {
-
     // Reset sustain state
     setIsSustainActive(false);
     setIsToggleModeActive(true);
@@ -144,10 +368,20 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     window.dispatchEvent(panicEvent);
   }, []);
 
+  const handleMidiMessage = useCallback((event: Event) => {
+    const customEvent = event as CustomEvent;
+    const { data, refresh, notes, isVirtual } = customEvent.detail || {};
 
+    if (refresh && notes) {
+      activeNotesRef.current = notes;
+      return;
+    }
 
-  const handleMidiMessage = useCallback((_event: Event) => {
-    // const customEvent = _event as CustomEvent<MidiMessageReceivedEventDetail>;
+    if (!isVirtual && data && data instanceof Uint8Array) {
+      if (typeof (window as any).__MIDI_INTERCEPTOR === 'function') {
+        (window as any).__MIDI_INTERCEPTOR(data);
+      }
+    }
   }, []);
 
   const midiAccessRef = React.useRef<MIDIAccess | null>(null);
@@ -250,7 +484,6 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const [selectedOutputId, setSelectedOutputId] = useState<string>("omni");
   const setOutputPort = (portId: string) => {
     setSelectedOutputId(portId);
   };
@@ -290,6 +523,17 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lut,
         selectedNotes,
         setSelectedNotes,
+        listenMode,
+        setListenMode,
+        configs,
+        setConfigs,
+        updateButtonConfig,
+        clearAllMidiMappings,
+        clearMidiMapping,
+        learnState,
+        startLearnMode,
+        stopLearnMode,
+        activeTransformationNotes: activeTransformationNotesRef.current,
       }}
     >
       {children}

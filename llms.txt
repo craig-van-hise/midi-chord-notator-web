@@ -8,8 +8,9 @@ A high-performance, musically accurate MIDI notation web application.
 - [ROOT_SPELLING_ALGORITHM.md](./ROOT_SPELLING_ALGORITHM.md): Technical details of the scale root spelling engine.
 
 ## Core Modules
-- `src/components/NotationCanvas.tsx`: Main imperative rendering engine.
+- `src/components/NotationCanvas.tsx`: Main imperative rendering engine with Click-to-Start Gatekeeper.
 - `src/components/toolbar/TransformationsDrawer.tsx`: MIDI-mappable transformation controller.
+- `src/components/Keyboard.tsx`: Streamlined 88-key piano layout.
 - `src/midi/MIDIProvider.tsx`: OMNI MIDI input routing.
 - `src/utils/chordSpeller.ts`: Enharmonic spelling and PCS LUT integration.
 - `src/audio/engine.ts`: Tone.js audio engine wrapper.

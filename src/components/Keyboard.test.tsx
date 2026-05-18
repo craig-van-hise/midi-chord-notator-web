@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Keyboard from './Keyboard';
 
@@ -11,42 +11,15 @@ vi.mock('../midi/MIDIProvider', () => ({
   }),
 }));
 
-describe('Keyboard Component', () => {
+describe('Keyboard Component - Clean UI Layout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders both TOGGLE MODE and HOLD MODE buttons', () => {
+  it('Given the Keyboard component renders, When it mounts, Then it should NOT contain the text KEYBOARD MODES or buttons for TOGGLE MODE or HOLD MODE', () => {
     render(<Keyboard />);
-    expect(screen.getByText('TOGGLE MODE')).toBeInTheDocument();
-    expect(screen.getByText('HOLD MODE')).toBeInTheDocument();
-  });
-
-  it('dispatches HOLD_MODE_CHANGED event when HOLD MODE is clicked', () => {
-    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
-    render(<Keyboard />);
-    
-    const holdModeButton = screen.getByText('HOLD MODE');
-    
-    // Initial render might dispatch if useEffect runs on mount (current implementation does)
-    // Actually, useEffect runs on mount with isHoldModeEnabled = false
-    
-    fireEvent.click(holdModeButton);
-
-    // Check for the custom event
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'HOLD_MODE_CHANGED',
-        detail: { enabled: true }
-      })
-    );
-
-    fireEvent.click(holdModeButton);
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'HOLD_MODE_CHANGED',
-        detail: { enabled: false }
-      })
-    );
+    expect(screen.queryByText(/KEYBOARD MODES/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('TOGGLE MODE')).not.toBeInTheDocument();
+    expect(screen.queryByText('HOLD MODE')).not.toBeInTheDocument();
   });
 });

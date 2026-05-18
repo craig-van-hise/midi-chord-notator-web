@@ -14,7 +14,7 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const { splitPoint, setSplitPoint, isToggleModeActive, setIsToggleModeActive, isHoldModeActive, setIsHoldModeActive } = useMidi();
+  const { splitPoint, setSplitPoint, isToggleModeActive, setIsToggleModeActive, isHoldModeActive, setIsHoldModeActive, clearAllMidiMappings } = useMidi();
 
   if (!isOpen) return null;
 
@@ -84,6 +84,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                 onChange={(e) => setIsHoldModeActive(e.target.checked)}
                 className="w-5 h-5 accent-[#aa3bff]"
               />
+            </div>
+            <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+              <button
+                onClick={() => { clearAllMidiMappings(); onClose(); }}
+                className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-red-600/20 text-xs uppercase tracking-wider"
+              >
+                Clear All MIDI Mappings
+              </button>
             </div>
           </div>
 

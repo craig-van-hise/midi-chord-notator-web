@@ -7,6 +7,13 @@
 |  ├── # 129.md
 |  ├── # 130.md
 |  ├── # 131.md
+|  ├── # 132.md
+|  ├── # 133.md
+|  ├── # 134.md
+|  ├── # 135.md
+|  ├── # 136.md
+|  ├── # 137.md
+|  ├── # 138.md
 |  ├── # PDD.md
 |  └── x Older
 |     ├── # 1.md
@@ -183,6 +190,7 @@
 ├── scripts
 |  └── pack_lut.js
 ├── src
+|  ├── App.audioUnlock.test.tsx
 |  ├── App.css
 |  ├── App.test.tsx
 |  ├── App.tsx
@@ -206,6 +214,7 @@
 |  |  ├── NotationCanvas.headless.test.tsx
 |  |  ├── NotationCanvas.history.test.tsx
 |  |  ├── NotationCanvas.selection.test.tsx
+|  |  ├── NotationCanvas.shortcutAudio.test.tsx
 |  |  ├── NotationCanvas.test.tsx
 |  |  ├── NotationCanvas.tsx
 |  |  ├── RomplerFooter.tsx
@@ -249,7 +258,7 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-directory: 861 file: 6703
+directory: 861 file: 6712
 
 ignored: directory (117)
 
@@ -260,7 +269,7 @@ ignored: directory (117)
 
 # PROJECT_STATE: Grand Staff MIDI Notator
 
-**Current System Status:** ✅ Stable - Transformations Suite, MIDI Learn & Web Deployment Hardened
+**Current System Status:** ✅ Stable - Core Audio Gatekeeper, UI Streamlining & Web Deployment Hardened
 **Last Updated:** 2026-05-17
 
 ## 1. Project Architecture (Level 3)
@@ -274,18 +283,35 @@ ignored: directory (117)
 │   │   └── Bravura.woff2
 │   └── icons.svg
 ├── src
+│   ├── App.audioUnlock.test.tsx
+│   ├── App.css
+│   ├── App.test.tsx
 │   ├── App.tsx
+│   ├── assets
+│   │   ├── fonts
+│   │   ├── hero.png
+│   │   ├── react.svg
+│   │   └── vite.svg
 │   ├── audio
 │   │   └── engine.ts
 │   ├── components
 │   │   ├── ErrorBoundary.tsx
 │   │   ├── InfoModal.tsx
 │   │   ├── KeySignatureSelector.tsx
+│   │   ├── Keyboard.test.tsx
 │   │   ├── Keyboard.tsx
 │   │   ├── Knob.tsx
 │   │   ├── NavController.tsx
+│   │   ├── NotationCanvas.bugs.test.tsx
+│   │   ├── NotationCanvas.events.test.tsx
+│   │   ├── NotationCanvas.headless.test.tsx
+│   │   ├── NotationCanvas.history.test.tsx
+│   │   ├── NotationCanvas.selection.test.tsx
+│   │   ├── NotationCanvas.shortcutAudio.test.tsx
+│   │   ├── NotationCanvas.test.tsx
 │   │   ├── NotationCanvas.tsx
 │   │   ├── RomplerFooter.tsx
+│   │   ├── SettingsModal.test.tsx
 │   │   ├── SettingsModal.tsx
 │   │   ├── VUMeter.tsx
 │   │   ├── navTypes.ts
@@ -296,19 +322,30 @@ ignored: directory (117)
 │   │       ├── TransformationsDrawer.tsx
 │   │       ├── TransformationsToolbar.tsx
 │   │       └── TransformationsTypes.ts
+│   ├── index.css
 │   ├── lib
 │   │   ├── usePersistentState.ts
 │   │   └── utils.ts
+│   ├── main.tsx
 │   ├── midi
+│   │   ├── MIDIProvider.test.tsx
 │   │   ├── MIDIProvider.tsx
 │   │   ├── MidiPortSelector.tsx
+│   │   ├── midiAccess.test.ts
 │   │   └── midiAccess.ts
 │   ├── utils
 │   │   ├── binaryLut.ts
+│   │   ├── chordSpeller.test.ts
 │   │   ├── chordSpeller.ts
-│   │   └── notationMath.ts
+│   │   ├── notationMath.test.ts
+│   │   ├── notationMath.ts
+│   │   ├── notationMath.xLevel.test.ts
+│   │   ├── padding.test.ts
+│   │   └── pipeline.test.ts
 │   └── vitest.setup.ts
+├── tsconfig.app.json
 ├── tsconfig.json
+├── tsconfig.node.json
 └── vite.config.ts
 ```
 
@@ -323,8 +360,10 @@ ignored: directory (117)
 ## 3. System Capabilities
 
 ### 🎹 Audio Engine
-* **Integrated ROMPler:** Tabbed footer Sampler (`RomplerFooter.tsx`) powered by Tone.js and smplr with ADSR envelope support, sample-based playback, and `activePreviews` reference tracking to prevent orphaned sustain notes.
-* **Dynamic PLAY Envelopes:** The Toolbar `PLAY` button behaves like a physical key, respecting hardware velocity and sustaining exactly as long as the key (or pointer) is held.
+* **Click-to-Start Gatekeeper:** Explicit absolute-positioned overlay in `NotationCanvas.tsx` requiring a user click to execute `Tone.start()`, eliminating UX ambiguity and race conditions.
+* **MIDI Bouncer Guard:** `handleMidiMessage` actively drops MIDI playback requests if `Tone.context.state !== 'running'`, preventing premature buffer corruption.
+* **Direct Transformation Plumbing:** `applyChromaticShift`, `applyDiatonicShift`, and `applyPcsRotation` invoke `audioEngine` directly, bypassing React closure traps for deterministic keyboard shortcut audio.
+* **Integrated ROMPler:** Tabbed footer Sampler (`RomplerFooter.tsx`) powered by Tone.js and smplr with ADSR envelope support, sample-based playback, and `activePreviews` reference tracking.
 * **Choke Group (Monophony):** Enforces strict monophony for mapped hardware keys to prevent transformation stacking and ensure clean audio transitions.
 
 ### 📡 Tracking Engine (MIDI & Input)
@@ -339,16 +378,17 @@ ignored: directory (117)
 * **Intelligent Ottava Engine:** Dynamically evaluates staff density to apply 8va/15ma/8vb/15mb shifts.
 
 ### 🧠 UI State Logic & Editing Engine
+* **Streamlined Keyboard Layout:** Removed redundant "KEYBOARD MODES" header block and mode buttons above the piano layout in `Keyboard.tsx`, centralizing all mode toggles cleanly inside `SettingsModal.tsx`.
 * **Anchor-Persistent Range Selection:** Supports shift-click selection with a stable origin, allowing users to expand or contract selections fluidly.
 * **Diatonic Transposition:** `Alt + ArrowUp/Down` performs key-signature-aware pitch shifts.
 * **Voicing-Aware PCS Rotation:** `Cmd + Alt + ArrowUp/Down` rotates the active pitch class set while maintaining voicing structure.
 * **Navigation Controller:** Dedicated tactile controller (`NavController.tsx`) for traversing chord states and history.
 
 ### ⏳ Current Work-in-Progress
-* **Prompt #131 / #132 (Active/Recent):** Resolved Bravura font binary corruption (`Bravura.woff2`) for GitHub Pages deployment and synchronized core documentation (`/docs-sync`).
+* **Prompt #135 / #138 (Active/Recent):** Implemented core audio gatekeeper overlay, direct keyboard transformation audio plumbing, stripped redundant keyboard mode buttons, and synchronized core documentation (`/docs-sync`).
 
 ## 4. Recent Evolution
-**Recent Changes:** The codebase underwent structural and configuration refinements to support seamless web deployment, specifically resolving a Bravura font binary corruption issue that caused OTS parsing errors on GitHub Pages. Additionally, the Transformations toolbar drawer positioning and documentation were updated to ensure a stable, polished user experience and an accurate architectural representation of active modules.
+**Recent Changes:** The codebase underwent architectural hardening to eliminate Web Audio buffer corruption by introducing an explicit "Click to Start" gatekeeper overlay and a strict MIDI bouncer guard in the event loop. Simultaneously, PC keyboard shortcut transformations were hardwired directly into the audio singleton to bypass React closure traps, and the main piano UI was streamlined by stripping redundant mode buttons in favor of the centralized settings modal.
 
 ## 5. Future Roadmap
 * **Performance:** Optimizing accidental compaction for extremely dense (> 8 note) clusters.
@@ -401,18 +441,35 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 │   │   └── Bravura.woff2
 │   └── icons.svg
 ├── src
+│   ├── App.audioUnlock.test.tsx
+│   ├── App.css
+│   ├── App.test.tsx
 │   ├── App.tsx
+│   ├── assets
+│   │   ├── fonts
+│   │   ├── hero.png
+│   │   ├── react.svg
+│   │   └── vite.svg
 │   ├── audio
 │   │   └── engine.ts
 │   ├── components
 │   │   ├── ErrorBoundary.tsx
 │   │   ├── InfoModal.tsx
 │   │   ├── KeySignatureSelector.tsx
+│   │   ├── Keyboard.test.tsx
 │   │   ├── Keyboard.tsx
 │   │   ├── Knob.tsx
 │   │   ├── NavController.tsx
+│   │   ├── NotationCanvas.bugs.test.tsx
+│   │   ├── NotationCanvas.events.test.tsx
+│   │   ├── NotationCanvas.headless.test.tsx
+│   │   ├── NotationCanvas.history.test.tsx
+│   │   ├── NotationCanvas.selection.test.tsx
+│   │   ├── NotationCanvas.shortcutAudio.test.tsx
+│   │   ├── NotationCanvas.test.tsx
 │   │   ├── NotationCanvas.tsx
 │   │   ├── RomplerFooter.tsx
+│   │   ├── SettingsModal.test.tsx
 │   │   ├── SettingsModal.tsx
 │   │   ├── VUMeter.tsx
 │   │   ├── navTypes.ts
@@ -423,19 +480,30 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 │   │       ├── TransformationsDrawer.tsx
 │   │       ├── TransformationsToolbar.tsx
 │   │       └── TransformationsTypes.ts
+│   ├── index.css
 │   ├── lib
 │   │   ├── usePersistentState.ts
 │   │   └── utils.ts
+│   ├── main.tsx
 │   ├── midi
+│   │   ├── MIDIProvider.test.tsx
 │   │   ├── MIDIProvider.tsx
 │   │   ├── MidiPortSelector.tsx
+│   │   ├── midiAccess.test.ts
 │   │   └── midiAccess.ts
 │   ├── utils
 │   │   ├── binaryLut.ts
+│   │   ├── chordSpeller.test.ts
 │   │   ├── chordSpeller.ts
-│   │   └── notationMath.ts
+│   │   ├── notationMath.test.ts
+│   │   ├── notationMath.ts
+│   │   ├── notationMath.xLevel.test.ts
+│   │   ├── padding.test.ts
+│   │   └── pipeline.test.ts
 │   └── vitest.setup.ts
+├── tsconfig.app.json
 ├── tsconfig.json
+├── tsconfig.node.json
 └── vite.config.ts
 ```
 

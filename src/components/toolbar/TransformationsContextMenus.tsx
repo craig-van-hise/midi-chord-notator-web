@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ButtonConfig, ButtonId } from './TransformationsTypes';
-import { GraduationCap, Volume2 } from 'lucide-react';
+import { GraduationCap, Volume2, Trash2 } from 'lucide-react';
+import { useMidi } from '../../midi/MIDIProvider';
 
 
 // --- Arrow Button Context Menu ---
@@ -21,6 +22,7 @@ export const ArrowContextMenu: React.FC<ArrowMenuProps> = ({
   onClose 
 }) => {
   const isActionBtn = buttonId === 'PLAY' || buttonId === 'HOME' || buttonId === 'UNDO' || buttonId === 'REDO';
+  const { clearMidiMapping, startLearnMode } = useMidi();
 
   return (
     <div 
@@ -58,14 +60,60 @@ export const ArrowContextMenu: React.FC<ArrowMenuProps> = ({
         )}
 
         {/* MIDI Info */}
-        <div className="border border-black p-2 bg-gray-50">
-          <div className="flex justify-between border-b border-dashed border-gray-400 pb-1 mb-1">
-            <span className="text-gray-500 text-xs">MIDI CH</span>
-            <span className="font-bold">{config.midiChannel}</span>
+        <div className="border border-black p-2 bg-gray-50 space-y-2">
+          <div>
+            <div className="flex justify-between border-b border-dashed border-gray-400 pb-1 mb-1 items-center">
+              <span className="text-gray-500 text-xs">MIDI CH</span>
+              <input 
+                type="number"
+                min="1"
+                max="16"
+                value={config.midiChannel}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 1 && val <= 16) {
+                    onUpdateConfig(buttonId, { midiChannel: val });
+                  }
+                }}
+                className="w-16 bg-white border border-black px-1 py-0.5 text-xs font-bold text-right outline-none focus:bg-yellow-100"
+              />
+            </div>
+            <div className="flex justify-between items-center mt-1">
+              <span className="text-gray-500 text-xs">NOTE #</span>
+              <input 
+                type="number"
+                min="0"
+                max="127"
+                value={config.midiNote !== -1 ? config.midiNote : ''}
+                placeholder="None"
+                onChange={(e) => {
+                  if (e.target.value === '') {
+                    onUpdateConfig(buttonId, { midiNote: -1 });
+                  } else {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val >= 0 && val <= 127) {
+                      onUpdateConfig(buttonId, { midiNote: val });
+                    }
+                  }
+                }}
+                className="w-16 bg-white border border-black px-1 py-0.5 text-xs font-bold text-right outline-none focus:bg-yellow-100 placeholder:text-[10px]"
+              />
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500 text-xs">NOTE #</span>
-            <span className="font-bold">{config.midiNote}</span>
+
+          <div className="flex gap-2 pt-1 border-t border-gray-300">
+            <button 
+              onClick={() => { startLearnMode(buttonId); onClose(); }} 
+              className="flex-1 bg-black text-white py-1 px-2 text-xs font-bold hover:bg-yellow-400 hover:text-black transition-colors border border-black"
+            >
+              LEARN
+            </button>
+            <button 
+              onClick={() => { clearMidiMapping(buttonId); onClose(); }} 
+              className="flex-1 bg-white text-red-600 py-1 px-2 text-xs font-bold hover:bg-red-600 hover:text-white transition-colors border border-red-600"
+            >
+              CLEAR
+            </button>
           </div>
         </div>
       </div>
@@ -91,6 +139,8 @@ export const GlobalContextMenu: React.FC<GlobalMenuProps> = ({
   position,
   onClose
 }) => {
+  const { clearAllMidiMappings } = useMidi();
+
   return (
     <div 
       className="fixed z-50 bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] min-w-[220px] flex flex-col font-mono"
@@ -110,6 +160,17 @@ export const GlobalContextMenu: React.FC<GlobalMenuProps> = ({
             <GraduationCap className="w-5 h-5 text-black" strokeWidth={2.5} />
         </div>
         <span className="font-extrabold text-black uppercase text-sm">MIDI Learn</span>
+      </button>
+
+      {/* Clear All Button */}
+      <button 
+        onClick={() => { clearAllMidiMappings(); onClose(); }}
+        className="text-left px-4 py-3 hover:bg-red-100 hover:pl-5 border-b border-black flex items-center gap-3 transition-all"
+      >
+        <div className="w-8 h-8 flex items-center justify-center border border-black bg-white">
+            <Trash2 className="w-5 h-5 text-red-600" strokeWidth={2.5} />
+        </div>
+        <span className="font-extrabold text-red-600 uppercase text-sm">Clear All Mappings</span>
       </button>
 
       {/* Listen Toggle */}

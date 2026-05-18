@@ -42,18 +42,35 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 │   │   └── Bravura.woff2
 │   └── icons.svg
 ├── src
+│   ├── App.audioUnlock.test.tsx
+│   ├── App.css
+│   ├── App.test.tsx
 │   ├── App.tsx
+│   ├── assets
+│   │   ├── fonts
+│   │   ├── hero.png
+│   │   ├── react.svg
+│   │   └── vite.svg
 │   ├── audio
 │   │   └── engine.ts
 │   ├── components
 │   │   ├── ErrorBoundary.tsx
 │   │   ├── InfoModal.tsx
 │   │   ├── KeySignatureSelector.tsx
+│   │   ├── Keyboard.test.tsx
 │   │   ├── Keyboard.tsx
 │   │   ├── Knob.tsx
 │   │   ├── NavController.tsx
+│   │   ├── NotationCanvas.bugs.test.tsx
+│   │   ├── NotationCanvas.events.test.tsx
+│   │   ├── NotationCanvas.headless.test.tsx
+│   │   ├── NotationCanvas.history.test.tsx
+│   │   ├── NotationCanvas.selection.test.tsx
+│   │   ├── NotationCanvas.shortcutAudio.test.tsx
+│   │   ├── NotationCanvas.test.tsx
 │   │   ├── NotationCanvas.tsx
 │   │   ├── RomplerFooter.tsx
+│   │   ├── SettingsModal.test.tsx
 │   │   ├── SettingsModal.tsx
 │   │   ├── VUMeter.tsx
 │   │   ├── navTypes.ts
@@ -64,19 +81,30 @@ A high-performance, musically accurate MIDI notation web application. Designed f
 │   │       ├── TransformationsDrawer.tsx
 │   │       ├── TransformationsToolbar.tsx
 │   │       └── TransformationsTypes.ts
+│   ├── index.css
 │   ├── lib
 │   │   ├── usePersistentState.ts
 │   │   └── utils.ts
+│   ├── main.tsx
 │   ├── midi
+│   │   ├── MIDIProvider.test.tsx
 │   │   ├── MIDIProvider.tsx
 │   │   ├── MidiPortSelector.tsx
+│   │   ├── midiAccess.test.ts
 │   │   └── midiAccess.ts
 │   ├── utils
 │   │   ├── binaryLut.ts
+│   │   ├── chordSpeller.test.ts
 │   │   ├── chordSpeller.ts
-│   │   └── notationMath.ts
+│   │   ├── notationMath.test.ts
+│   │   ├── notationMath.ts
+│   │   ├── notationMath.xLevel.test.ts
+│   │   ├── padding.test.ts
+│   │   └── pipeline.test.ts
 │   └── vitest.setup.ts
+├── tsconfig.app.json
 ├── tsconfig.json
+├── tsconfig.node.json
 └── vite.config.ts
 ```
 

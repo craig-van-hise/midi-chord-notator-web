@@ -37,13 +37,15 @@ const NotationCanvas: React.FC = () => {
   const [staffSpace, setStaffSpace] = useState<number>(12); // Default value
   const activeNotes = useRef<ActiveNoteData[]>([]);
   const [chordSymbol, setChordSymbol] = useState<string>("");
-  const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes, isToggleModeActive, isHoldModeActive, setSelectedNotes } = useMidi();
+  const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes, isToggleModeActive, isHoldModeActive, setSelectedNotes, listenMode = true } = useMidi();
   const [localHoldMode, setLocalHoldMode] = useState<boolean>(false);
   const effectiveHoldModeRef = useRef<boolean>(false);
   effectiveHoldModeRef.current = isHoldModeActive !== undefined ? isHoldModeActive : localHoldMode;
   const keySignatureRef = useRef(keySignature);
   const splitPointRef = useRef(splitPoint);
   const lutRef = useRef(lut);
+  const listenModeRef = useRef(listenMode);
+  useEffect(() => { listenModeRef.current = listenMode; }, [listenMode]);
   
   // Data-binding state for rendering
   const [renderedNotes, setRenderedNotes] = useState<any[]>([]);
@@ -154,7 +156,7 @@ const NotationCanvas: React.FC = () => {
 
   // --- TRANSFORMATION HELPERS ---
 
-  const applyChromaticShift = (delta: number, stepSize: number = 1) => {
+  const applyChromaticShift = (delta: number, stepSize: number = 1, isUiClick: boolean = true) => {
     if (selectedNoteIds.current.size === 0) return;
     commitState();
     const shift = delta * stepSize;
@@ -173,28 +175,30 @@ const NotationCanvas: React.FC = () => {
     updateActiveNotes?.([...activeNotes.current]);
     recalculateLayout();
 
-    // Force note-offs for active previews to prevent smearing
-    try { audioEngine.releaseAll(); } catch(e) {}
-    
-    // Play the newly mutated pitches directly
-    const transposedStrings = Array.from(selectedNoteIds.current)
-      .map(id => activeNotes.current.find(n => n.id === id)?.note)
-      .filter((n): n is number => typeof n === 'number')
-      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+    if (listenModeRef.current && isUiClick) {
+      // Force note-offs for active previews to prevent smearing
+      try { audioEngine.releaseAll(); } catch(e) {}
+      
+      // Play the newly mutated pitches directly
+      const transposedStrings = Array.from(selectedNoteIds.current)
+        .map(id => activeNotes.current.find(n => n.id === id)?.note)
+        .filter((n): n is number => typeof n === 'number')
+        .map(pitch => Tone.Frequency(pitch, "midi").toNote());
 
-    transposedStrings.forEach(noteStr => {
-        if (Tone.context.state === 'running') {
-            try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
-            
-            // Auto-release after 500ms
-            setTimeout(() => {
-                try { audioEngine.releaseNote(noteStr); } catch (e) {}
-            }, 500);
-        }
-    });
+      transposedStrings.forEach(noteStr => {
+          if (Tone.context.state === 'running') {
+              try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+              
+              // Auto-release after 500ms
+              setTimeout(() => {
+                  try { audioEngine.releaseNote(noteStr); } catch (e) {}
+              }, 500);
+          }
+      });
+    }
   };
 
-  const applyDiatonicShift = (delta: number, stepSize: number = 1) => {
+  const applyDiatonicShift = (delta: number, stepSize: number = 1, isUiClick: boolean = true) => {
     if (selectedNoteIds.current.size === 0) return;
     commitState();
     const keyName = keySignatureRef.current;
@@ -213,28 +217,30 @@ const NotationCanvas: React.FC = () => {
     updateActiveNotes?.([...activeNotes.current]);
     recalculateLayout();
 
-    // Force note-offs for active previews to prevent smearing
-    try { audioEngine.releaseAll(); } catch(e) {}
-    
-    // Play the newly mutated pitches directly
-    const transposedStrings = Array.from(selectedNoteIds.current)
-      .map(id => activeNotes.current.find(n => n.id === id)?.note)
-      .filter((n): n is number => typeof n === 'number')
-      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+    if (listenModeRef.current && isUiClick) {
+      // Force note-offs for active previews to prevent smearing
+      try { audioEngine.releaseAll(); } catch(e) {}
+      
+      // Play the newly mutated pitches directly
+      const transposedStrings = Array.from(selectedNoteIds.current)
+        .map(id => activeNotes.current.find(n => n.id === id)?.note)
+        .filter((n): n is number => typeof n === 'number')
+        .map(pitch => Tone.Frequency(pitch, "midi").toNote());
 
-    transposedStrings.forEach(noteStr => {
-        if (Tone.context.state === 'running') {
-            try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
-            
-            // Auto-release after 500ms
-            setTimeout(() => {
-                try { audioEngine.releaseNote(noteStr); } catch (e) {}
-            }, 500);
-        }
-    });
+      transposedStrings.forEach(noteStr => {
+          if (Tone.context.state === 'running') {
+              try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+              
+              // Auto-release after 500ms
+              setTimeout(() => {
+                  try { audioEngine.releaseNote(noteStr); } catch (e) {}
+              }, 500);
+          }
+      });
+    }
   };
 
-  const applyPcsRotation = (delta: number, stepSize: number = 1) => {
+  const applyPcsRotation = (delta: number, stepSize: number = 1, isUiClick: boolean = true) => {
     if (selectedNoteIds.current.size === 0) return;
     commitState();
     
@@ -285,25 +291,27 @@ const NotationCanvas: React.FC = () => {
     updateActiveNotes?.([...activeNotes.current]);
     recalculateLayout();
 
-    // Force note-offs for active previews to prevent smearing
-    try { audioEngine.releaseAll(); } catch(e) {}
-    
-    // Play the newly mutated pitches directly
-    const transposedStrings = Array.from(selectedNoteIds.current)
-      .map(id => activeNotes.current.find(n => n.id === id)?.note)
-      .filter((n): n is number => typeof n === 'number')
-      .map(pitch => Tone.Frequency(pitch, "midi").toNote());
+    if (listenModeRef.current && isUiClick) {
+      // Force note-offs for active previews to prevent smearing
+      try { audioEngine.releaseAll(); } catch(e) {}
+      
+      // Play the newly mutated pitches directly
+      const transposedStrings = Array.from(selectedNoteIds.current)
+        .map(id => activeNotes.current.find(n => n.id === id)?.note)
+        .filter((n): n is number => typeof n === 'number')
+        .map(pitch => Tone.Frequency(pitch, "midi").toNote());
 
-    transposedStrings.forEach(noteStr => {
-        if (Tone.context.state === 'running') {
-            try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
-            
-            // Auto-release after 500ms
-            setTimeout(() => {
-                try { audioEngine.releaseNote(noteStr); } catch (e) {}
-            }, 500);
-        }
-    });
+      transposedStrings.forEach(noteStr => {
+          if (Tone.context.state === 'running') {
+              try { audioEngine.noteOn(noteStr, 100 / 127); } catch (e) { console.error(e); }
+              
+              // Auto-release after 500ms
+              setTimeout(() => {
+                  try { audioEngine.releaseNote(noteStr); } catch (e) {}
+              }, 500);
+          }
+      });
+    }
   };
 
   const undo = () => {
@@ -720,7 +728,7 @@ const NotationCanvas: React.FC = () => {
             effectiveHoldModeRef.current = enabled;
             if (!enabled) {
                 // Toggle Hold Mode OFF: Sync display with physical keys
-                activeNotes.current = activeNotes.current.filter(n => physicalKeysDown.current.has(n.sourceMidi));
+                activeNotes.current = activeNotes.current.filter(n => n.sourceMidi !== undefined && physicalKeysDown.current.has(n.sourceMidi));
                 updateSpellings();
                 updateActiveNotes?.([...activeNotes.current]);
                 recalculateLayout();
@@ -735,7 +743,7 @@ const NotationCanvas: React.FC = () => {
   // APP EVENT BRIDGE
   useEffect(() => {
     const handleTransform = (e: any) => {
-      const { type, stepSize } = e.detail;
+      const { type, stepSize, isUiClick } = e.detail;
 
       // PRE-FLIGHT AUTO-SELECT: If no selection, select all active notes
       if (selectedNoteIds.current.size === 0 && activeNotes.current.length > 0) {
@@ -747,15 +755,17 @@ const NotationCanvas: React.FC = () => {
 
       if (selectedNoteIds.current.size === 0) return;
 
+      const isUi = isUiClick !== undefined ? isUiClick : true;
+
       switch (type) {
-        case 'SEMI_UP': applyChromaticShift(1, stepSize); break;
-        case 'SEMI_DOWN': applyChromaticShift(-1, stepSize); break;
-        case 'KEY_UP': applyDiatonicShift(1, stepSize); break;
-        case 'KEY_DOWN': applyDiatonicShift(-1, stepSize); break;
-        case 'ROT_UP': applyPcsRotation(1, stepSize); break;
-        case 'ROT_DOWN': applyPcsRotation(-1, stepSize); break;
-        case 'OCT_UP': applyChromaticShift(12, stepSize); break;
-        case 'OCT_DOWN': applyChromaticShift(-12, stepSize); break;
+        case 'SEMI_UP': applyChromaticShift(1, stepSize, isUi); break;
+        case 'SEMI_DOWN': applyChromaticShift(-1, stepSize, isUi); break;
+        case 'KEY_UP': applyDiatonicShift(1, stepSize, isUi); break;
+        case 'KEY_DOWN': applyDiatonicShift(-1, stepSize, isUi); break;
+        case 'ROT_UP': applyPcsRotation(1, stepSize, isUi); break;
+        case 'ROT_DOWN': applyPcsRotation(-1, stepSize, isUi); break;
+        case 'OCT_UP': applyChromaticShift(12, stepSize, isUi); break;
+        case 'OCT_DOWN': applyChromaticShift(-12, stepSize, isUi); break;
       }
     };
 
