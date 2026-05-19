@@ -688,5 +688,71 @@ describe('NotationCanvas - Hardware Reconciliation (Phase 2 fix)', () => {
       expect(mockUpdateActiveNotes.mock.calls.length).toBeGreaterThan(callsAfterOn);
       expect(mockUpdateActiveNotes).toHaveBeenLastCalledWith([]);
     });
+
+    test('should dynamically update spelling of symmetrical tritone chord when global key signature changes', async () => {
+      const mockUpdateActiveNotes = vi.fn();
+      
+      (useMidi as any).mockReturnValue({
+        keySignature: 'C Major',
+        splitPoint: 60,
+        lut: Array(4096).fill(null),
+        updateActiveNotes: mockUpdateActiveNotes
+      });
+
+      const { rerender } = render(<NotationCanvas />);
+
+      // Send Note On for 60 (C) and 66 (F#/Gb)
+      act(() => {
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: { data: new Uint8Array([0x90, 60, 100]) }
+        }));
+      });
+      act(() => {
+        window.dispatchEvent(new CustomEvent('MIDI_MESSAGE_RECEIVED', {
+          detail: { data: new Uint8Array([0x90, 66, 100]) }
+        }));
+      });
+
+      // Verify C Major (key center 0) rendering:
+      // Note 60 has no accidental, note 66 has sharp accidental
+      await waitFor(() => {
+        const note60 = document.querySelector('[data-midi-note="60"]');
+        const note66 = document.querySelector('[data-midi-note="66"]');
+        expect(note60).toBeInTheDocument();
+        expect(note66).toBeInTheDocument();
+        
+        expect(note60?.querySelector('[data-is-accidental="true"]')).toBeNull();
+        
+        const acc66 = note66?.querySelector('[data-is-accidental="true"]');
+        expect(acc66).toBeInTheDocument();
+        expect(acc66?.textContent).toBe(SMuFL.accidentalSharp);
+      });
+
+      // Change key signature to Gb Major
+      (useMidi as any).mockReturnValue({
+        keySignature: 'Gb Major',
+        splitPoint: 60,
+        lut: Array(4096).fill(null),
+        updateActiveNotes: mockUpdateActiveNotes
+      });
+
+      // Rerender to trigger keySignature change useEffect
+      rerender(<NotationCanvas />);
+
+      // Verify Gb Major (key center 6) rendering:
+      // Note 60 has no accidental, note 66 has flat accidental
+      await waitFor(() => {
+        const note60 = document.querySelector('[data-midi-note="60"]');
+        const note66 = document.querySelector('[data-midi-note="66"]');
+        expect(note60).toBeInTheDocument();
+        expect(note66).toBeInTheDocument();
+        
+        expect(note60?.querySelector('[data-is-accidental="true"]')).toBeNull();
+        
+        const acc66 = note66?.querySelector('[data-is-accidental="true"]');
+        expect(acc66).toBeInTheDocument();
+        expect(acc66?.textContent).toBe(SMuFL.accidentalFlat);
+      });
+    });
   });
 });

@@ -107,6 +107,7 @@
 * **Pipeline Integrity:** Uses immutable UUID-based note identities to prevent React reconciliation artifacts during dynamic canvas redraws.
 * **Dual-Column Layout (Cohemitonia):** Automatically zippers dense chromatic unisons into a legible two-column stack.
 * **Intelligent Ottava Engine:** Dynamically evaluates staff density to apply 8va/15ma/8vb/15mb shifts.
+* **Dynamic Symmetrical Speller (Phase 3):** Mathematically identifies symmetrical pitch sets (Tritones, Diminished 7ths, Augmented triads) and spells them symmetrically relative to the global key signature and root pitch. This prevents awkward accidental stacking and preserves key-centric notation.
 
 ### 🧠 UI State Logic & Editing Engine
 * **Streamlined Keyboard Layout:** Removed redundant "KEYBOARD MODES" header block and mode buttons above the piano layout in `Keyboard.tsx`, centralizing all mode toggles cleanly inside `SettingsModal.tsx`.
@@ -117,11 +118,10 @@
 * **Undo History Safeguard:** Intercepts out-of-bounds transpositions and aborts early before committing state changes, keeping the undo/redo stack free of redundant, blocked frames.
 * **Navigation Controller:** Dedicated tactile controller (`NavController.tsx`) for traversing chord states and history.
 
-### ⏳ Current Work-in-Progress
-* **Math Utility Overhaul & Upstream Integration (Completed)**: Overhauled the boundaries check to enforce strict 88-key boundaries (`[21, 108]`) using `enforcePianoRange`, rejecting whole-chord shifts when any note exceeds limits to prevent voicing compaction.
-
 ## 4. Recent Evolution
-**Recent Changes:** The codebase transitioned from element-wise octave wrapping to a strict chord-level boundary blocking system (`enforcePianoRange`), protecting chord voicing from collapsing when transposing near standard 88-key boundaries. Upstream handlers in both `MIDIProvider.tsx` and `NotationCanvas.tsx` were refactored to intercept out-of-bound shifts, aborting state changes early to ensure undo stack cleanliness.
+**Recent Changes:**
+1. **Octave Wrap Safety (Phase 2)**: Transitioned from element-wise octave wrapping to a strict chord-level boundary blocking system (`enforcePianoRange`), protecting chord voicing from collapsing when transposing near standard 88-key boundaries.
+2. **Symmetrical Spelling Engine (Phase 3)**: Implemented mathematical speller for symmetrical chords (Tritones, Diminished 7ths) with root-relative intervallic spelling maps. Fully integrated with `NotationCanvas.tsx` to reactively update spellings when global key signatures change, verified with a targeted Vitest suite achieving 100% pass rates.
 
 ## 5. Future Roadmap
 * **Performance:** Optimizing accidental compaction for extremely dense (> 8 note) clusters.

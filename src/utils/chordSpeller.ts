@@ -1,5 +1,6 @@
 
 import { SMuFL, getEnharmonicSpelling } from './notationMath';
+import { getSymmetricalSpelling } from './symmetricalSpeller';
 
 /**
  * PCS_LUT Entry structure based on the provided JSON
@@ -158,7 +159,7 @@ function getChromaticRootInterval(rootPCN: number, cardinality: number, decimal:
     return "1";
 }
 
-export function getRootSpellingFromKey(ps: number[], keySigPC: number, lut: (PCS_Entry | null)[]): string {
+export function getRootSpellingFromKey(ps: number[], keySigPC: number, lut: (PCS_Entry | null)[], overrideRootPc?: number): string {
     const sortedPS = [...ps].sort((a, b) => a - b);
     const decimal = psToDecimal(sortedPS);
     const entry = lut[decimal];
@@ -169,7 +170,7 @@ export function getRootSpellingFromKey(ps: number[], keySigPC: number, lut: (PCS
     }
     
     const lowPitch = sortedPS[0];
-    const rootPC = (entry.root_pc + lowPitch) % 12;
+    const rootPC = overrideRootPc !== undefined ? overrideRootPc : ((entry.root_pc + lowPitch) % 12);
     const keyPC = PITCH_TO_PC[KEY_NAME_MAP[keySigPC]?.substring(0, 2) || "C"] ?? 0;
     
     let effectiveKeyPC = keyPC;
@@ -236,7 +237,7 @@ export function sumIntervalStrings(a: string, b: string): string {
     return acc + degSum;
 }
 
-export function getChordSpelling(notes: any[], keySignature: string = "C Major", lut: (PCS_Entry | null)[], overrides?: Record<number, string>): string[] {
+export function getChordSpelling(notes: any[], keySignature: string = "C Major", lut: (PCS_Entry | null)[], overrides?: Record<number, string>, keyCenterPc?: number): string[] {
     const keyName = keySignature.split(' ')[0];
     const keySigPC = KEY_SIG_MAP[keyName] ?? 0;
     
@@ -269,8 +270,33 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
         });
     } else {
         const lowPitch = sortedPitches[0];
-        let psRootName = getRootSpellingFromKey(sortedPitches, keySigPC, lut);
-        const absoluteRootPC = (entry.root_pc + lowPitch) % 12;
+        const lowPitchPc = lowPitch % 12;
+
+        let keyCenter = keyCenterPc;
+        if (keyCenter === undefined) {
+            let effectiveKeyPC = keySigPC;
+            if (keySigPC >= 12) {
+                const auxMap: Record<number, number> = { 12: 6, 13: 1, 14: 8, 15: 3, 16: 10 };
+                effectiveKeyPC = auxMap[keySigPC];
+            }
+            keyCenter = effectiveKeyPC;
+        }
+
+        const symIntervals = getSymmetricalSpelling(entry.pitch_class_set, lowPitchPc, keyCenter);
+
+        let intervals = entry.chord_intervals;
+        let overrideRootPc: number | undefined = undefined;
+
+        if (symIntervals) {
+            intervals = symIntervals;
+            const rootIdx = symIntervals.indexOf("1");
+            if (rootIdx !== -1) {
+                overrideRootPc = sortedPitches[rootIdx] % 12;
+            }
+        }
+
+        let psRootName = getRootSpellingFromKey(sortedPitches, keySigPC, lut, overrideRootPc);
+        const absoluteRootPC = overrideRootPc !== undefined ? overrideRootPc : ((entry.root_pc + lowPitch) % 12);
         const rootPitch = sortedPitches.find(p => p % 12 === absoluteRootPC);
 
         // 1. Force the Root Spelling if overridden
@@ -280,20 +306,23 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
 
         const rootRelKeyInterval = getIntervalBetweenPitches(keyName, psRootName);
         
-        sortedSpellings = sortedPitches.map(pitch => {
+        sortedSpellings = sortedPitches.map((pitch, idx) => {
             const pc = pitch % 12;
             const semitones = (pc - absoluteRootPC + 12) % 12;
             
             let toneInterval: string | null = null;
-            const majorSteps = [0, 2, 4, 5, 7, 9, 11];
-            
-            for (const interval of entry.chord_intervals) {
-                 const [deg, off] = parseIntervalString(interval);
-                 const simpleDeg = ((deg - 1) % 7) + 1;
-                 if ((majorSteps[simpleDeg - 1] + off + 12) % 12 === semitones) {
-                     toneInterval = interval;
-                     break;
-                 }
+            if (symIntervals) {
+                toneInterval = intervals[idx];
+            } else {
+                const majorSteps = [0, 2, 4, 5, 7, 9, 11];
+                for (const interval of intervals) {
+                     const [deg, off] = parseIntervalString(interval);
+                     const simpleDeg = ((deg - 1) % 7) + 1;
+                     if ((majorSteps[simpleDeg - 1] + off + 12) % 12 === semitones) {
+                         toneInterval = interval;
+                         break;
+                     }
+                }
             }
             
             if (toneInterval === null) {
@@ -378,7 +407,7 @@ export function getSpellingData(midiNote: number, spelling: string): { stepOffse
 /**
  * Derives a chord symbol from the pitch set and LUT entry.
  */
-export function getChordSymbol(ps: number[], keySignature: string = "C Major", lut: (PCS_Entry | null)[], overrides?: Record<number, string>): string {
+export function getChordSymbol(ps: number[], keySignature: string = "C Major", lut: (PCS_Entry | null)[], overrides?: Record<number, string>, keyCenterPc?: number): string {
     const sortedPS = [...ps].sort((a, b) => a - b);
     if (sortedPS.length === 0) return "";
     
@@ -388,10 +417,45 @@ export function getChordSymbol(ps: number[], keySignature: string = "C Major", l
 
     const keyName = keySignature.split(' ')[0];
     const keySigPC = KEY_SIG_MAP[keyName] ?? 0;
-    const lowPitch = sortedPS[0];
-    let rootName = getRootSpellingFromKey(sortedPS, keySigPC, lut);
     
-    const absoluteRootPC = (entry.root_pc + lowPitch) % 12;
+    let keyCenter = keyCenterPc;
+    if (keyCenter === undefined) {
+        let effectiveKeyPC = keySigPC;
+        if (keySigPC >= 12) {
+            const auxMap: Record<number, number> = { 12: 6, 13: 1, 14: 8, 15: 3, 16: 10 };
+            effectiveKeyPC = auxMap[keySigPC];
+        }
+        keyCenter = effectiveKeyPC;
+    }
+
+    const lowPitch = sortedPS[0];
+    const lowPitchPc = lowPitch % 12;
+    const symIntervals = getSymmetricalSpelling(entry.pitch_class_set, lowPitchPc, keyCenter);
+
+    let rootName: string;
+    let absoluteRootPC: number;
+    let isSymmetricalSlash = false;
+    let bassSpelling = "";
+
+    if (symIntervals) {
+        const rootIdx = symIntervals.indexOf("1");
+        if (rootIdx !== -1) {
+            absoluteRootPC = sortedPS[rootIdx] % 12;
+            const spellings = getChordSpelling(sortedPS, keySignature, lut, overrides, keyCenter);
+            rootName = spellings[rootIdx];
+            if (rootIdx !== 0) {
+                isSymmetricalSlash = true;
+                bassSpelling = spellings[0];
+            }
+        } else {
+            absoluteRootPC = (entry.root_pc + lowPitch) % 12;
+            rootName = getRootSpellingFromKey(sortedPS, keySigPC, lut);
+        }
+    } else {
+        absoluteRootPC = (entry.root_pc + lowPitch) % 12;
+        rootName = getRootSpellingFromKey(sortedPS, keySigPC, lut);
+    }
+    
     const rootPitch = sortedPS.find(p => p % 12 === absoluteRootPC);
 
     // Force the Root Spelling if overridden
@@ -402,9 +466,18 @@ export function getChordSymbol(ps: number[], keySignature: string = "C Major", l
     let symbol = rootName + entry.chord_type;
     
     // Slash notation if root_pc != 0 (meaning the low note is not the root)
-    if (entry.root_pc !== 0) {
+    if (symIntervals) {
+        if (isSymmetricalSlash) {
+            // Force override injection for the bass note specifically
+            const bassPitch = sortedPS[0];
+            if (overrides && overrides[bassPitch]) {
+                bassSpelling = overrides[bassPitch];
+            }
+            symbol += " / " + bassSpelling;
+        }
+    } else if (entry.root_pc !== 0) {
         // Find the spelling of the lowest note
-        const spellings = getChordSpelling(sortedPS, keySignature, lut, overrides);
+        const spellings = getChordSpelling(sortedPS, keySignature, lut, overrides, keyCenter);
         let lowNoteSpelling = spellings[0];
         
         // CRITICAL: Force override injection for the bass note specifically

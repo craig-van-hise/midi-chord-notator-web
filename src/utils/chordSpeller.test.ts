@@ -365,7 +365,7 @@ describe('chordSpeller Interval Parsing', () => {
       expect(spelling).toEqual(["Bbb", "Db", "Fb"]);
     });
 
-    it('Test Case 2 (Fx°7 in F# Major): Notes should inherit double sharps', () => {
+    it('Test Case 2 (Fx°7 in G# Major): Notes should inherit double sharps', () => {
       const mockLut = new Array(4096).fill(null);
       mockLut[585] = {
           decimal: 585,
@@ -376,10 +376,54 @@ describe('chordSpeller Interval Parsing', () => {
           cardinality: 4,
           pitch_class_set: [0, 3, 6, 9]
       };
-      // [67, 70, 73, 76] -> PCs [7, 10, 1, 4]. Root PC: 7. rootPCN relative to F# (6) is 1.
-      // #1 of F# is Fx. Dim7 on Fx is Fx, A#, C#, E.
-      const spelling = getChordSpelling([67, 70, 73, 76], "F# Major", mockLut);
+      // [67, 70, 73, 76] -> PCs [7, 10, 1, 4]. Root PC: 7. rootPCN relative to G# (8) is 11.
+      // 7th of G# Major is Fx. Dim7 on Fx is Fx, A#, C#, E.
+      const spelling = getChordSpelling([67, 70, 73, 76], "G# Major", mockLut);
       expect(spelling).toEqual(["Fx", "A#", "C#", "E"]);
+    });
+  });
+
+  describe('Phase 2 Symmetrical Speller Integration', () => {
+    it('Test Case 1 (Tritone override based on low note in C Major): C Major (key 0) and low note E (PC 4, dist 4)', () => {
+      const mockLut = new Array(4096).fill(null);
+      // Tritone [64, 70] -> PCs [4, 10] -> Decimal 2^0 + 2^6 = 65 (rel to low note PC 4)
+      mockLut[65] = {
+          decimal: 65,
+          chord_type: "tritone",
+          root_pc: 0,
+          chord_intervals: ["1", "b5"],
+          base_triad: "other",
+          cardinality: 2,
+          pitch_class_set: [0, 6]
+      };
+      // For low note E (PC 4) in key C (keyCenterPc = 0), distance = 4. Tritone map for dist 4 gives ["1", "b5"].
+      // Root PC is E. E relative to C is M3. E major scale degree 3 is E.
+      // So spelling should be ["E", "Bb"].
+      const spellingE = getChordSpelling([64, 70], "C Major", mockLut, undefined, 0);
+      expect(spellingE).toEqual(["E", "Bb"]);
+
+      // For low note F (PC 5) in key C, distance = 5. Tritone map for dist 5 gives ["b5", "1"].
+      // Root idx is 1, so B is the root. B relative to C is M7. B major scale degree 7 is B.
+      // So spelling should be ["F", "B"].
+      // [65, 71] -> PCs [5, 11] -> Decimal 65
+      const spellingF = getChordSpelling([65, 71], "C Major", mockLut, undefined, 0);
+      expect(spellingF).toEqual(["F", "B"]);
+    });
+
+    it('Test Case 2 (Minor Triad bypasses symmetrical speller and resolves standard LUT spelling)', () => {
+      const mockLut = new Array(4096).fill(null);
+      // D minor triad [62, 65, 69] -> PCs [2, 5, 9] -> Rel PCs [0, 3, 7] -> Decimal 145
+      mockLut[145] = {
+          decimal: 145,
+          chord_type: "m",
+          root_pc: 0,
+          chord_intervals: ["1", "b3", "5"],
+          base_triad: "min",
+          cardinality: 3,
+          pitch_class_set: [0, 3, 7]
+        };
+      const spelling = getChordSpelling([62, 65, 69], "C Major", mockLut, undefined, 0);
+      expect(spelling).toEqual(["D", "F", "A"]);
     });
   });
 });

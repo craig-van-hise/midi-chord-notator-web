@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { SMuFL, assignXLevels, transposeDiatonically, calculateWriteModePitch, type AccidentalOverride, getNoteNameFromPosition, enforcePianoRange } from '../utils/notationMath';
 import { useMidi } from '../midi/MIDIProvider';
 import KeySignatureSelector from './KeySignatureSelector';
-import { getChordSpelling, getSpellingData, getChordSymbol } from '../utils/chordSpeller';
+import { getChordSpelling, getSpellingData, getChordSymbol, KEY_SIG_MAP } from '../utils/chordSpeller';
 import { audioEngine } from '../audio/engine';
 import * as Tone from 'tone';
 
@@ -678,14 +678,21 @@ const NotationCanvas: React.FC = () => {
         return;
       }
       const keyName = keySignatureRef.current;
+      const keyRoot = keyName.split(' ')[0];
+      const keySigPC = KEY_SIG_MAP[keyRoot] ?? 0;
+      let keyCenterPc = keySigPC;
+      if (keySigPC >= 12) {
+          const auxMap: Record<number, number> = { 12: 6, 13: 1, 14: 8, 15: 3, 16: 10 };
+          keyCenterPc = auxMap[keySigPC];
+      }
       
       const overrides: Record<number, string> = {};
       activeNotes.current.forEach(n => {
           if (n.spellingOverride) overrides[n.note] = n.spellingOverride;
       });
 
-      const spellings = getChordSpelling(pitches, keyName, lutRef.current, overrides);
-      const symbol = getChordSymbol(pitches, keyName, lutRef.current, overrides);
+      const spellings = getChordSpelling(pitches, keyName, lutRef.current, overrides, keyCenterPc);
+      const symbol = getChordSymbol(pitches, keyName, lutRef.current, overrides, keyCenterPc);
       setChordSymbol(symbol);
 
       activeNotes.current.forEach((data, i) => {
