@@ -1,7 +1,7 @@
 # PROJECT_STATE: Grand Staff MIDI Notator
 
 **Current System Status:** ✅ Stable - Core Audio Gatekeeper, UI Streamlining & Web Deployment Hardened
-**Last Updated:** 2026-05-17
+**Last Updated:** 2026-05-19
 
 ## 1. Project Architecture (Level 3)
 ```text
@@ -32,7 +32,6 @@
 │   │   ├── Keyboard.test.tsx
 │   │   ├── Keyboard.tsx
 │   │   ├── Knob.tsx
-│   │   ├── MidiNoteRangeFilter.tsx
 │   │   ├── NavController.tsx
 │   │   ├── NotationCanvas.bugs.test.tsx
 │   │   ├── NotationCanvas.events.test.tsx
@@ -56,8 +55,6 @@
 │   │       └── TransformationsTypes.ts
 │   ├── index.css
 │   ├── lib
-│   │   ├── midiProcessing.test.ts
-│   │   ├── midiProcessing.ts
 │   │   ├── usePersistentState.ts
 │   │   └── utils.ts
 │   ├── main.tsx
@@ -119,10 +116,13 @@
 * **Navigation Controller:** Dedicated tactile controller (`NavController.tsx`) for traversing chord states and history.
 
 ### ⏳ Current Work-in-Progress
-* **Prompt #142 (Completed):** Integrated the MIDI Note Range Filter system (`MidiNoteRangeFilter.tsx` and `midiProcessing.ts`) into the settings menu and audio routing interceptor, providing mathematical bounding (`block`, `octave_wrap`, `wrap`, `limit`) and full TDD coverage.
+* **Prompt #151 (Completed):** Corrected mathematical wrap limits to correspond strictly to the physical standard 88-key piano range: minimum 21 (A0) and maximum 108 (C8).
+* **Prompt #150 (Completed):** Audited and hardened mathematical wrap logic with explicit type conversion (`Number(note)`) and continuous looping for deep-negative boundaries ($< 9$).
+* **Prompt #149 (Completed):** Updated the global mathematical octave wrap to bound strictly to the standard 88-key piano range: minimum 9 (A0) and maximum 108 (C8).
+* **Prompt #148 (Completed):** Implemented mathematical Octave Wrapping under-the-hood to constrain all notes to MIDI range `[0, 127]`, wrapping out-of-bounds notes element-wise by `+/- 12` and deduplicating duplicates. Applied upstream interception inside `NotationCanvas.tsx` (chromatic, diatonic, rotation, refresh payload) and `MIDIProvider.tsx` (transformations, hardware interceptor notes).
 
 ## 4. Recent Evolution
-**Recent Changes:** The codebase underwent architectural hardening to eliminate Web Audio buffer corruption by introducing an explicit "Click to Start" gatekeeper overlay and a strict MIDI bouncer guard in the event loop. Simultaneously, PC keyboard shortcut transformations were hardwired directly into the audio singleton to bypass React closure traps, and the main piano UI was streamlined by stripping redundant mode buttons in favor of the centralized settings modal.
+**Recent Changes:** The codebase underwent architectural hardening to eliminate Web Audio buffer corruption by introducing an explicit "Click to Start" gatekeeper overlay and a strict MIDI bouncer guard in the event loop. Simultaneously, PC keyboard shortcut transformations were hardwired directly into the audio singleton, the main piano UI was streamlined, and mathematical octave wrapping was integrated and type-hardened to guarantee that transformations never produce out-of-bound (standard 88-key piano limits 21 to 108) or duplicate MIDI notes.
 
 ## 5. Future Roadmap
 * **Performance:** Optimizing accidental compaction for extremely dense (> 8 note) clusters.

@@ -83,19 +83,4 @@ describe('SettingsModal', () => {
     fireEvent.change(slider, { target: { value: '100' } });
     expect(slider).toHaveValue('100');
   });
-
-  it('should render MIDI Note Range Filter modal when button is clicked', () => {
-    render(
-      <MIDIProvider>
-        <SettingsModal isOpen={true} onClose={mockOnClose} />
-      </MIDIProvider>
-    );
-
-    const button = screen.getByText('MIDI Note Range Filter');
-    expect(button).toBeInTheDocument();
-
-    fireEvent.click(button);
-
-    expect(screen.getByText('Processing Mode')).toBeInTheDocument();
-  });
 });

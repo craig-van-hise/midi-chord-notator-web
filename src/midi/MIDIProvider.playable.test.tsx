@@ -151,4 +151,54 @@ describe('MIDIProvider - Playable Transformations TDD Checkpoint', () => {
     expect(audioEngine.triggerRelease).toHaveBeenCalledWith([61, 65, 68]);
     expect(capturedContext.activeTransformationNotes.has(48)).toBe(false);
   });
+
+  it('Given an input chord containing notes that map beyond bounds, when simulated MIDI Note On arrives, then they are octave wrapped element-wise and the Note Off triggers release on the wrapped notes', async () => {
+    const mockMidiAccess = {
+      inputs: new Map([['input-1', mockMidiInput1]]),
+      outputs: new Map(),
+      onstatechange: null,
+    };
+    (navigator.requestMIDIAccess as any).mockResolvedValue(mockMidiAccess);
+
+    let capturedContext: any;
+    render(
+      <MIDIProvider>
+        <TestConsumer onReady={(ctx) => { capturedContext = ctx; }} />
+      </MIDIProvider>
+    );
+
+    await waitFor(() => expect(screen.getByText('Ready')).toBeInTheDocument());
+    expect(capturedContext).toBeDefined();
+
+    act(() => {
+      // Set boundary chord [100, 105, 107] as selected notes
+      capturedContext.setSelectedNotes([100, 105, 107]);
+      // Map OCT_UP to MIDI note 48 (C3)
+      capturedContext.updateButtonConfig('OCT_UP', { midiNote: 48, midiChannel: 1 });
+    });
+
+    // Simulate Note On for MIDI note 48 with velocity 100
+    act(() => {
+      mockMidiInput1.onmidimessage!({
+        data: new Uint8Array([0x90, 48, 100]),
+      } as any);
+    });
+
+    // OCT_UP transforms [100, 105, 107] by +12 to [112, 117, 119]
+    // applyGlobalOctaveWrap wraps them to [100, 105, 107] (since 112-12=100, 117-12=105, 119-12=107)
+    expect(audioEngine.triggerAttack).toHaveBeenCalledWith([100, 105, 107], 100 / 127);
+
+    // Verify map has the active notes as wrapped pitches
+    expect(capturedContext.activeTransformationNotes.get(48)).toEqual([100, 105, 107]);
+
+    // Simulate Note Off for MIDI note 48
+    act(() => {
+      mockMidiInput1.onmidimessage!({
+        data: new Uint8Array([0x80, 48, 0]),
+      } as any);
+    });
+
+    expect(audioEngine.triggerRelease).toHaveBeenCalledWith([100, 105, 107]);
+    expect(capturedContext.activeTransformationNotes.has(48)).toBe(false);
+  });
 });

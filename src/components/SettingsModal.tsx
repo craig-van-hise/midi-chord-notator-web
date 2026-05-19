@@ -1,7 +1,5 @@
 import React from 'react';
 import { useMidi } from '../midi/MIDIProvider';
-import { Keyboard } from 'lucide-react';
-import { MidiNoteRangeFilter } from './MidiNoteRangeFilter';
 
 const getNoteName = (midi: number): string => {
   const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -16,8 +14,7 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const { splitPoint, setSplitPoint, isToggleModeActive, setIsToggleModeActive, isHoldModeActive, setIsHoldModeActive, clearAllMidiMappings, uiVelocity, setUiVelocity, filterMode, setFilterMode, filterRange, setFilterRange } = useMidi();
-  const [isFilterModalOpen, setIsFilterModalOpen] = React.useState(false);
+  const { splitPoint, setSplitPoint, isToggleModeActive, setIsToggleModeActive, isHoldModeActive, setIsHoldModeActive, clearAllMidiMappings, uiVelocity, setUiVelocity } = useMidi();
 
   if (!isOpen) return null;
 
@@ -105,14 +102,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                 className="w-5 h-5 accent-[#aa3bff]"
               />
             </div>
-            <div className="pt-2 border-t border-gray-100 dark:border-gray-700 space-y-2">
-              <button
-                onClick={() => setIsFilterModalOpen(true)}
-                className="w-full flex items-center justify-center gap-2 bg-[#aa3bff] hover:bg-[#9226e6] text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-[#aa3bff]/20 text-xs uppercase tracking-wider"
-              >
-                <Keyboard className="w-4 h-4" />
-                MIDI Note Range Filter
-              </button>
+            <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
               <button
                 onClick={() => { clearAllMidiMappings(); onClose(); }}
                 className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-red-600/20 text-xs uppercase tracking-wider"
@@ -132,42 +122,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           </div>
         </div>
       </div>
-
-      {isFilterModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-          <div className="absolute inset-0" onClick={() => setIsFilterModalOpen(false)} />
-          <div className="relative z-[110] bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-4xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-2">
-                <Keyboard className="w-6 h-6 text-[#aa3bff]" />
-                <h3 className="text-xl font-bold dark:text-white">MIDI Note Range Filter</h3>
-              </div>
-              <button 
-                onClick={() => setIsFilterModalOpen(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl leading-none"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="flex-1 my-2 overflow-x-auto">
-              <MidiNoteRangeFilter 
-                activeMode={filterMode}
-                onModeChange={setFilterMode}
-                range={filterRange}
-                onRangeChange={setFilterRange}
-              />
-            </div>
-            <div className="pt-4 flex justify-end border-t border-gray-100 dark:border-gray-700 mt-4">
-              <button
-                onClick={() => setIsFilterModalOpen(false)}
-                className="bg-[#aa3bff] hover:bg-[#9226e6] text-white px-6 py-2 rounded-lg font-bold transition-colors shadow-lg shadow-[#aa3bff]/20"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

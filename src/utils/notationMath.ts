@@ -282,9 +282,9 @@ export function transposeDiatonically(currentStepOffset: number, delta: number, 
     if (targetPC === 11 && targetScaleStep === 0) targetOctave -= 1; // Cb correction (Cb4 -> MIDI B3)
     if (targetPC === 0 && targetScaleStep === 6) targetOctave += 1;  // B# correction (B#3 -> MIDI C4)
 
-    // Calculate final MIDI pitch and clamp to valid range
+    // Calculate final MIDI pitch and wrap to valid range using octave wrap
     const newMidiNote = ((targetOctave + 1) * 12) + targetPC;
-    return Math.max(0, Math.min(127, newMidiNote));
+    return applyGlobalOctaveWrap([newMidiNote])[0];
 }
 
 export function calculateWriteModePitch(
@@ -354,3 +354,25 @@ export function getNoteNameFromPosition(stepOffset: number, accidental: string |
     }
     return letter + accStr;
 }
+
+export const applyGlobalOctaveWrap = (notes: number[]): number[] => {
+  const result = notes.map(note => {
+    let n = Number(note); // Guard against string coercion bugs
+    
+    // Catch NaN just in case the payload was corrupted
+    if (isNaN(n)) return null; 
+
+    // Standard Piano Range: A0 (21) to C8 (108)
+    while (n < 21) {
+      n += 12;
+    }
+    while (n > 108) {
+      n -= 12;
+    }
+    return n;
+  }).filter((n): n is number => n !== null); // Strip corrupted notes
+
+  // Deduplicate and sort cleanly
+  return Array.from(new Set(result)).sort((a, b) => a - b); 
+};
+
