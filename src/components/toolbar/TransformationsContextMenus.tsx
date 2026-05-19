@@ -1,7 +1,8 @@
 import React from 'react';
 import type { ButtonConfig, ButtonId } from './TransformationsTypes';
-import { GraduationCap, Volume2, Trash2 } from 'lucide-react';
+import { GraduationCap, Volume2, Trash2, Keyboard } from 'lucide-react';
 import { useMidi } from '../../midi/MIDIProvider';
+import { MidiNoteRangeFilter } from '../MidiNoteRangeFilter';
 
 
 // --- Arrow Button Context Menu ---
@@ -139,7 +140,8 @@ export const GlobalContextMenu: React.FC<GlobalMenuProps> = ({
   position,
   onClose
 }) => {
-  const { clearAllMidiMappings, uiVelocity = 80, setUiVelocity } = useMidi();
+  const { clearAllMidiMappings, uiVelocity = 80, setUiVelocity, filterMode, setFilterMode, filterRange, setFilterRange } = useMidi();
+  const [isFilterModalOpen, setIsFilterModalOpen] = React.useState(false);
 
   return (
     <div 
@@ -187,6 +189,17 @@ export const GlobalContextMenu: React.FC<GlobalMenuProps> = ({
         </div>
       </button>
 
+      {/* MIDI Note Range Filter Button */}
+      <button 
+        onClick={() => setIsFilterModalOpen(true)}
+        className="text-left px-4 py-3 hover:bg-purple-100 hover:pl-5 border-b border-black flex items-center gap-3 transition-all"
+      >
+        <div className="w-8 h-8 flex items-center justify-center border border-black bg-white">
+            <Keyboard className="w-5 h-5 text-purple-600" strokeWidth={2.5} />
+        </div>
+        <span className="font-extrabold text-purple-600 uppercase text-sm">MIDI Note Range Filter</span>
+      </button>
+
       {/* Velocity Slider */}
       <div className="p-4 bg-gray-50 flex flex-col">
         <div className="flex justify-between mb-2 items-center">
@@ -207,6 +220,25 @@ export const GlobalContextMenu: React.FC<GlobalMenuProps> = ({
           <span>127</span>
         </div>
       </div>
+
+      {isFilterModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="relative w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setIsFilterModalOpen(false)}
+              className="absolute -top-10 right-0 text-white hover:text-red-400 font-bold"
+            >
+              Close
+            </button>
+            <MidiNoteRangeFilter 
+              activeMode={filterMode} 
+              onModeChange={setFilterMode} 
+              range={filterRange} 
+              onRangeChange={setFilterRange} 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

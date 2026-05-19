@@ -5,6 +5,7 @@ import KeySignatureSelector from './KeySignatureSelector';
 import { getChordSpelling, getSpellingData, getChordSymbol } from '../utils/chordSpeller';
 import { audioEngine } from '../audio/engine';
 import * as Tone from 'tone';
+import { applyNoteFilter } from '../lib/midiProcessing';
 
 // Define the expected staff space from CSS variables
 const STAFF_SPACE_CSS_VAR = '--staff-space';
@@ -37,7 +38,7 @@ const NotationCanvas: React.FC = () => {
   const [staffSpace, setStaffSpace] = useState<number>(12); // Default value
   const activeNotes = useRef<ActiveNoteData[]>([]);
   const [chordSymbol, setChordSymbol] = useState<string>("");
-  const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes, isToggleModeActive, isHoldModeActive, setSelectedNotes, listenMode = true, uiVelocity = 80, homeChord = [60], setHomeChord } = useMidi();
+  const { keySignature = 'C Major', splitPoint = 60, lut = [], updateActiveNotes, isToggleModeActive, isHoldModeActive, setSelectedNotes, listenMode = true, uiVelocity = 80, homeChord = [60], setHomeChord, filterMode = 'wrap', filterRange = [0, 127] } = useMidi();
   const [localHoldMode, setLocalHoldMode] = useState<boolean>(false);
   const effectiveHoldModeRef = useRef<boolean>(false);
   effectiveHoldModeRef.current = isHoldModeActive !== undefined ? isHoldModeActive : localHoldMode;
@@ -48,11 +49,15 @@ const NotationCanvas: React.FC = () => {
   const uiVelocityRef = useRef(uiVelocity);
   const homeChordRef = useRef(homeChord);
   const setHomeChordRef = useRef(setHomeChord);
+  const filterModeRef = useRef(filterMode);
+  const filterRangeRef = useRef(filterRange);
 
   useEffect(() => { listenModeRef.current = listenMode; }, [listenMode]);
   useEffect(() => { uiVelocityRef.current = uiVelocity; }, [uiVelocity]);
   useEffect(() => { homeChordRef.current = homeChord; }, [homeChord]);
   useEffect(() => { setHomeChordRef.current = setHomeChord; }, [setHomeChord]);
+  useEffect(() => { filterModeRef.current = filterMode; }, [filterMode]);
+  useEffect(() => { filterRangeRef.current = filterRange; }, [filterRange]);
   
   // Data-binding state for rendering
   const [renderedNotes, setRenderedNotes] = useState<any[]>([]);
@@ -168,15 +173,23 @@ const NotationCanvas: React.FC = () => {
     commitState();
     const shift = delta * stepSize;
     const newSelection = new Set<string>();
+    const nextActiveNotes: ActiveNoteData[] = [];
 
-    activeNotes.current = activeNotes.current.map((noteData) => {
+    activeNotes.current.forEach((noteData) => {
       const isSelected = selectedNoteIds.current.has(noteData.id);
-      if (!isSelected) return noteData;
-      const newPitch = Math.max(0, Math.min(127, noteData.note + shift));
-      newSelection.add(noteData.id);
-      return { ...noteData, note: newPitch, spellingOverride: undefined };
+      if (!isSelected) {
+        nextActiveNotes.push(noteData);
+        return;
+      }
+      const rawPitch = noteData.note + shift;
+      const filteredArr = applyNoteFilter([rawPitch], filterModeRef.current, filterRangeRef.current);
+      if (filteredArr.length > 0) {
+        newSelection.add(noteData.id);
+        nextActiveNotes.push({ ...noteData, note: filteredArr[0], spellingOverride: undefined });
+      }
     });
 
+    activeNotes.current = nextActiveNotes;
     selectedNoteIds.current = newSelection;
     updateSpellings();
     updateActiveNotes?.([...activeNotes.current]);
@@ -210,15 +223,23 @@ const NotationCanvas: React.FC = () => {
     commitState();
     const keyName = keySignatureRef.current;
     const newSelection = new Set<string>();
+    const nextActiveNotes: ActiveNoteData[] = [];
 
-    activeNotes.current = activeNotes.current.map((noteData) => {
+    activeNotes.current.forEach((noteData) => {
       const isSelected = selectedNoteIds.current.has(noteData.id);
-      if (!isSelected) return noteData;
-      const newMidiNote = transposeDiatonically(noteData.stepOffset, delta * stepSize, keyName);
-      newSelection.add(noteData.id);
-      return { ...noteData, note: newMidiNote, spellingOverride: undefined };
+      if (!isSelected) {
+        nextActiveNotes.push(noteData);
+        return;
+      }
+      const rawPitch = transposeDiatonically(noteData.stepOffset, delta * stepSize, keyName);
+      const filteredArr = applyNoteFilter([rawPitch], filterModeRef.current, filterRangeRef.current);
+      if (filteredArr.length > 0) {
+        newSelection.add(noteData.id);
+        nextActiveNotes.push({ ...noteData, note: filteredArr[0], spellingOverride: undefined });
+      }
     });
 
+    activeNotes.current = nextActiveNotes;
     selectedNoteIds.current = newSelection;
     updateSpellings();
     updateActiveNotes?.([...activeNotes.current]);
@@ -267,10 +288,14 @@ const NotationCanvas: React.FC = () => {
 
     const newSelection = new Set<string>();
     const totalDelta = delta * stepSize;
+    const nextActiveNotes: ActiveNoteData[] = [];
 
-    activeNotes.current = activeNotes.current.map((noteData) => {
+    activeNotes.current.forEach((noteData) => {
       const isSelected = selectedNoteIds.current.has(noteData.id);
-      if (!isSelected) return noteData;
+      if (!isSelected) {
+        nextActiveNotes.push(noteData);
+        return;
+      }
 
       const note = noteData.note;
       const currentPC = note % 12;
@@ -289,10 +314,14 @@ const NotationCanvas: React.FC = () => {
         while(newNote % 12 !== targetPC) { newNote--; }
       }
       
-      newSelection.add(noteData.id);
-      return { ...noteData, note: newNote, spellingOverride: pcOverrides[targetPC] };
+      const filteredArr = applyNoteFilter([newNote], filterModeRef.current, filterRangeRef.current);
+      if (filteredArr.length > 0) {
+        newSelection.add(noteData.id);
+        nextActiveNotes.push({ ...noteData, note: filteredArr[0], spellingOverride: pcOverrides[targetPC] });
+      }
     });
 
+    activeNotes.current = nextActiveNotes;
     selectedNoteIds.current = newSelection;
     updateSpellings();
     updateActiveNotes?.([...activeNotes.current]);

@@ -7,6 +7,9 @@ import { audioEngine } from '../audio/engine';
 import type { ButtonId, ButtonConfig, ButtonConfigMap, LearnState } from '../components/toolbar/TransformationsTypes';
 import { usePersistentState } from '../lib/usePersistentState';
 import { transposeDiatonically } from '../utils/notationMath';
+import * as midiProcessing from '../lib/midiProcessing';
+import type { FilterMode } from '../lib/midiProcessing';
+import { updateKeyVisuals128 } from '../components/MidiNoteRangeFilter';
 
 interface MidiContextType {
   midiAccess: MIDIAccess | null;
@@ -48,6 +51,10 @@ interface MidiContextType {
   setUiVelocity: (val: number | ((prev: number) => number)) => void;
   homeChord: number[];
   setHomeChord: (val: number[] | ((prev: number[]) => number[])) => void;
+  filterMode: FilterMode;
+  setFilterMode: (val: FilterMode | ((prev: FilterMode) => FilterMode)) => void;
+  filterRange: [number, number];
+  setFilterRange: (val: [number, number] | ((prev: [number, number]) => [number, number])) => void;
 }
 
 const MidiContext = createContext<MidiContextType | undefined>(undefined);
@@ -148,6 +155,8 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [configs, setConfigs] = usePersistentState<ButtonConfigMap>('midiToolbarConfigs', INITIAL_CONFIGS);
   const [uiVelocity, setUiVelocity] = usePersistentState<number>('midi_ui_velocity', 80);
   const [homeChord, setHomeChord] = usePersistentState<number[]>('midi_home_chord', [60]);
+  const [filterMode, setFilterMode] = usePersistentState<FilterMode>('midi_filter_mode', 'block');
+  const [filterRange, setFilterRange] = usePersistentState<[number, number]>('midi_filter_range', [0, 127]);
   const [learnState, setLearnState] = useState<LearnState>({
     isActive: false,
     currentButtonIndex: 0,
@@ -163,6 +172,8 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const listenModeRef = React.useRef<boolean>(listenMode);
   const configsRef = React.useRef<ButtonConfigMap>(configs);
   const learnStateRef = React.useRef<LearnState>(learnState);
+  const filterModeRef = React.useRef<FilterMode>(filterMode);
+  const filterRangeRef = React.useRef<[number, number]>(filterRange);
 
   useEffect(() => { keySignatureRef.current = keySignature; }, [keySignature]);
   useEffect(() => { lutRef.current = lut; }, [lut]);
@@ -170,6 +181,8 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => { configsRef.current = configs; }, [configs]);
   useEffect(() => { learnStateRef.current = learnState; }, [learnState]);
   useEffect(() => { selectedNotesRef.current = selectedNotes; }, [selectedNotes]);
+  useEffect(() => { filterModeRef.current = filterMode; }, [filterMode]);
+  useEffect(() => { filterRangeRef.current = filterRange; }, [filterRange]);
 
   const updateButtonConfig = useCallback((id: ButtonId, updates: Partial<ButtonConfig>) => {
     setConfigs(prev => ({
@@ -266,11 +279,13 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               keySignatureRef.current
             );
             
+            const filteredNotes = midiProcessing.applyNoteFilter(transformedChord, filterModeRef.current, filterRangeRef.current);
             const normalizedVelocity = velocity / 127;
-            activeTransformationNotesRef.current.set(note, transformedChord);
+            activeTransformationNotesRef.current.set(note, filteredNotes);
 
-            if (listenModeRef.current) {
-              audioEngine.triggerAttack(transformedChord, normalizedVelocity);
+            if (listenModeRef.current && filteredNotes.length > 0) {
+              audioEngine.triggerAttack(filteredNotes, normalizedVelocity);
+              filteredNotes.forEach(pitch => updateKeyVisuals128(pitch, '#3b82f6'));
             }
 
             window.dispatchEvent(new CustomEvent('APP_TRANSFORM', {
@@ -286,8 +301,9 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           } else {
             const transformedNotes = activeTransformationNotesRef.current.get(note);
             if (transformedNotes) {
-              if (listenModeRef.current) {
+              if (listenModeRef.current && transformedNotes.length > 0) {
                 audioEngine.triggerRelease(transformedNotes);
+                transformedNotes.forEach(pitch => updateKeyVisuals128(pitch, ''));
               }
               activeTransformationNotesRef.current.delete(note);
             }
@@ -550,6 +566,10 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUiVelocity,
         homeChord,
         setHomeChord,
+        filterMode,
+        setFilterMode,
+        filterRange,
+        setFilterRange,
       }}
     >
       {children}

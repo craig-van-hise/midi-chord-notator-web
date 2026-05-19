@@ -32,6 +32,7 @@
 │   │   ├── Keyboard.test.tsx
 │   │   ├── Keyboard.tsx
 │   │   ├── Knob.tsx
+│   │   ├── MidiNoteRangeFilter.tsx
 │   │   ├── NavController.tsx
 │   │   ├── NotationCanvas.bugs.test.tsx
 │   │   ├── NotationCanvas.events.test.tsx
@@ -55,6 +56,8 @@
 │   │       └── TransformationsTypes.ts
 │   ├── index.css
 │   ├── lib
+│   │   ├── midiProcessing.test.ts
+│   │   ├── midiProcessing.ts
 │   │   ├── usePersistentState.ts
 │   │   └── utils.ts
 │   ├── main.tsx
@@ -116,7 +119,7 @@
 * **Navigation Controller:** Dedicated tactile controller (`NavController.tsx`) for traversing chord states and history.
 
 ### ⏳ Current Work-in-Progress
-* **Prompt #141 (Completed):** Remediated missing UI Velocity slider in SettingsModal and GlobalContextMenu, establishing persistent state binding and full TDD test coverage.
+* **Prompt #142 (Completed):** Integrated the MIDI Note Range Filter system (`MidiNoteRangeFilter.tsx` and `midiProcessing.ts`) into the settings menu and audio routing interceptor, providing mathematical bounding (`block`, `octave_wrap`, `wrap`, `limit`) and full TDD coverage.
 
 ## 4. Recent Evolution
 **Recent Changes:** The codebase underwent architectural hardening to eliminate Web Audio buffer corruption by introducing an explicit "Click to Start" gatekeeper overlay and a strict MIDI bouncer guard in the event loop. Simultaneously, PC keyboard shortcut transformations were hardwired directly into the audio singleton to bypass React closure traps, and the main piano UI was streamlined by stripping redundant mode buttons in favor of the centralized settings modal.
