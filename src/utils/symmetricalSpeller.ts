@@ -26,34 +26,19 @@ const AUG_TRIAD_MAP: Record<number, DegreeRotationArray> = {};
 [4, 6, 9, 11].forEach(dist => { AUG_TRIAD_MAP[dist] = ["3", "#5", "1"]; });
 [1, 3, 8, 10].forEach(dist => { AUG_TRIAD_MAP[dist] = ["#5", "1", "3"]; });
 
-function arraysEqual(a: number[], b: number[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
-
 /**
  * Intercepts spelling logic for symmetrical chords and returns the dynamically overridden rotation.
  */
 export function getSymmetricalSpelling(
-  pcsPrime: number[],
+  decimal: number,
   lowNotePc: number,
   keyCenterPc: number
 ): DegreeRotationArray | null {
-  const sortedPcs = [...pcsPrime].sort((a, b) => a - b);
   const distance = getNormalizedDistance(lowNotePc, keyCenterPc);
 
-  if (arraysEqual(sortedPcs, [0, 6])) {
-    return TRITONE_MAP[distance] || null;
-  }
-  if (arraysEqual(sortedPcs, [0, 3, 6, 9])) {
-    return DIM_7TH_MAP[distance] || null;
-  }
-  if (arraysEqual(sortedPcs, [0, 4, 8])) {
-    return AUG_TRIAD_MAP[distance] || null;
-  }
+  if (decimal === 65) return TRITONE_MAP[distance] || null;
+  if (decimal === 585) return DIM_7TH_MAP[distance] || null;
+  if (decimal === 273) return AUG_TRIAD_MAP[distance] || null;
 
   return null;
 }

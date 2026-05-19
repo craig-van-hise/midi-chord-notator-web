@@ -282,7 +282,7 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
             keyCenter = effectiveKeyPC;
         }
 
-        const symIntervals = getSymmetricalSpelling(entry.pitch_class_set, lowPitchPc, keyCenter);
+        const symIntervals = getSymmetricalSpelling(decimal, lowPitchPc, keyCenter);
 
         let intervals = entry.chord_intervals;
         let overrideRootPc: number | undefined = undefined;
@@ -451,7 +451,7 @@ export function getChordSymbol(ps: number[], keySignature: string = "C Major", l
 
     const lowPitch = sortedPS[0];
     const lowPitchPc = lowPitch % 12;
-    const symIntervals = getSymmetricalSpelling(entry.pitch_class_set, lowPitchPc, keyCenter);
+    const symIntervals = getSymmetricalSpelling(decimal, lowPitchPc, keyCenter);
 
     let rootName: string;
     let absoluteRootPC: number;
