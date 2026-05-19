@@ -258,7 +258,7 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
     if (!entry) {
         // Fallback: Use key-aware enharmonic spelling for individual notes
         sortedSpellings = sortedPitches.map(pitch => {
-            const { stepOffset, accidental } = getEnharmonicSpelling(pitch, keySignature);
+            const { stepOffset, accidental } = getEnharmonicSpelling(pitch, keySignature, lut);
             const letter = DIATONIC_NAMES[((stepOffset % 7) + 7) % 7];
             let acc = "";
             if (accidental === SMuFL.accidentalSharp) acc = "#";
@@ -301,7 +301,7 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
             try {
                 const rootPitchVal = sortedPitches.find(p => p % 12 === overrideRootPc);
                 const rootMidi = rootPitchVal !== undefined ? rootPitchVal : (60 + overrideRootPc);
-                const { stepOffset, accidental } = getEnharmonicSpelling(rootMidi, keySignature);
+                const { stepOffset, accidental } = getEnharmonicSpelling(rootMidi, keySignature, lut);
                 const letter = DIATONIC_NAMES[((stepOffset % 7) + 7) % 7];
                 let acc = "";
                 if (accidental === SMuFL.accidentalSharp) acc = "#";
@@ -348,7 +348,7 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
             
             if (toneInterval === null) {
                 // Safety Fallback: If no match found in LUT intervals, use key-aware individual spelling
-                const { stepOffset, accidental } = getEnharmonicSpelling(pitch, keySignature);
+                const { stepOffset, accidental } = getEnharmonicSpelling(pitch, keySignature, lut);
                 const letter = DIATONIC_NAMES[((stepOffset % 7) + 7) % 7];
                 let acc = "";
                 if (accidental === SMuFL.accidentalSharp) acc = "#";

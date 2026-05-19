@@ -39,29 +39,100 @@ const ACCIDENTAL_TO_KEY_NAME: Record<number, string> = {
 /**
  * Generates the diatonic pitch classes for the active key signature.
  */
-export function getDiatonicMap(keySignature: string): Map<number, { step: number, acc: string | null }> {
-    if (KEY_SIG_ACCIDENTALS[keySignature] === undefined) {
-        throw new Error(`[NotationEngine] Invalid key signature provided: "${keySignature}". Expected a valid string mapping.`);
-    }
-    const count = KEY_SIG_ACCIDENTALS[keySignature];
-    const scale = C_MAJOR_SCALE.map(s => ({ ...s, acc: null as string | null }));
+export const SCALE_DECIMAL_MAP: Record<string, number> = {
+  'Major': 2741,
+  'Minor (Natural)': 1453,
+  'Melodic Minor': 2733,
+  'Harmonic Minor': 2477,
+  'Harmonic Major': 2485,
+  'Major Pentatonic': 661,
+  'Whole Tone': 1365,
+  'Augmented': 2457,
+  'Diminished': 2925
+};
 
-    if (count > 0) {
-        for (let i = 0; i < count; i++) {
-            const step = ORDER_OF_SHARPS[i];
-            scale[step].pc = (scale[step].pc + 1) % 12;
-            scale[step].acc = SMuFL.accidentalSharp;
+function getRootPC(name: string): number {
+    const pcMap: Record<string, number> = {
+        "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11, "Cb": 11
+    };
+    return pcMap[name] ?? 0;
+}
+
+export function getDiatonicMap(keySignature: string, lut?: any[]): Map<number, { step: number, acc: string | null }> {
+    const parts = keySignature.split(' ');
+    const rootName = parts[0];
+    const scaleType = parts.slice(1).join(' ') || 'Major';
+
+    if (!lut || lut.length === 0 || SCALE_DECIMAL_MAP[scaleType] === undefined || !lut[SCALE_DECIMAL_MAP[scaleType]]) {
+        const lookupKey = KEY_SIG_ACCIDENTALS[keySignature] !== undefined ? keySignature : (rootName + " Major");
+        if (KEY_SIG_ACCIDENTALS[lookupKey] === undefined) {
+            throw new Error(`[NotationEngine] Invalid key signature provided: "${keySignature}". Expected a valid string mapping.`);
         }
-    } else if (count < 0) {
-        for (let i = 0; i < Math.abs(count); i++) {
-            const step = ORDER_OF_FLATS[i];
-            scale[step].pc = (scale[step].pc + 11) % 12;
-            scale[step].acc = SMuFL.accidentalFlat;
+        const count = KEY_SIG_ACCIDENTALS[lookupKey];
+        const scale = C_MAJOR_SCALE.map(s => ({ ...s, acc: null as string | null }));
+
+        if (count > 0) {
+            for (let i = 0; i < count; i++) {
+                const step = ORDER_OF_SHARPS[i];
+                scale[step].pc = (scale[step].pc + 1) % 12;
+                scale[step].acc = SMuFL.accidentalSharp;
+            }
+        } else if (count < 0) {
+            for (let i = 0; i < Math.abs(count); i++) {
+                const step = ORDER_OF_FLATS[i];
+                scale[step].pc = (scale[step].pc + 11) % 12;
+                scale[step].acc = SMuFL.accidentalFlat;
+            }
         }
+
+        const map = new Map<number, { step: number, acc: string | null }>();
+        scale.forEach(s => map.set(s.pc, { step: s.step, acc: s.acc }));
+        return map;
     }
+
+    const entry = lut[SCALE_DECIMAL_MAP[scaleType]];
+    if (!entry) {
+        throw new Error(`LUT entry not found for scale type: ${scaleType}`);
+    }
+    const intervals: string[] = entry.scale_intervals || entry.chord_intervals || [];
+    const rootPC = getRootPC(rootName);
+    const rootLetter = rootName[0];
+    const rootLetterIndex = ["C", "D", "E", "F", "G", "A", "B"].indexOf(rootLetter);
 
     const map = new Map<number, { step: number, acc: string | null }>();
-    scale.forEach(s => map.set(s.pc, { step: s.step, acc: s.acc }));
+    const majorSteps = [0, 2, 4, 5, 7, 9, 11];
+
+    intervals.forEach(interval => {
+        const match = interval.match(/^([b#x]*)(\d+)$/);
+        if (!match) return;
+        const accPrefix = match[1];
+        const degree = parseInt(match[2], 10);
+        const simpleDegree = ((degree - 1) % 7) + 1;
+        const baseSemitones = majorSteps[simpleDegree - 1];
+
+        let intervalOffset = 0;
+        if (accPrefix === "b") intervalOffset = -1;
+        else if (accPrefix === "bb") intervalOffset = -2;
+        else if (accPrefix === "#") intervalOffset = 1;
+        else if (accPrefix === "x") intervalOffset = 2;
+
+        const intervalPC = (baseSemitones + intervalOffset + 12) % 12;
+        const absolutePC = (rootPC + intervalPC) % 12;
+        const step = (rootLetterIndex + simpleDegree - 1) % 7;
+        const targetLetterPC = majorSteps[step];
+
+        let diff = (absolutePC - targetLetterPC + 12) % 12;
+        if (diff > 6) diff -= 12;
+
+        let acc: string | null = null;
+        if (diff === 1) acc = SMuFL.accidentalSharp;
+        else if (diff === 2) acc = SMuFL.accidentalDoubleSharp;
+        else if (diff === -1) acc = SMuFL.accidentalFlat;
+        else if (diff === -2) acc = SMuFL.accidentalDoubleFlat;
+
+        map.set(absolutePC, { step, acc });
+    });
+
     return map;
 }
 
@@ -105,11 +176,15 @@ export interface Spelling {
 /**
  * Returns the enharmonic spelling for a MIDI note given a key signature.
  */
-export function getEnharmonicSpelling(midiNote: number, keySignature: string | number): { stepOffset: number, accidental: string | null } {
+export function getEnharmonicSpelling(
+    midiNote: number, 
+    keySignature: string | number, 
+    lut?: any[]
+): { stepOffset: number, accidental: string | null } {
     const keyName = typeof keySignature === 'number' ? ACCIDENTAL_TO_KEY_NAME[keySignature] : keySignature;
     const pitchClass = midiNote % 12;
     const baseOctave = Math.floor(midiNote / 12) - 1; // Standard MIDI octave
-    const diatonicMap = getDiatonicMap(keyName);
+    const diatonicMap = getDiatonicMap(keyName, lut);
 
     const mapping = diatonicMap.get(pitchClass);
     if (mapping) {
@@ -125,8 +200,11 @@ export function getEnharmonicSpelling(midiNote: number, keySignature: string | n
         return { stepOffset, accidental: acc };
     }
 
-    // Phase 3: Chromatic Fallback Handling
-    const isFlatKey = (KEY_SIG_ACCIDENTALS[keyName] ?? 0) < 0;
+    // Chromatic Fallback Handling
+    const rootName = keyName.split(' ')[0];
+    const isFlatKey = (KEY_SIG_ACCIDENTALS[keyName] ?? 0) < 0 || 
+                      rootName.endsWith('b') || 
+                      rootName === 'F';
     
     if (isFlatKey) {
         const flatMapping: Record<number, { step: number, acc: string | null }> = {
@@ -255,42 +333,50 @@ export function assignXLevels(notes: NotePosition[]): NotePosition[] {
 
 /**
  * Calculates the target MIDI note for a diatonic transposition.
- * @param currentStepOffset - The current diatonic staff position of the note.
+ * @param currentMidi - The current MIDI note number.
  * @param delta - The shift amount (+1 for up, -1 for down).
  * @param keySignature - The active key signature string.
+ * @param lut - Optional PCS LUT.
  * @returns The new MIDI note, clamped between 0 and 127.
  */
-export function transposeDiatonically(currentStepOffset: number, delta: number, keySignature: string): number {
-    const targetStepOffset = currentStepOffset + delta;
+export function transposeDiatonically(currentMidi: number, delta: number, keySignature: string, lut?: any[]): number {
+    const diatonicMap = getDiatonicMap(keySignature, lut);
     
-    // Calculate scale step (0-6) and octave offset relative to Middle C (C4)
-    const targetScaleStep = ((targetStepOffset % 7) + 7) % 7;
-    const octaveOffset = Math.floor(targetStepOffset / 7);
-    let targetOctave = 4 + octaveOffset;
-
-    // Look up target Pitch Class from the active key's diatonic map
-    const diatonicMap = getDiatonicMap(keySignature);
-    let targetPC = 0;
-    for (const [pc, data] of diatonicMap.entries()) {
-        if (data.step === targetScaleStep) {
-            targetPC = pc;
-            break;
+    const scaleMidiNotes: number[] = [];
+    for (let m = 0; m <= 127; m++) {
+        if (diatonicMap.has(m % 12)) {
+            scaleMidiNotes.push(m);
         }
     }
 
-    // Reverse Octave Boundary Corrections
-    if (targetPC === 11 && targetScaleStep === 0) targetOctave -= 1; // Cb correction (Cb4 -> MIDI B3)
-    if (targetPC === 0 && targetScaleStep === 6) targetOctave += 1;  // B# correction (B#3 -> MIDI C4)
+    if (scaleMidiNotes.length === 0) {
+        return currentMidi;
+    }
 
-    // Calculate final MIDI pitch
-    const newMidiNote = ((targetOctave + 1) * 12) + targetPC;
-    return newMidiNote;
+    let idx = scaleMidiNotes.indexOf(currentMidi);
+    if (idx === -1) {
+        let minDiff = Infinity;
+        let closestIdx = 0;
+        for (let i = 0; i < scaleMidiNotes.length; i++) {
+            const diff = Math.abs(scaleMidiNotes[i] - currentMidi);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestIdx = i;
+            }
+        }
+        idx = closestIdx;
+    }
+
+    const targetIdx = idx + delta;
+    const finalIdx = Math.max(0, Math.min(scaleMidiNotes.length - 1, targetIdx));
+    return scaleMidiNotes[finalIdx];
 }
 
 export function calculateWriteModePitch(
     stepOffset: number, 
     keySignature: string, 
-    override: AccidentalOverride
+    override: AccidentalOverride,
+    lut?: any[]
 ): { midiNote: number, accidental: string | null } {
     const scaleStep = ((stepOffset % 7) + 7) % 7;
     const octaveOffset = Math.floor(stepOffset / 7);
@@ -311,7 +397,7 @@ export function calculateWriteModePitch(
     }
 
     // 2. Diatonic Fallback (Adaptive to Key)
-    const diatonicMap = getDiatonicMap(keySignature);
+    const diatonicMap = getDiatonicMap(keySignature, lut);
     let targetPC = 0;
     let diatonicAcc = null;
     for (const [pc, data] of diatonicMap.entries()) {
@@ -330,7 +416,12 @@ export function calculateWriteModePitch(
     return { midiNote: Math.max(0, Math.min(127, diatonicMidi)), accidental: diatonicAcc };
 }
 
-export function getNoteNameFromPosition(stepOffset: number, accidental: string | null, keySignature: string): string {
+export function getNoteNameFromPosition(
+    stepOffset: number, 
+    accidental: string | null, 
+    keySignature: string,
+    lut?: any[]
+): string {
     const letters = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
     const scaleStep = ((stepOffset % 7) + 7) % 7;
     const letter = letters[scaleStep];
@@ -343,7 +434,7 @@ export function getNoteNameFromPosition(stepOffset: number, accidental: string |
     else if (accidental === SMuFL.accidentalNatural) accStr = '';
     else {
         // Fallback to diatonic accidental if null
-        const diatonicMap = getDiatonicMap(keySignature);
+        const diatonicMap = getDiatonicMap(keySignature, lut);
         for (const [_pc, data] of diatonicMap.entries()) {
             if (data.step === scaleStep) {
                 if (data.acc === SMuFL.accidentalSharp) accStr = '#';

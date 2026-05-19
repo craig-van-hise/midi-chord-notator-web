@@ -152,7 +152,7 @@ const NotationCanvas: React.FC = () => {
         ghost.style.top = `${snappedY}px`;
         (ghost as any).dataset.step = stepOffset.toString();
         
-        const { midiNote, accidental } = calculateWriteModePitch(stepOffset, keySignatureRef.current, accidentalOverrideRef.current);
+        const { midiNote, accidental } = calculateWriteModePitch(stepOffset, keySignatureRef.current, accidentalOverrideRef.current, lutRef.current);
         (ghost as any).dataset.midiNote = midiNote.toString();
         (ghost as any).dataset.accidental = accidental === null ? 'null' : accidental;
         
@@ -242,7 +242,7 @@ const NotationCanvas: React.FC = () => {
     const proposedPitches = activeNotes.current.map((noteData) => {
       const isSelected = selectedNoteIds.current.has(noteData.id);
       if (!isSelected) return noteData.note;
-      return transposeDiatonically(noteData.stepOffset, delta * stepSize, keyName);
+      return transposeDiatonically(noteData.note, delta * stepSize, keyName, lutRef.current);
     });
 
     const safePitches = enforcePianoRange(proposedPitches, originalPitches);
@@ -1047,7 +1047,7 @@ const NotationCanvas: React.FC = () => {
         const step = parseInt((ghost as any)?.dataset.step || '0');
         const targetMidiNote = parseInt((ghost as any)?.dataset.midiNote || '60');
         const targetAccidental = (ghost as any)?.dataset.accidental === 'null' ? null : (ghost as any)?.dataset.accidental;
-        const overrideString = getNoteNameFromPosition(step, targetAccidental, keySignatureRef.current);
+        const overrideString = getNoteNameFromPosition(step, targetAccidental, keySignatureRef.current, lutRef.current);
 
         commitState();
         activeNotes.current.push({

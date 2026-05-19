@@ -75,12 +75,11 @@ function getTransformedPitches(
   stepSize: number,
   activeNotes: any[],
   selectedNotes: number[],
-  keySignature: string
+  keySignature: string,
+  lut?: any[]
 ): number[] {
   const targets = selectedNotes.length > 0 ? selectedNotes : activeNotes.map(n => n.note);
   if (targets.length === 0) return [];
-
-  const getNoteObj = (pitch: number) => activeNotes.find(n => n.note === pitch) || { note: pitch, stepOffset: 0 };
 
   let proposed: number[] = [];
   switch (type) {
@@ -98,14 +97,12 @@ function getTransformedPitches(
       break;
     case 'KEY_UP':
       proposed = targets.map(p => {
-        const obj = getNoteObj(p);
-        return transposeDiatonically(obj.stepOffset, stepSize, keySignature);
+        return transposeDiatonically(p, stepSize, keySignature, lut);
       });
       break;
     case 'KEY_DOWN':
       proposed = targets.map(p => {
-        const obj = getNoteObj(p);
-        return transposeDiatonically(obj.stepOffset, -stepSize, keySignature);
+        return transposeDiatonically(p, -stepSize, keySignature, lut);
       });
       break;
     case 'ROT_UP':
@@ -274,7 +271,8 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               stepSize, 
               activeNotesRef.current, 
               selectedNotesRef.current, 
-              keySignatureRef.current
+              keySignatureRef.current,
+              lutRef.current
             );
             const safeNotes = transformedChord;
             

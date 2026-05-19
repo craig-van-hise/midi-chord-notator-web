@@ -84,29 +84,51 @@ describe('Phase 3: Chromatic Fallback Handling', () => {
 });
 
 describe('Phase 4: Diatonic Transposition Engine', () => {
-    it('should transpose F4 (step 3) up to G4 (step 4) in C Major', () => {
-        const result = transposeDiatonically(3, 1, "C Major");
+    it('should transpose F4 (MIDI 65) up to G4 (MIDI 67) in C Major', () => {
+        const result = transposeDiatonically(65, 1, "C Major");
         expect(result).toBe(67); // G4
     });
 
-    it('should transpose Eb4 (step 2) up to F4 (step 3) in C Major (Enharmonic shift)', () => {
-        // Eb4 is MIDI 63, but in C Major it's spelled as E natural (Step 2)
-        // If we have an Eb4 but we are in C Major, the engine uses the stepOffset.
-        // Eb4 would actually have stepOffset 2 if it was spelled as E natural.
-        // If it was spelled as Eb4, it would still have stepOffset 2.
-        const result = transposeDiatonically(2, 1, "C Major");
+    it('should transpose Eb4 (MIDI 63) up to F4 (MIDI 65) in Eb Major (Enharmonic shift)', () => {
+        const result = transposeDiatonically(63, 1, "Eb Major");
         expect(result).toBe(65); // F4
     });
 
-    it('should transpose B4 (step 6) up to C5 (step 7) in C Major (Octave wrap)', () => {
-        const result = transposeDiatonically(6, 1, "C Major");
+    it('should transpose B4 (MIDI 71) up to C5 (MIDI 72) in C Major (Octave wrap)', () => {
+        const result = transposeDiatonically(71, 1, "C Major");
         expect(result).toBe(72); // C5
     });
 
-    it('should handle Cb4 (step 0) in Cb Major (Octave correction)', () => {
-        // Cb4 is MIDI 59. In Cb Major, step 0 is Cb.
-        const result = transposeDiatonically(0, 0, "Cb Major");
+    it('should handle Cb4 (MIDI 59) in Cb Major (Octave correction)', () => {
+        const result = transposeDiatonically(59, 0, "Cb Major");
         expect(result).toBe(59); // MIDI 59
+    });
+
+    it('should handle variable-cardinality scales (Major Pentatonic) correctly', () => {
+        const mockLut = new Array(4096).fill(null);
+        mockLut[661] = {
+            decimal: 661,
+            chord_type: "",
+            root_pc: 0,
+            cardinality: 5,
+            base_triad: "",
+            base_7th: 0,
+            scale_intervals: ["1", "2", "3", "5", "6"],
+            chord_intervals: ["1", "2", "3", "5", "6"],
+            pitch_class_set: [0, 2, 4, 7, 9]
+        };
+
+        const map = getDiatonicMap("C Major Pentatonic", mockLut);
+        expect(map.get(0)).toEqual({ step: 0, acc: null });
+        expect(map.get(2)).toEqual({ step: 1, acc: null });
+        expect(map.get(4)).toEqual({ step: 2, acc: null });
+        expect(map.get(7)).toEqual({ step: 4, acc: null });
+        expect(map.get(9)).toEqual({ step: 5, acc: null });
+
+        // C4 (60) up 1 step -> D4 (62)
+        expect(transposeDiatonically(60, 1, "C Major Pentatonic", mockLut)).toBe(62);
+        // E4 (64) up 1 step -> G4 (67)
+        expect(transposeDiatonically(64, 1, "C Major Pentatonic", mockLut)).toBe(67);
     });
 });
 
