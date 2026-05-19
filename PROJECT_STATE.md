@@ -113,16 +113,15 @@
 * **Anchor-Persistent Range Selection:** Supports shift-click selection with a stable origin, allowing users to expand or contract selections fluidly.
 * **Diatonic Transposition:** `Alt + ArrowUp/Down` performs key-signature-aware pitch shifts.
 * **Voicing-Aware PCS Rotation:** `Cmd + Alt + ArrowUp/Down` rotates the active pitch class set while maintaining voicing structure.
+* **Tactile Boundaries & Voicing Preservation:** Enforces strict 88-key piano boundaries (`[21, 108]`) via `enforcePianoRange`. If any single note in a chord transformation (chromatic, diatonic, or PCS rotation) falls out of bounds, the entire transformation is rejected to preserve chord voicing intact, preventing voicing compaction.
+* **Undo History Safeguard:** Intercepts out-of-bounds transpositions and aborts early before committing state changes, keeping the undo/redo stack free of redundant, blocked frames.
 * **Navigation Controller:** Dedicated tactile controller (`NavController.tsx`) for traversing chord states and history.
 
 ### ⏳ Current Work-in-Progress
-* **Prompt #151 (Completed):** Corrected mathematical wrap limits to correspond strictly to the physical standard 88-key piano range: minimum 21 (A0) and maximum 108 (C8).
-* **Prompt #150 (Completed):** Audited and hardened mathematical wrap logic with explicit type conversion (`Number(note)`) and continuous looping for deep-negative boundaries ($< 9$).
-* **Prompt #149 (Completed):** Updated the global mathematical octave wrap to bound strictly to the standard 88-key piano range: minimum 9 (A0) and maximum 108 (C8).
-* **Prompt #148 (Completed):** Implemented mathematical Octave Wrapping under-the-hood to constrain all notes to MIDI range `[0, 127]`, wrapping out-of-bounds notes element-wise by `+/- 12` and deduplicating duplicates. Applied upstream interception inside `NotationCanvas.tsx` (chromatic, diatonic, rotation, refresh payload) and `MIDIProvider.tsx` (transformations, hardware interceptor notes).
+* **Math Utility Overhaul & Upstream Integration (Completed)**: Overhauled the boundaries check to enforce strict 88-key boundaries (`[21, 108]`) using `enforcePianoRange`, rejecting whole-chord shifts when any note exceeds limits to prevent voicing compaction.
 
 ## 4. Recent Evolution
-**Recent Changes:** The codebase underwent architectural hardening to eliminate Web Audio buffer corruption by introducing an explicit "Click to Start" gatekeeper overlay and a strict MIDI bouncer guard in the event loop. Simultaneously, PC keyboard shortcut transformations were hardwired directly into the audio singleton, the main piano UI was streamlined, and mathematical octave wrapping was integrated and type-hardened to guarantee that transformations never produce out-of-bound (standard 88-key piano limits 21 to 108) or duplicate MIDI notes.
+**Recent Changes:** The codebase transitioned from element-wise octave wrapping to a strict chord-level boundary blocking system (`enforcePianoRange`), protecting chord voicing from collapsing when transposing near standard 88-key boundaries. Upstream handlers in both `MIDIProvider.tsx` and `NotationCanvas.tsx` were refactored to intercept out-of-bound shifts, aborting state changes early to ensure undo stack cleanliness.
 
 ## 5. Future Roadmap
 * **Performance:** Optimizing accidental compaction for extremely dense (> 8 note) clusters.

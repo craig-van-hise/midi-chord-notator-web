@@ -3,17 +3,7 @@
 
 /Users/vv2024/Documents/Repos - vv2024/MIDI/WebApps/midi-chord-notator-web
 ├── # Prompts
-|  ├── # 128.md
-|  ├── # 129.md
-|  ├── # 130.md
-|  ├── # 131.md
-|  ├── # 132.md
-|  ├── # 133.md
-|  ├── # 134.md
-|  ├── # 135.md
-|  ├── # 136.md
-|  ├── # 137.md
-|  ├── # 138.md
+|  ├── # 152.md
 |  ├── # PDD.md
 |  └── x Older
 |     ├── # 1.md
@@ -47,9 +37,33 @@
 |     ├── # 125.md
 |     ├── # 126.md
 |     ├── # 127.md
+|     ├── # 128.md
+|     ├── # 129.md
 |     ├── # 13.md
+|     ├── # 130.md
+|     ├── # 131.md
+|     ├── # 132.md
+|     ├── # 133.md
+|     ├── # 134.md
+|     ├── # 135.md
+|     ├── # 136.md
+|     ├── # 137.md
+|     ├── # 138.md
+|     ├── # 139.md
 |     ├── # 14.md
+|     ├── # 140.md
+|     ├── # 141.md
+|     ├── # 142.md
+|     ├── # 143.md
+|     ├── # 144.md
+|     ├── # 145.md
+|     ├── # 146.md
+|     ├── # 147.md
+|     ├── # 148.md
+|     ├── # 149.md
 |     ├── # 15.md
+|     ├── # 150.md
+|     ├── # 151.md
 |     ├── # 16.md
 |     ├── # 17.md
 |     ├── # 18.md
@@ -143,6 +157,7 @@
 |     ├── # 98.md
 |     └── # 99.md
 ├── 2026-05-11_REPO_REPORT.md
+├── 2026-05-17_REPO_REPORT.md
 ├── CHORD_SPELLING_REGRESSION_REPORT.md
 ├── PROJECT_CONTEXT_BUNDLE.md
 ├── PROJECT_STATE.md
@@ -178,7 +193,6 @@
 ├── llms.txt
 ├── package-lock.json
 ├── package.json
-├── project_context_bundle.txt
 ├── project_tree.txt
 ├── public
 |  ├── PCS_LUT.dat
@@ -213,6 +227,7 @@
 |  |  ├── NotationCanvas.events.test.tsx
 |  |  ├── NotationCanvas.headless.test.tsx
 |  |  ├── NotationCanvas.history.test.tsx
+|  |  ├── NotationCanvas.listenMode.test.tsx
 |  |  ├── NotationCanvas.selection.test.tsx
 |  |  ├── NotationCanvas.shortcutAudio.test.tsx
 |  |  ├── NotationCanvas.test.tsx
@@ -223,8 +238,7 @@
 |  |  ├── VUMeter.tsx
 |  |  ├── navTypes.ts
 |  |  └── toolbar
-|  |     ├── ToolbarContextMenus.tsx
-|  |     ├── ToolbarTypes.ts
+|  |     ├── TransformationsContextMenus.edit.test.tsx
 |  |     ├── TransformationsContextMenus.tsx
 |  |     ├── TransformationsDrawer.test.tsx
 |  |     ├── TransformationsDrawer.tsx
@@ -237,6 +251,7 @@
 |  |  └── utils.ts
 |  ├── main.tsx
 |  ├── midi
+|  |  ├── MIDIProvider.playable.test.tsx
 |  |  ├── MIDIProvider.test.tsx
 |  |  ├── MIDIProvider.tsx
 |  |  ├── MidiPortSelector.tsx
@@ -248,17 +263,14 @@
 |  |  ├── chordSpeller.ts
 |  |  ├── notationMath.test.ts
 |  |  ├── notationMath.ts
-|  |  ├── notationMath.xLevel.test.ts
-|  |  ├── padding.test.ts
-|  |  └── pipeline.test.ts
+|  |  └── notationMath.xLevel.test.ts
 |  └── vitest.setup.ts
-├── test_output.txt
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
 └── vite.config.ts
 
-directory: 861 file: 6712
+directory: 863 file: 6728
 
 ignored: directory (117)
 
@@ -270,7 +282,7 @@ ignored: directory (117)
 # PROJECT_STATE: Grand Staff MIDI Notator
 
 **Current System Status:** ✅ Stable - Core Audio Gatekeeper, UI Streamlining & Web Deployment Hardened
-**Last Updated:** 2026-05-17
+**Last Updated:** 2026-05-19
 
 ## 1. Project Architecture (Level 3)
 ```text
@@ -382,13 +394,15 @@ ignored: directory (117)
 * **Anchor-Persistent Range Selection:** Supports shift-click selection with a stable origin, allowing users to expand or contract selections fluidly.
 * **Diatonic Transposition:** `Alt + ArrowUp/Down` performs key-signature-aware pitch shifts.
 * **Voicing-Aware PCS Rotation:** `Cmd + Alt + ArrowUp/Down` rotates the active pitch class set while maintaining voicing structure.
+* **Tactile Boundaries & Voicing Preservation:** Enforces strict 88-key piano boundaries (`[21, 108]`) via `enforcePianoRange`. If any single note in a chord transformation (chromatic, diatonic, or PCS rotation) falls out of bounds, the entire transformation is rejected to preserve chord voicing intact, preventing voicing compaction.
+* **Undo History Safeguard:** Intercepts out-of-bounds transpositions and aborts early before committing state changes, keeping the undo/redo stack free of redundant, blocked frames.
 * **Navigation Controller:** Dedicated tactile controller (`NavController.tsx`) for traversing chord states and history.
 
 ### ⏳ Current Work-in-Progress
-* **Prompt #135 / #138 (Active/Recent):** Implemented core audio gatekeeper overlay, direct keyboard transformation audio plumbing, stripped redundant keyboard mode buttons, and synchronized core documentation (`/docs-sync`).
+* **Math Utility Overhaul & Upstream Integration (Completed)**: Overhauled the boundaries check to enforce strict 88-key boundaries (`[21, 108]`) using `enforcePianoRange`, rejecting whole-chord shifts when any note exceeds limits to prevent voicing compaction.
 
 ## 4. Recent Evolution
-**Recent Changes:** The codebase underwent architectural hardening to eliminate Web Audio buffer corruption by introducing an explicit "Click to Start" gatekeeper overlay and a strict MIDI bouncer guard in the event loop. Simultaneously, PC keyboard shortcut transformations were hardwired directly into the audio singleton to bypass React closure traps, and the main piano UI was streamlined by stripping redundant mode buttons in favor of the centralized settings modal.
+**Recent Changes:** The codebase transitioned from element-wise octave wrapping to a strict chord-level boundary blocking system (`enforcePianoRange`), protecting chord voicing from collapsing when transposing near standard 88-key boundaries. Upstream handlers in both `MIDIProvider.tsx` and `NotationCanvas.tsx` were refactored to intercept out-of-bound shifts, aborting state changes early to ensure undo stack cleanliness.
 
 ## 5. Future Roadmap
 * **Performance:** Optimizing accidental compaction for extremely dense (> 8 note) clusters.
