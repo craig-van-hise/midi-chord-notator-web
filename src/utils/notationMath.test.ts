@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDiatonicMap, SMuFL, getEnharmonicSpelling, transposeDiatonically, applyGlobalOctaveWrap } from './notationMath';
+import { getDiatonicMap, SMuFL, getEnharmonicSpelling, transposeDiatonically, enforcePianoRange } from './notationMath';
 
 describe('Phase 1: Diatonic Scale Generator', () => {
     it('should generate Gb Major correctly (Test Case 1)', () => {
@@ -110,29 +110,33 @@ describe('Phase 4: Diatonic Transposition Engine', () => {
     });
 });
 
-describe('Phase 1: Global Octave Wrap Utility', () => {
-    it('should wrap deep negative fallthrough (Test Case 1)', () => {
-        const notes = [8];
-        const result = applyGlobalOctaveWrap(notes);
-        expect(result).toEqual([32]);
+describe('Phase 1: Math Utility Overhaul (enforcePianoRange)', () => {
+    it('should allow valid shift (Test Case 1)', () => {
+        const proposed = [60, 64, 67];
+        const original = [48, 52, 55];
+        const result = enforcePianoRange(proposed, original);
+        expect(result).toEqual([60, 64, 67]);
     });
 
-    it('should guard against type coercion (Test Case 2)', () => {
-        const notes = ["15" as any];
-        const result = applyGlobalOctaveWrap(notes);
-        expect(result).toEqual([27]);
+    it('should reject out of bounds transformation and block shift (Test Case 2)', () => {
+        const proposed = [105, 109];
+        const original = [93, 97];
+        const result = enforcePianoRange(proposed, original);
+        expect(result).toEqual([93, 97]);
     });
 
-    it('should wrap over bound (Test Case 3)', () => {
-        const notes = [109, 120];
-        const result = applyGlobalOctaveWrap(notes);
-        expect(result).toEqual([97, 108]);
+    it('should block deep out of bounds shifts (Test Case 3)', () => {
+        const proposed = [8, 12, 15];
+        const original = [20, 24, 27];
+        const result = enforcePianoRange(proposed, original);
+        expect(result).toEqual([20, 24, 27]);
     });
 
-    it('should preserve safe notes within bounds', () => {
-        const notes = [21, 60, 108];
-        const result = applyGlobalOctaveWrap(notes);
-        expect(result).toEqual([21, 60, 108]);
+    it('should strip out of bounds notes for fresh input fallback (Test Case 4)', () => {
+        const proposed = [20, 60];
+        const original: number[] = [];
+        const result = enforcePianoRange(proposed, original);
+        expect(result).toEqual([60]);
     });
 });
 

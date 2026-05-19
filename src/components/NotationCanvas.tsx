@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SMuFL, assignXLevels, transposeDiatonically, calculateWriteModePitch, type AccidentalOverride, getNoteNameFromPosition, applyGlobalOctaveWrap } from '../utils/notationMath';
+import { SMuFL, assignXLevels, transposeDiatonically, calculateWriteModePitch, type AccidentalOverride, getNoteNameFromPosition, enforcePianoRange } from '../utils/notationMath';
 import { useMidi } from '../midi/MIDIProvider';
 import KeySignatureSelector from './KeySignatureSelector';
 import { getChordSpelling, getSpellingData, getChordSymbol } from '../utils/chordSpeller';
@@ -165,14 +165,27 @@ const NotationCanvas: React.FC = () => {
 
   const applyChromaticShift = (delta: number, stepSize: number = 1, isUiClick: boolean = true) => {
     if (selectedNoteIds.current.size === 0) return;
-    commitState();
     const shift = delta * stepSize;
+
+    const originalPitches = activeNotes.current.map(n => n.note);
+    const proposedPitches = activeNotes.current.map((noteData) => {
+      const isSelected = selectedNoteIds.current.has(noteData.id);
+      if (!isSelected) return noteData.note;
+      return noteData.note + shift;
+    });
+
+    const safePitches = enforcePianoRange(proposedPitches, originalPitches);
+    if (safePitches === originalPitches) {
+      return; // Blocked entirely!
+    }
+
+    commitState();
 
     const updatedNotes = activeNotes.current.map((noteData) => {
       const isSelected = selectedNoteIds.current.has(noteData.id);
       if (!isSelected) return noteData;
-      const wrappedPitch = applyGlobalOctaveWrap([noteData.note + shift])[0];
-      return { ...noteData, note: wrappedPitch, spellingOverride: undefined };
+      const index = activeNotes.current.findIndex(n => n.id === noteData.id);
+      return { ...noteData, note: safePitches[index], spellingOverride: undefined };
     });
 
     const uniqueNotes: typeof updatedNotes = [];
@@ -223,14 +236,27 @@ const NotationCanvas: React.FC = () => {
 
   const applyDiatonicShift = (delta: number, stepSize: number = 1, isUiClick: boolean = true) => {
     if (selectedNoteIds.current.size === 0) return;
-    commitState();
     const keyName = keySignatureRef.current;
+
+    const originalPitches = activeNotes.current.map(n => n.note);
+    const proposedPitches = activeNotes.current.map((noteData) => {
+      const isSelected = selectedNoteIds.current.has(noteData.id);
+      if (!isSelected) return noteData.note;
+      return transposeDiatonically(noteData.stepOffset, delta * stepSize, keyName);
+    });
+
+    const safePitches = enforcePianoRange(proposedPitches, originalPitches);
+    if (safePitches === originalPitches) {
+      return; // Blocked entirely!
+    }
+
+    commitState();
 
     const updatedNotes = activeNotes.current.map((noteData) => {
       const isSelected = selectedNoteIds.current.has(noteData.id);
       if (!isSelected) return noteData;
-      const newMidiNote = transposeDiatonically(noteData.stepOffset, delta * stepSize, keyName);
-      return { ...noteData, note: newMidiNote, spellingOverride: undefined };
+      const index = activeNotes.current.findIndex(n => n.id === noteData.id);
+      return { ...noteData, note: safePitches[index], spellingOverride: undefined };
     });
 
     const uniqueNotes: typeof updatedNotes = [];
@@ -281,7 +307,6 @@ const NotationCanvas: React.FC = () => {
 
   const applyPcsRotation = (delta: number, stepSize: number = 1, isUiClick: boolean = true) => {
     if (selectedNoteIds.current.size === 0) return;
-    commitState();
     
     // Voicing-Aware PCS Rotation
     const selectedEntries = Array.from(selectedNoteIds.current).map(id => {
@@ -299,9 +324,10 @@ const NotationCanvas: React.FC = () => {
 
     const totalDelta = delta * stepSize;
 
-    const updatedNotes = activeNotes.current.map((noteData) => {
+    const originalPitches = activeNotes.current.map(n => n.note);
+    const proposedPitches = activeNotes.current.map((noteData) => {
       const isSelected = selectedNoteIds.current.has(noteData.id);
-      if (!isSelected) return noteData;
+      if (!isSelected) return noteData.note;
 
       const note = noteData.note;
       const currentPC = note % 12;
@@ -319,9 +345,23 @@ const NotationCanvas: React.FC = () => {
         newNote--;
         while(newNote % 12 !== targetPC) { newNote--; }
       }
-      
-      const wrappedPitch = applyGlobalOctaveWrap([newNote])[0];
-      return { ...noteData, note: wrappedPitch, spellingOverride: pcOverrides[targetPC] };
+      return newNote;
+    });
+
+    const safePitches = enforcePianoRange(proposedPitches, originalPitches);
+    if (safePitches === originalPitches) {
+      return; // Blocked entirely!
+    }
+
+    commitState();
+
+    const updatedNotes = activeNotes.current.map((noteData) => {
+      const isSelected = selectedNoteIds.current.has(noteData.id);
+      if (!isSelected) return noteData;
+      const index = activeNotes.current.findIndex(n => n.id === noteData.id);
+      const note = safePitches[index];
+      const targetPC = note % 12;
+      return { ...noteData, note, spellingOverride: pcOverrides[targetPC] };
     });
 
     const uniqueNotes: typeof updatedNotes = [];
@@ -696,7 +736,7 @@ const NotationCanvas: React.FC = () => {
       if (refresh) {
         if (notes) {
           const itemPitches = notes.map((item: any) => typeof item === 'object' ? item.note : item);
-          const safePitches = applyGlobalOctaveWrap(itemPitches);
+          const safePitches = enforcePianoRange(itemPitches, []);
           activeNotes.current = safePitches.map((pitch: number) => {
             const existing = notes.find((item: any) => (typeof item === 'object' ? item.note : item) === pitch);
             if (existing && typeof existing === 'object' && existing.id) {

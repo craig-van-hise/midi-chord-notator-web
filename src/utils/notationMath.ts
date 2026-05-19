@@ -282,9 +282,9 @@ export function transposeDiatonically(currentStepOffset: number, delta: number, 
     if (targetPC === 11 && targetScaleStep === 0) targetOctave -= 1; // Cb correction (Cb4 -> MIDI B3)
     if (targetPC === 0 && targetScaleStep === 6) targetOctave += 1;  // B# correction (B#3 -> MIDI C4)
 
-    // Calculate final MIDI pitch and wrap to valid range using octave wrap
+    // Calculate final MIDI pitch
     const newMidiNote = ((targetOctave + 1) * 12) + targetPC;
-    return applyGlobalOctaveWrap([newMidiNote])[0];
+    return newMidiNote;
 }
 
 export function calculateWriteModePitch(
@@ -355,24 +355,24 @@ export function getNoteNameFromPosition(stepOffset: number, accidental: string |
     return letter + accStr;
 }
 
-export const applyGlobalOctaveWrap = (notes: number[]): number[] => {
-  const result = notes.map(note => {
-    let n = Number(note); // Guard against string coercion bugs
-    
-    // Catch NaN just in case the payload was corrupted
-    if (isNaN(n)) return null; 
-
-    // Standard Piano Range: A0 (21) to C8 (108)
-    while (n < 21) {
-      n += 12;
+export const enforcePianoRange = (proposedNotes: number[], originalNotes: number[]): number[] => {
+  // Check if ANY note in the proposed transformation falls off the 88-key piano
+  const isOutOfBounds = proposedNotes.some(n => {
+    const num = Number(n);
+    return isNaN(num) || num < 21 || num > 108;
+  });
+  
+  if (isOutOfBounds) {
+    // If transforming an existing chord, reject the shift entirely to preserve voicing
+    if (originalNotes.length > 0) {
+      return originalNotes;
     }
-    while (n > 108) {
-      n -= 12;
-    }
-    return n;
-  }).filter((n): n is number => n !== null); // Strip corrupted notes
-
-  // Deduplicate and sort cleanly
-  return Array.from(new Set(result)).sort((a, b) => a - b); 
+    // Fallback for fresh live inputs: just strip the impossible notes
+    const filtered = proposedNotes.map(n => Number(n)).filter(n => !isNaN(n) && n >= 21 && n <= 108);
+    return Array.from(new Set(filtered)).sort((a, b) => a - b);
+  }
+  
+  const cleaned = proposedNotes.map(n => Number(n)).filter(n => !isNaN(n));
+  return Array.from(new Set(cleaned)).sort((a, b) => a - b);
 };
 

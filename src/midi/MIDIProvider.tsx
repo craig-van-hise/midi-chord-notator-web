@@ -6,7 +6,7 @@ import type { PCS_Entry } from '../utils/chordSpeller';
 import { audioEngine } from '../audio/engine';
 import type { ButtonId, ButtonConfig, ButtonConfigMap, LearnState } from '../components/toolbar/TransformationsTypes';
 import { usePersistentState } from '../lib/usePersistentState';
-import { transposeDiatonically, applyGlobalOctaveWrap } from '../utils/notationMath';
+import { transposeDiatonically, enforcePianoRange } from '../utils/notationMath';
 
 interface MidiContextType {
   midiAccess: MIDIAccess | null;
@@ -82,25 +82,32 @@ function getTransformedPitches(
 
   const getNoteObj = (pitch: number) => activeNotes.find(n => n.note === pitch) || { note: pitch, stepOffset: 0 };
 
+  let proposed: number[] = [];
   switch (type) {
     case 'SEMI_UP':
-      return applyGlobalOctaveWrap(targets.map(p => p + stepSize));
+      proposed = targets.map(p => p + stepSize);
+      break;
     case 'SEMI_DOWN':
-      return applyGlobalOctaveWrap(targets.map(p => p - stepSize));
+      proposed = targets.map(p => p - stepSize);
+      break;
     case 'OCT_UP':
-      return applyGlobalOctaveWrap(targets.map(p => p + 12 * stepSize));
+      proposed = targets.map(p => p + 12 * stepSize);
+      break;
     case 'OCT_DOWN':
-      return applyGlobalOctaveWrap(targets.map(p => p - 12 * stepSize));
+      proposed = targets.map(p => p - 12 * stepSize);
+      break;
     case 'KEY_UP':
-      return applyGlobalOctaveWrap(targets.map(p => {
+      proposed = targets.map(p => {
         const obj = getNoteObj(p);
         return transposeDiatonically(obj.stepOffset, stepSize, keySignature);
-      }));
+      });
+      break;
     case 'KEY_DOWN':
-      return applyGlobalOctaveWrap(targets.map(p => {
+      proposed = targets.map(p => {
         const obj = getNoteObj(p);
         return transposeDiatonically(obj.stepOffset, -stepSize, keySignature);
-      }));
+      });
+      break;
     case 'ROT_UP':
     case 'ROT_DOWN': {
       const delta = type === 'ROT_UP' ? stepSize : -stepSize;
@@ -108,7 +115,7 @@ function getTransformedPitches(
       const pcs = Array.from(new Set(sortedEntries.map(p => p % 12))).sort((a, b) => a - b);
       if (pcs.length === 0) return targets;
 
-      const rotated = targets.map(note => {
+      proposed = targets.map(note => {
         const currentPC = note % 12;
         const currentPcsIndex = pcs.indexOf(currentPC);
         const nextPcsIndex = (currentPcsIndex + delta + (pcs.length * Math.abs(delta))) % pcs.length;
@@ -124,11 +131,14 @@ function getTransformedPitches(
         }
         return newNote;
       });
-      return applyGlobalOctaveWrap(rotated);
+      break;
     }
     default:
-      return applyGlobalOctaveWrap(targets);
+      proposed = targets;
+      break;
   }
+
+  return enforcePianoRange(proposed, targets);
 }
 
 export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -266,7 +276,7 @@ export const MIDIProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               selectedNotesRef.current, 
               keySignatureRef.current
             );
-            const safeNotes = applyGlobalOctaveWrap(transformedChord);
+            const safeNotes = transformedChord;
             
             const normalizedVelocity = velocity / 127;
             activeTransformationNotesRef.current.set(note, safeNotes);
