@@ -425,5 +425,54 @@ describe('chordSpeller Interval Parsing', () => {
       const spelling = getChordSpelling([62, 65, 69], "C Major", mockLut, undefined, 0);
       expect(spelling).toEqual(["D", "F", "A"]);
     });
+
+    it('TDD Checkpoint - Test Case 1: Tritone [64, 70] (E, Bb) in C Major', () => {
+      const mockLut = new Array(4096).fill(null);
+      // Tritone [64, 70] -> PCs [4, 10] -> Decimal 2^0 + 2^6 = 65 (rel to low note PC 4)
+      mockLut[65] = {
+          decimal: 65,
+          chord_type: "tritone",
+          root_pc: 0,
+          chord_intervals: ["1", "b5"],
+          base_triad: "other",
+          cardinality: 2,
+          pitch_class_set: [0, 6]
+      };
+      const spelling = getChordSpelling([64, 70], "C Major", mockLut, undefined, 0);
+      expect(spelling).toEqual(["E", "Bb"]);
+    });
+
+    it('TDD Checkpoint - Test Case 2: Diminished 7th [59, 62, 65, 68] (B, D, F, Ab) in C Major', () => {
+      const mockLut = new Array(4096).fill(null);
+      // Diminished 7th [59, 62, 65, 68] -> PCs [11, 2, 5, 8] -> rel to low note PC 11:
+      // (11-11)%12 = 0, (2-11+12)%12 = 3, (5-11+12)%12 = 6, (8-11+12)%12 = 9.
+      // Decimal: 2^0 + 2^3 + 2^6 + 2^9 = 1 + 8 + 64 + 512 = 585
+      mockLut[585] = {
+          decimal: 585,
+          chord_type: "dim7",
+          root_pc: 0,
+          chord_intervals: ["1", "b3", "b5", "bb7"],
+          base_triad: "dim",
+          cardinality: 4,
+          pitch_class_set: [0, 3, 6, 9]
+      };
+      const spelling = getChordSpelling([59, 62, 65, 68], "C Major", mockLut, undefined, 0);
+      expect(spelling).toEqual(["B", "D", "F", "Ab"]);
+    });
+
+    it('TDD Checkpoint - Test Case 3: Tritone [60, 66] (C, Gb) in Gb Major', () => {
+      const mockLut = new Array(4096).fill(null);
+      mockLut[65] = {
+          decimal: 65,
+          chord_type: "tritone",
+          root_pc: 0,
+          chord_intervals: ["1", "b5"],
+          base_triad: "other",
+          cardinality: 2,
+          pitch_class_set: [0, 6]
+      };
+      const spelling = getChordSpelling([60, 66], "Gb Major", mockLut, undefined, 6);
+      expect(spelling).toEqual(["C", "Gb"]);
+    });
   });
 });

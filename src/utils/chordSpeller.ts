@@ -295,7 +295,28 @@ export function getChordSpelling(notes: any[], keySignature: string = "C Major",
             }
         }
 
-        let psRootName = getRootSpellingFromKey(sortedPitches, keySigPC, lut, overrideRootPc);
+        let psRootName: string = "";
+        let spellingResolved = false;
+        if (symIntervals && overrideRootPc !== undefined) {
+            try {
+                const rootPitchVal = sortedPitches.find(p => p % 12 === overrideRootPc);
+                const rootMidi = rootPitchVal !== undefined ? rootPitchVal : (60 + overrideRootPc);
+                const { stepOffset, accidental } = getEnharmonicSpelling(rootMidi, keySignature);
+                const letter = DIATONIC_NAMES[((stepOffset % 7) + 7) % 7];
+                let acc = "";
+                if (accidental === SMuFL.accidentalSharp) acc = "#";
+                else if (accidental === SMuFL.accidentalDoubleSharp) acc = "x";
+                else if (accidental === SMuFL.accidentalFlat) acc = "b";
+                else if (accidental === SMuFL.accidentalDoubleFlat) acc = "bb";
+                psRootName = letter + acc;
+                spellingResolved = true;
+            } catch (e) {
+                // Fall back to getRootSpellingFromKey
+            }
+        }
+        if (!spellingResolved) {
+            psRootName = getRootSpellingFromKey(sortedPitches, keySigPC, lut, overrideRootPc);
+        }
         const absoluteRootPC = overrideRootPc !== undefined ? overrideRootPc : ((entry.root_pc + lowPitch) % 12);
         const rootPitch = sortedPitches.find(p => p % 12 === absoluteRootPC);
 
